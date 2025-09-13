@@ -11,12 +11,12 @@
   ],
   "routes": [
     {
-      "src": "^/static/(.*)",
-      "dest": "/frontend/static/$1"
-    },
-    {
       "src": "^/assets/(.*)",
       "dest": "/frontend/assets/$1"
+    },
+    {
+      "src": "^/static/(.*)",
+      "dest": "/frontend/static/$1"
     },
     {
       "src": "^/favicon.ico",
@@ -32,8 +32,13 @@
     },
     {
       "src": "^/(.*)",
-      "status": 200,
       "dest": "/frontend/index.html"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/frontend/index.html"
     }
   ]
 }
