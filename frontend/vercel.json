@@ -19,8 +19,19 @@
       "dest": "/favicon.ico"
     },
     {
+      "src": "/_next/static/(.*)",
+      "dest": "/_next/static/$1"
+    },
+    {
       "src": "/(.*)",
+      "status": 200,
       "dest": "/index.html"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
