@@ -5,26 +5,28 @@
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "dist"
+        "distDir": "dist",
+        "runtime": "nodejs18.x"
       }
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/assets/(.*)",
-      "destination": "/assets/$1"
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1"
     },
     {
-      "source": "/favicon.ico",
-      "destination": "/favicon.ico"
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
     },
     {
-      "source": "/_next/static/(.*)",
-      "destination": "/_next/static/$1"
+      "src": "/favicon.ico",
+      "dest": "/favicon.ico"
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "/(.*)",
+      "status": 200,
+      "dest": "/index.html"
     }
   ]
 }

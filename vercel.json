@@ -11,11 +11,28 @@
   ],
   "routes": [
     {
-      "src": "/assets/(.*)",
+      "src": "^/static/(.*)",
+      "dest": "/frontend/static/$1"
+    },
+    {
+      "src": "^/assets/(.*)",
       "dest": "/frontend/assets/$1"
     },
     {
-      "src": "/(.*)",
+      "src": "^/favicon.ico",
+      "dest": "/frontend/favicon.ico"
+    },
+    {
+      "src": "^/manifest.json",
+      "dest": "/frontend/manifest.json"
+    },
+    {
+      "src": "^/robots.txt",
+      "dest": "/frontend/robots.txt"
+    },
+    {
+      "src": "^/(.*)",
+      "status": 200,
       "dest": "/frontend/index.html"
     }
   ]
