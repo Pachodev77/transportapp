@@ -1,0 +1,109 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Development mode flag - set to false for production
+    function isDevelopment() {
+      return request.time < timestamp.date(2025, 12, 31);
+    }
+
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Users collection rules
+    match /users/{userId} {
+      // Allow users to read their own document
+      allow read: if isDevelopment() || (isAuthenticated() && request.auth.uid == userId);
+      
+      // Allow users to create their own document with basic validation
+      allow create: if isDevelopment() || 
+                   (isAuthenticated() && 
+                    request.auth.uid == userId &&
+                    request.resource.data.email == request.auth.token.email);
+      
+      // Allow users to update their own document
+      allow update: if isDevelopment() || 
+                   (isAuthenticated() && 
+                    request.auth.uid == userId &&
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'lastLogin', 'updatedAt']));
+      
+      // Prevent users from deleting their own document through the app
+      allow delete: if false;
+    }
+    
+    // Development mode - temporarily allow all access to trips
+    match /trips/{tripId} {
+      allow read, write: if true; // Temporary rule for debugging
+    }
+    
+    // Final production rules (commented out for now)
+    /*
+    match /trips/{tripId} {
+      // Allow read if authenticated and you're the driver or passenger
+      allow get: if isAuthenticated() && 
+                (request.auth.uid == resource.data.driverId || 
+                 request.auth.uid == resource.data.passengerId);
+      
+      // Allow list if authenticated and querying by driverId
+      allow list: if isAuthenticated() && 
+                 request.auth.uid == request.query.limitToFirst.driverId;
+      
+      // Allow create if authenticated and the trip is properly formed
+      allow create: if isAuthenticated() && 
+                   request.resource.data.driverId == request.auth.uid &&
+                   request.resource.data.status in ['requested', 'accepted', 'in_progress'];
+      
+      // Allow updates to status by driver
+      allow update: if isAuthenticated() && 
+                   resource.data.driverId == request.auth.uid &&
+                   request.resource.data.status == 'completed';
+      
+      // Allow delete only by the driver
+      allow delete: if isAuthenticated() && 
+                   resource.data.driverId == request.auth.uid;
+    }
+    */
+    
+    // Ride requests collection rules (for backward compatibility)
+    match /rideRequests/{requestId} {
+      // Allow reading specific documents if you're the passenger or driver
+      allow get: if isDevelopment() || 
+                (isAuthenticated() && 
+                 (request.auth.uid == resource.data.passengerId || 
+                  request.auth.uid == resource.data.driverId));
+      
+      // Allow querying all pending ride requests for drivers
+      allow list: if isDevelopment() || 
+                 (isAuthenticated() && 
+                  request.query.limit != null &&
+                  request.query.where['status'].stringValue == 'pending');
+      
+      // Allow create if authenticated and the request is properly formed
+      allow create: if isDevelopment() || 
+                   (isAuthenticated() && 
+                    request.resource.data.passengerId == request.auth.uid &&
+                    request.resource.data.status == 'pending' &&
+                    request.resource.data.origin is map &&
+                    request.resource.data.destination is map);
+      
+      // Allow updates to status by both passenger and driver
+      allow update: if isDevelopment() || 
+                   (isAuthenticated() &&
+                    (request.auth.uid == resource.data.passengerId || 
+                     request.auth.uid == resource.data.driverId));
+      allow delete: if isDevelopment() || 
+        (isAuthenticated() && resource.data.passengerId == request.auth.uid);
+    }
+    
+    // Users collection rules
+    match /users/{userId} {
+      // Public read access
+      allow read: if true;
+      
+      // More permissive write in development
+      allow create, update: if isDevelopment() || 
+        (isAuthenticated() && isOwner(userId));
+    }
+  }
+}

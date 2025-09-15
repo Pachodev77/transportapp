@@ -1,86 +1,222 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../index.css';
+import { FaCar, FaSearch, FaShieldAlt, FaMoneyBillWave } from 'react-icons/fa';
+import { useAuth } from '../contexts/AuthContext';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
 
 function LandingPage() {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  
+  const updateUserRole = useCallback(async (newRole) => {
+    if (!currentUser) return;
+    
+    try {
+      const userRef = doc(db, 'users', currentUser.uid);
+      await updateDoc(userRef, {
+        role: newRole,
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Optional: Show a success message or update UI
+      console.log(`User role updated to ${newRole}`);
+    } catch (error) {
+      console.error('Error updating user role:', error);
+    }
+  }, [currentUser]);
 
-  const containerStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '100vh',
-    backgroundColor: '#f5f5f5',
-    padding: '20px',
-    textAlign: 'center',
-  };
-
-  const titleStyle = {
-    fontSize: '2.5rem',
-    color: '#333',
-    marginBottom: '2rem',
-  };
-
-  const buttonContainer = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px',
-    marginTop: '20px',
-    width: '100%',
-    maxWidth: '300px',
-  };
-
-  const buttonStyle = (color) => ({
-    padding: '15px 30px',
-    fontSize: '1.2rem',
-    borderRadius: '8px',
-    border: 'none',
-    backgroundColor: color,
-    color: 'white',
-    cursor: 'pointer',
-    transition: 'transform 0.2s, box-shadow 0.2s',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-    ':hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 6px 8px rgba(0, 0, 0, 0.15)',
+  const features = [
+    {
+      icon: <FaSearch className="w-8 h-8 text-blue-600 mb-4" />,
+      title: 'Soy pasajero',
+      description: 'Encuentra viajes disponibles en tiempo real y viaja cómodamente'
     },
-  });
+    {
+      icon: <FaCar className="w-8 h-8 text-green-600 mb-4" />,
+      title: 'Soy conductor',
+      description: 'Comparte tu viaje y ayuda a otros a llegar a su destino'
+    },
+    {
+      icon: <FaMoneyBillWave className="w-8 h-8 text-yellow-600 mb-4" />,
+      title: 'Ahorra dinero',
+      description: 'Divide los costos del viaje con otros pasajeros'
+    },
+    {
+      icon: <FaShieldAlt className="w-8 h-8 text-red-600 mb-4" />,
+      title: 'Viaja seguro',
+      description: 'Perfiles verificados y sistema de valoraciones'
+    }
+  ];
+
+  const steps = [
+    {
+      number: '1',
+      title: 'Crea tu cuenta',
+      description: 'Regístrate en segundos con tu correo o redes sociales'
+    },
+    {
+      number: '2',
+      title: 'Elige tu rol',
+      description: 'Selecciona si eres conductor o pasajero'
+    },
+    {
+      number: '3',
+      title: 'Conecta y viaja',
+      description: 'Coordina los detalles y disfruta del viaje'
+    }
+  ];
 
   return (
-    <div style={containerStyle}>
-      <h1 style={titleStyle}>Bienvenido a Nuestro Servicio de Transporte</h1>
-      <p style={{ fontSize: '1.2rem', marginBottom: '2rem', color: '#555' }}>
-        ¿Cómo te gustaría continuar?
-      </p>
-      <div style={buttonContainer}>
-        <button 
-          onClick={() => navigate('/driver')} 
-          style={buttonStyle('#2ecc71')}
-        >
-          Soy Conductor
-        </button>
-        <button 
-          onClick={() => navigate('/passenger')} 
-          style={buttonStyle('#3498db')}
-        >
-          Soy Pasajero
-        </button>
-        <div style={{ marginTop: '10px', textAlign: 'center' }}>
-          <span style={{ color: '#666', marginRight: '5px' }}>¿Ya tienes una cuenta?</span>
-          <button 
+    <div className="bg-white">
+      {/* Navbar is already included in the Layout component */}
+      {/* Hero Section */}
+      <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          <div className="relative z-10 pb-8 bg-transparent sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32">
+            <main className="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
+              <div className="sm:text-center lg:text-left">
+                <h1 className="text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl">
+                  <span className="block">Viaja de forma</span>
+                  <span className="block text-blue-200">segura y económica</span>
+                </h1>
+                <p className="mt-3 text-base text-blue-100 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
+                  Conectamos conductores con pasajeros que van en la misma dirección. Ahorra dinero, reduce la huella de carbono y viaja cómodamente.
+                </p>
+                <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
+                  <div className="rounded-md shadow">
+                    <button
+                      onClick={() => navigate(currentUser ? '/passenger' : '/login', { state: { role: 'passenger' } })}
+                      className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 md:py-4 md:text-lg md:px-10"
+                    >
+                      Soy pasajero
+                    </button>
+                  </div>
+                  <div className="mt-3 sm:mt-0 sm:ml-3">
+                    <button
+                      onClick={() => {
+                        if (currentUser) {
+                          // If user is logged in, update their role to driver
+                          updateUserRole('driver');
+                          navigate('/driver');
+                        } else {
+                          // If not logged in, pass the role to the login page
+                          navigate('/login', { 
+                            state: { 
+                              role: 'driver',
+                              from: '/driver' 
+                            } 
+                          });
+                        }
+                      }}
+                      className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 md:py-4 md:text-lg md:px-10"
+                    >
+                      Soy conductor
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+        <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2">
+          <img
+            className="h-56 w-full object-cover sm:h-72 md:h-96 lg:w-full lg:h-full"
+            src="https://images.unsplash.com/photo-1551434678-e076c223a692?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=2850&q=80"
+            alt="Personas viajando en auto"
+          />
+        </div>
+      </div>
+
+      {/* Features */}
+      <div className="py-12 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="lg:text-center">
+            <h2 className="text-base text-blue-600 font-semibold tracking-wide uppercase">Características</h2>
+            <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+              Una mejor manera de viajar
+            </p>
+            <p className="mt-4 max-w-2xl text-xl text-gray-500 lg:mx-auto">
+              TransportApp hace que viajar sea más fácil, económico y ecológico.
+            </p>
+          </div>
+
+          <div className="mt-10">
+            <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
+              {features.map((feature, index) => (
+                <div key={index} className="pt-6">
+                  <div className="flow-root bg-gray-50 rounded-lg px-6 pb-8">
+                    <div className="-mt-6">
+                      <div>
+                        <span className="inline-flex items-center justify-center p-3 bg-blue-500 rounded-md shadow-lg">
+                          {feature.icon}
+                        </span>
+                      </div>
+                      <h3 className="mt-8 text-lg font-medium text-gray-900 tracking-tight">{feature.title}</h3>
+                      <p className="mt-5 text-base text-gray-500">
+                        {feature.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* How it works */}
+      <div className="bg-gray-50 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="lg:text-center">
+            <h2 className="text-base text-blue-600 font-semibold tracking-wide uppercase">¿Cómo funciona?</h2>
+            <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+              Empieza a viajar en 3 sencillos pasos
+            </p>
+          </div>
+
+          <div className="mt-10">
+            <div className="relative">
+              <div className="absolute top-0 h-full w-6 inset-0 left-1/2 transform -translate-x-1/2 bg-blue-500 rounded-full md:hidden"></div>
+              <div className="space-y-6 md:space-y-0 md:grid md:grid-cols-3 md:gap-6 lg:gap-8">
+                {steps.map((step, index) => (
+                  <div key={index} className="relative md:flex md:flex-col">
+                    <div className="flex items-center">
+                      <div className="flex items-center justify-center h-12 w-12 rounded-full bg-blue-500 text-white text-xl font-bold z-10">
+                        {step.number}
+                      </div>
+                      <h3 className="ml-4 text-lg leading-6 font-medium text-gray-900 md:mt-4">
+                        {step.title}
+                      </h3>
+                    </div>
+                    <div className="mt-2 ml-16 md:ml-0 md:mt-4">
+                      <p className="text-base text-gray-500">
+                        {step.description}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* CTA Section */}
+      <div className="bg-blue-700">
+        <div className="max-w-2xl mx-auto text-center py-16 px-4 sm:py-20 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
+            <span className="block">¿Listo para empezar?</span>
+            <span className="block">Únete a nuestra comunidad hoy mismo.</span>
+          </h2>
+          <p className="mt-4 text-lg leading-6 text-blue-200">
+            Miles de personas ya están ahorrando dinero y viajando de forma más inteligente con TransportApp.
+          </p>
+          <button
             onClick={() => navigate('/login')}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#3498db',
-              textDecoration: 'underline',
-              cursor: 'pointer',
-              padding: '5px',
-              fontSize: '1rem',
-            }}
+            className="mt-8 w-full inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50 sm:w-auto"
           >
-            Iniciar Sesión
+            Comenzar ahora
           </button>
         </div>
       </div>

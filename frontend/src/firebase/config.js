@@ -1,9 +1,10 @@
-// Importa las funciones necesarias de Firebase
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
   GoogleAuthProvider, 
-  FacebookAuthProvider 
+  FacebookAuthProvider,
+  setPersistence,
+  browserLocalPersistence
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -31,20 +32,34 @@ const firebaseConfig = {
   measurementId: "G-HQ0VQ56HPB"
 };
 
-// Inicializa Firebase
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Inicializa los servicios de Firebase
+// Initialize services with error handling
 export const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence).catch((error) => {
+  console.error('Error setting auth persistence:', error);
+});
+
 export const db = getFirestore(app);
 
-// Proveedores de autenticación
+// Initialize providers with additional scopes if needed
 export const googleProvider = new GoogleAuthProvider();
-export const facebookProvider = new FacebookAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account',
+  login_hint: 'user@example.com'
+});
 
-// Funciones de Firestore
-const usersCollection = collection(db, 'users');
-const tripsCollection = collection(db, 'trips');
+export const facebookProvider = new FacebookAuthProvider();
+facebookProvider.setCustomParameters({
+  'display': 'popup',
+  'auth_type': 'reauthenticate'
+});
+
+// Firestore collections
+export const usersCollection = collection(db, 'users');
+export const tripsCollection = collection(db, 'trips');
+export const bookingsCollection = collection(db, 'bookings');
 
 // Obtener usuario por ID
 export const getUser = async (userId) => {

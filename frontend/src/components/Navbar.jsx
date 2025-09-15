@@ -1,0 +1,204 @@
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { FaCar, FaUser, FaSignOutAlt, FaBars } from 'react-icons/fa';
+
+export default function Navbar() {
+  const { currentUser, logout } = useAuth();
+  const [isOpen, setIsOpen] = React.useState(false);
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
+  };
+
+  return (
+    <nav className="bg-white shadow-lg">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex items-center">
+            <Link to="/" className="flex-shrink-0 flex items-center">
+              <FaCar className="h-8 w-8 text-blue-600" />
+              <span className="ml-2 text-xl font-bold text-gray-900">TransportApp</span>
+            </Link>
+            <div className="hidden md:ml-6 md:flex md:space-x-8">
+              <Link
+                to="/"
+                className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+              >
+                Inicio
+              </Link>
+              {currentUser && (
+                <Link
+                  to={currentUser.role === 'driver' ? '/driver' : '/passenger'}
+                  className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                >
+                  {currentUser.role === 'driver' ? 'Mis Viajes' : 'Buscar Viaje'}
+                </Link>
+              )}
+            </div>
+          </div>
+          
+          <div className="hidden md:ml-6 md:flex md:items-center">
+            {currentUser ? (
+              <div className="ml-3 relative">
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-700">
+                    Hola, {currentUser.displayName || currentUser.email}
+                  </span>
+                  <div className="relative group">
+                    <button 
+                      className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      onClick={() => setIsOpen(!isOpen)}
+                    >
+                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
+                        <FaUser className="h-5 w-5" />
+                      </div>
+                    </button>
+                    {isOpen && (
+                      <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                        <Link
+                          to="/profile"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          Mi perfil
+                        </Link>
+                        <button
+                          onClick={handleLogout}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                        >
+                          <FaSignOutAlt className="mr-2" />
+                          Cerrar sesión
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-4">
+                <Link
+                  to="/login"
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium"
+                  state={{ from: window.location.pathname }}
+                >
+                  Iniciar sesión
+                </Link>
+                <Link
+                  to="/login"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+                  state={{ from: window.location.pathname, register: true }}
+                >
+                  Registrarse
+                </Link>
+              </div>
+            )}
+          </div>
+          
+          {/* Mobile menu button */}
+          <div className="-mr-2 flex items-center md:hidden">
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+            >
+              <span className="sr-only">Abrir menú principal</span>
+              <FaBars className="block h-6 w-6" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile menu */}
+      {isOpen && (
+        <div className="md:hidden">
+          <div className="pt-2 pb-3 space-y-1">
+            <Link
+              to="/"
+              className="border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
+              onClick={() => setIsOpen(false)}
+            >
+              Inicio
+            </Link>
+            {currentUser && (
+              <Link
+                to={currentUser.role === 'driver' ? '/driver' : '/passenger'}
+                className="border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
+                onClick={() => setIsOpen(false)}
+              >
+                {currentUser.role === 'driver' ? 'Mis Viajes' : 'Buscar Viaje'}
+              </Link>
+            )}
+          </div>
+          <div className="pt-4 pb-3 border-t border-gray-200">
+            {currentUser ? (
+              <div className="flex items-center px-4">
+                <div className="flex-shrink-0">
+                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
+                    <FaUser className="h-6 w-6" />
+                  </div>
+                </div>
+                <div className="ml-3">
+                  <div className="text-base font-medium text-gray-800">
+                    {currentUser.displayName || currentUser.email}
+                  </div>
+                  <div className="text-sm font-medium text-gray-500">
+                    {currentUser.role === 'driver' ? 'Conductor' : 'Pasajero'}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 px-4">
+                <Link
+                  to="/login"
+                  className="w-full flex justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  state={{ from: window.location.pathname }}
+                  onClick={() => setIsOpen(false)}
+                >
+                  Iniciar sesión
+                </Link>
+                <p className="text-center text-sm text-gray-500">
+                  ¿No tienes cuenta?{' '}
+                  <Link
+                    to="/login"
+                    className="font-medium text-blue-600 hover:text-blue-500"
+                    state={{ from: window.location.pathname, register: true }}
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Regístrate
+                  </Link>
+                </p>
+              </div>
+            )}
+            {currentUser && (
+              <div className="mt-3 space-y-1">
+                <Link
+                  to="/profile"
+                  className="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Mi perfil
+                </Link>
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setIsOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 flex items-center"
+                >
+                  <FaSignOutAlt className="mr-2" />
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </nav>
+  );
+}
