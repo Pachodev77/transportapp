@@ -11,34 +11,20 @@
   ],
   "routes": [
     {
-      "src": "^/assets/(.*)",
-      "dest": "/frontend/assets/$1"
+      "src": "/_next/static/(.*)",
+      "dest": "/_next/static/$1"
     },
     {
-      "src": "^/static/(.*)",
-      "dest": "/frontend/static/$1"
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
     },
     {
-      "src": "^/favicon.ico",
-      "dest": "/frontend/favicon.ico"
+      "src": "/(.*).(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)",
+      "dest": "/$1.$2"
     },
     {
-      "src": "^/manifest.json",
-      "dest": "/frontend/manifest.json"
-    },
-    {
-      "src": "^/robots.txt",
-      "dest": "/frontend/robots.txt"
-    },
-    {
-      "src": "^/(.*)",
-      "dest": "/frontend/index.html"
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/frontend/index.html"
+      "src": "^/(.*)$",
+      "dest": "/index.html"
     }
   ]
 }
