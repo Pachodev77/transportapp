@@ -1,10 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import { FaCar, FaMapMarkerAlt, FaClock, FaUser, FaMoneyBillWave, FaStar, FaPlus, FaCheck, FaTimes } from 'react-icons/fa';
-import { collection, query, where, getDocs, getDoc, addDoc, updateDoc, doc, onSnapshot, orderBy } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { FaCar, FaMapMarkerAlt, FaClock, FaUser, FaMoneyBillWave, FaStar, FaPlus, FaCheck, FaTimes, FaSpinner } from 'react-icons/fa';
 import { useAuth } from '../contexts/AuthContext';
+import { 
+  getAvailableTrips, 
+  getUserTrips, 
+  acceptTrip, 
+  updateTripStatus, 
+  createTrip, 
+  subscribeToTripUpdates,
+  subscribeToAvailableTrips
+} from '../firebase/config';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -149,126 +156,86 @@ export default function Driver() {
     }
   }, [acceptedTrip]);
 
-  // Fetch available ride requests and handle initial map centering
+  // Fetch available trips and subscribe to updates
   useEffect(() => {
     if (!currentUser) return;
-    
-    // If we have an accepted trip from localStorage, center the map on it
-    const savedTrip = localStorage.getItem('acceptedTrip');
-    if (savedTrip) {
-      const trip = JSON.parse(savedTrip);
-      if (trip?.origin) {
-        // Small delay to ensure map is ready
-        const timer = setTimeout(() => {
-          if (mapRef.current) {
-            const { lat, lng } = trip.origin;
-            mapRef.current.flyTo([lat, lng], 15, {
-              animate: true,
-              duration: 1.5,
-              easeLinearity: 0.5
-            });
-          }
-        }, 500);
-        return () => clearTimeout(timer);
-      }
+
+    // Load saved trip from localStorage if exists
+    const savedTrip = JSON.parse(localStorage.getItem('acceptedTrip'));
+    if (savedTrip?.origin) {
+      setAcceptedTrip(savedTrip);
+      // Center map on saved trip location
+      setTimeout(() => {
+        const { lat, lng } = savedTrip.origin;
+        centerMapOnLocation(lat, lng);
+      }, 500);
     }
-    
-    const q = query(
-      collection(db, 'rideRequests'),
-      where('status', '==', 'pending'),
-      orderBy('createdAt', 'desc')
-    );
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const requests = [];
-      snapshot.forEach((doc) => {
-        requests.push({ id: doc.id, ...doc.data() });
-      });
-      setAvailableTrips(requests);
-    });
-    
-    return () => unsubscribe();
-  }, [currentUser]);
-  
-  // Fetch all trips and handle filtering locally
-  useEffect(() => {
-    if (!currentUser) return;
-    
-    console.log('=== Setting up Firestore listeners ===');
-    console.log('User ID:', currentUser.uid);
-    
-    // Query for trips where the current user is the driver
-    const tripsQuery = query(
-      collection(db, 'trips'),
-      where('driverId', '==', currentUser.uid),
-      orderBy('createdAt', 'desc')
-    );
-    
-    console.log('Setting up trips query for driver:', currentUser.uid);
-    
-    // Listen for changes to trips
-    const unsubscribeTrips = onSnapshot(tripsQuery, 
-      (snapshot) => {
-        const allTrips = [];
-        snapshot.forEach((doc) => {
-          allTrips.push({ id: doc.id, ...doc.data() });
-        });
-        
-        // Split into active and completed trips
-        const activeTrips = allTrips.filter(trip => 
-          ['requested', 'accepted', 'in_progress'].includes(trip.status)
-        );
-        
-        const completedTrips = allTrips.filter(trip => 
-          trip.status === 'completed'
-        );
-        
-        console.log('=== Trips update ===');
-        console.log('Active trips:', activeTrips.length);
-        console.log('Completed trips:', completedTrips.length);
-        
-        // Update state
-        setMyTrips(activeTrips);
-        setTripHistory(completedTrips);
+
+    // Subscribe to real-time updates for available trips
+    const unsubscribeTrips = subscribeToAvailableTrips(
+      (trips) => {
+        setAvailableTrips(trips);
       },
       (error) => {
-        console.error('Error fetching trips:', error);
+        console.error('Error fetching available trips:', error);
       }
     );
+
+    return () => {
+      if (typeof unsubscribeTrips === 'function') {
+        unsubscribeTrips();
+      }
+    };
+  }, [currentUser]);
+
+  // Fetch user's trips (both active and history)
+  useEffect(() => {
+    if (!currentUser) return;
     
-    // Also check rideRequests collection for backward compatibility
-    const rideRequestsQuery = query(
-      collection(db, 'rideRequests'),
-      where('driverId', '==', currentUser.uid),
-      where('status', '==', 'accepted')
-    );
-    
-    const unsubscribeRideRequests = onSnapshot(rideRequestsQuery, 
-      (snapshot) => {
-        const requests = [];
-        snapshot.forEach((doc) => {
-          requests.push({ id: doc.id, ...doc.data() });
-        });
+    const fetchUserTrips = async () => {
+      try {
+        setLoading(true);
+        const [activeTrips, historyTrips] = await Promise.all([
+          getUserTrips(currentUser.uid, false), // Active trips
+          getUserTrips(currentUser.uid, true)   // History trips
+        ]);
         
-        if (requests.length > 0) {
-          setMyTrips(prev => {
-            // Filter out any existing trips with the same ID
-            const existingIds = new Set(prev.map(trip => trip.id));
-            const newTrips = requests.filter(trip => !existingIds.has(trip.id));
-            return [...prev, ...newTrips];
-          });
+        setMyTrips(activeTrips);
+        setTripHistory(historyTrips);
+      } catch (error) {
+        console.error('Error fetching user trips:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchUserTrips();
+    
+    // Subscribe to real-time updates for active trips
+    const unsubscribe = subscribeToTripUpdates(
+      currentUser.uid,
+      (trips) => {
+        setMyTrips(trips.filter(trip => trip.status !== 'completed' && trip.status !== 'cancelled'));
+        // Update acceptedTrip if it's one of the updated trips
+        if (acceptedTrip) {
+          const updatedTrip = trips.find(t => t.id === acceptedTrip.id);
+          if (updatedTrip) {
+            setAcceptedTrip(updatedTrip);
+            localStorage.setItem('acceptedTrip', JSON.stringify(updatedTrip));
+          }
         }
       },
       (error) => {
-        console.error('Error fetching ride requests:', error);
+        console.error('Error subscribing to trip updates:', error);
       }
     );
     
     return () => {
-      unsubscribeTrips();
-      unsubscribeRideRequests();
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
     };
-  }, [currentUser]);
+  }, [currentUser, acceptedTrip]);
 
   const handleLocationSelect = (latlng) => {
     if (!origin) {
@@ -288,27 +255,32 @@ export default function Driver() {
 
   const handleCreateTrip = async (e) => {
     e.preventDefault();
+    
     if (!origin || !destination) {
-      alert('Por favor selecciona origen y destino en el mapa');
+      alert('Por favor selecciona origen y destino');
       return;
     }
     
-    setLoading(true);
     try {
-      const newTrip = {
-        driverId: currentUser.uid,
-        driverName: currentUser.displayName,
+      setLoading(true);
+      
+      // Create a new trip using our createTrip function
+      await createTrip({
         origin,
         destination,
-        ...tripDetails,
-        status: 'available',
-        createdAt: new Date().toISOString(),
-        passengers: []
-      };
+        status: 'searching',
+        driverId: currentUser.uid,
+        driverName: currentUser.displayName || 'Conductor',
+        driverPhoto: currentUser.photoURL || '',
+        price: tripDetails.price || 0,
+        availableSeats: tripDetails.availableSeats || 1,
+        carModel: tripDetails.carModel || '',
+        carPlate: tripDetails.carPlate || '',
+        estimatedDuration: tripDetails.estimatedDuration || '',
+        departureTime: tripDetails.departureTime || new Date().toISOString()
+      });
       
-      await addDoc(collection(db, 'trips'), newTrip);
-      
-      // Reset form
+      // Reset the form
       setOrigin(null);
       setDestination(null);
       setTripDetails({
@@ -320,11 +292,11 @@ export default function Driver() {
         estimatedDuration: ''
       });
       
-      alert('¡Viaje creado exitosamente!');
-      setActiveTab('my-trips');
+      alert('¡Viaje creado con éxito!');
+      
     } catch (error) {
-      console.error('Error creating trip: ', error);
-      alert('Error al crear el viaje. Por favor intenta de nuevo.');
+      console.error('Error creating trip:', error);
+      alert(error.message || 'Error al crear el viaje. Por favor, inténtalo de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -341,198 +313,54 @@ export default function Driver() {
     }
   }, [acceptedTrip]);
 
-  const handleAcceptTrip = async (tripId) => {
-    if (!currentUser) return;
-    
-    try {
-      setLoading(true);
-      
-      // Find the trip in availableTrips
-      const tripToAccept = availableTrips.find(trip => trip.id === tripId);
-      if (!tripToAccept) {
-        throw new Error('No se encontró el viaje seleccionado');
-      }
-      
-      // Ensure we have valid origin coordinates
-      if (!tripToAccept.origin || typeof tripToAccept.origin.lat !== 'number' || typeof tripToAccept.origin.lng !== 'number') {
-        console.error('Invalid trip origin coordinates:', tripToAccept.origin);
-        throw new Error('El viaje no tiene una ubicación de origen válida');
-      }
-      
-      // Store the accepted trip with a new reference to ensure state update
-      const newAcceptedTrip = {
-        ...tripToAccept,
-        origin: {
-          lat: parseFloat(tripToAccept.origin.lat),
-          lng: parseFloat(tripToAccept.origin.lng),
-          name: tripToAccept.origin.name || 'Origen'
-        }
-      };
-      
-      setAcceptedTrip(newAcceptedTrip);
-      console.log('Trip accepted, updating state with:', newAcceptedTrip);
-      
-      // Force center the map on the passenger's location
-      const { lat, lng } = newAcceptedTrip.origin;
-      centerMapOnLocation(lat, lng);
-      
-      // Create a new trip in the trips collection
-      const tripData = {
-        ...tripToAccept,
-        status: 'accepted',
-        driverId: currentUser.uid,
-        driverName: currentUser.displayName || 'Conductor',
-        passengerId: tripToAccept.passengerId,
-        passengerName: tripToAccept.passengerName,
-        origin: tripToAccept.origin,
-        destination: tripToAccept.destination,
-        price: tripToAccept.price || 0,
-        passengers: tripToAccept.passengers || 1,
-        departureTime: tripToAccept.departureTime || new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      
-      // Add to trips collection
-      await addDoc(collection(db, 'trips'), tripData);
-      
-      // Update the ride request status to 'accepted'
-      const requestRef = doc(db, 'rideRequests', tripId);
-      await updateDoc(requestRef, {
-        status: 'accepted',
-        driverId: currentUser.uid,
-        driverName: currentUser.displayName || 'Conductor',
-        updatedAt: new Date().toISOString()
-      });
-      
-      // Remove from available trips
-      setAvailableTrips(prev => prev.filter(trip => trip.id !== tripId));
-      
-      alert('¡Has aceptado el viaje exitosamente! Dirígete a la ubicación del pasajero.');
-      setActiveTab('my-trips');
-      
-    } catch (error) {
-      console.error('Error accepting trip:', error);
-      alert('Error al aceptar el viaje. Por favor, inténtalo de nuevo.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleCompleteTrip = async (tripId) => {
-    console.log('=== [handleCompleteTrip] Starting ===');
-    console.log('Trip ID:', tripId);
-    console.log('Current myTrips:', myTrips);
-    
     if (!tripId) {
-      const errorMsg = 'No trip ID provided for completion';
-      console.error(errorMsg);
+      console.error('No trip ID provided for completion');
       alert('No se pudo identificar el viaje a completar');
       return;
     }
-    
+
+    // Find the trip in active trips
     const tripToComplete = myTrips.find(trip => trip.id === tripId);
     
     if (!tripToComplete) {
-      const errorMsg = `Trip ${tripId} not found in active trips`;
-      console.error(errorMsg);
+      console.error(`Trip ${tripId} not found in active trips`);
       console.log('Available trip IDs:', myTrips.map(t => t.id));
       alert('No se pudo encontrar el viaje activo para completar');
       return;
     }
     
-    console.log('Trip to complete found:', tripToComplete);
+    if (!window.confirm('¿Estás seguro de que deseas marcar este viaje como completado?')) {
+      return;
+    }
     
-    // Create a copy of the trip with updated status
-    const completedTrip = {
-      ...tripToComplete,
-      status: 'completed',
-      updatedAt: new Date().toISOString(),
-      completedAt: new Date().toISOString()
-    };
-
     try {
       setLoading(true);
-      console.log('Starting trip completion process...');
       
-      // Try to find the trip in the 'trips' collection
-      let tripRef = doc(db, 'trips', tripId);
-      let tripDoc = await getDoc(tripRef);
-      let collectionName = 'trips';
+      // Update the trip status to completed
+      await updateTripStatus(tripId, 'completed');
       
-      // If not found in 'trips', try 'rideRequests' collection
-      if (!tripDoc.exists()) {
-        console.log(`Trip not found in 'trips' collection, checking 'rideRequests'...`);
-        collectionName = 'rideRequests';
-        tripRef = doc(db, 'rideRequests', tripId);
-        tripDoc = await getDoc(tripRef);
-        
-        if (!tripDoc.exists()) {
-          const errorMsg = `Trip ${tripId} not found in either collection`;
-          console.error(errorMsg);
-          throw new Error('El viaje no existe en la base de datos');
-        }
-      }
-      
-      console.log(`Found trip in collection: ${collectionName}/${tripId}`);
-      console.log('Current trip data:', tripDoc.data());
-      
-      // Prepare update data
-      const updateData = {
-        status: 'completed',
-        updatedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString()
-      };
-      
-      console.log('Attempting to update with data:', updateData);
-      
-      // Update the document
-      await updateDoc(tripRef, updateData);
-      console.log('✅ Successfully updated trip in Firestore');
-      
-      // Optimistically update the local state
-      console.log('Updating local state...');
-      setMyTrips(prev => {
-        const updated = prev.filter(trip => trip.id !== tripId);
-        console.log('Updated myTrips (after filter):', updated);
-        return updated;
-      });
-      
-      setTripHistory(prev => {
-        const updated = [completedTrip, ...prev];
-        console.log('Updated tripHistory (after add):', updated);
-        return updated;
-      });
-      
-      // Clear the accepted trip from state and localStorage if it's the current trip
-      if (acceptedTrip?.id === tripId) {
-        console.log('Clearing accepted trip from state and localStorage');
+      // If this was the currently accepted trip, clear it
+      if (acceptedTrip && acceptedTrip.id === tripId) {
         setAcceptedTrip(null);
         localStorage.removeItem('acceptedTrip');
       }
       
-      console.log('✅ Trip marked as completed successfully');
-      alert('¡Viaje completado exitosamente!');
+      // Show success message
+      alert('¡Viaje completado con éxito!');
+      
+      // Refresh the trips list
+      const [activeTrips, historyTrips] = await Promise.all([
+        getUserTrips(currentUser.uid, false), // Active trips
+        getUserTrips(currentUser.uid, true)   // History trips
+      ]);
+      
+      setMyTrips(activeTrips);
+      setTripHistory(historyTrips);
+      
     } catch (error) {
-      console.error('❌ Error completing trip:', {
-        error,
-        code: error.code,
-        message: error.message,
-        stack: error.stack
-      });
-      
-      let errorMessage = 'Error al completar el viaje. Por favor, inténtalo de nuevo.';
-      
-      if (error.code === 'permission-denied') {
-        console.error('Permission denied - check Firestore rules');
-        errorMessage = 'No tienes permiso para completar este viaje.';
-      } else if (error.code === 'not-found' || 
-                 error.message.includes('no existe') || 
-                 error.message.includes('not found')) {
-        errorMessage = 'El viaje no existe o ya ha sido completado';
-      }
-      
-      alert(errorMessage);
+      console.error('Error completing trip:', error);
+      alert(error.message || 'Error al completar el viaje. Por favor, inténtalo de nuevo.');
       
       // Clean up local state if the trip doesn't exist on the server
       if (error.code === 'not-found' || error.message.includes('no existe')) {
