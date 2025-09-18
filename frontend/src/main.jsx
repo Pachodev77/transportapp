@@ -67,6 +67,20 @@ function Layout({ children }) {
   );
 }
 
+// Componente para verificar autenticación en la página de login
+function AuthCheck({ children }) {
+  const { currentUser } = useAuth();
+  const location = useLocation();
+  
+  // Si el usuario ya está autenticado, redirigir según su rol
+  if (currentUser) {
+    const from = location.state?.from?.pathname || (currentUser.role === 'driver' ? '/driver' : '/passenger');
+    return <Navigate to={from} state={{ from: location }} replace />;
+  }
+  
+  return children;
+}
+
 function App() {
   return (
     <BrowserRouter basename="/">
@@ -138,20 +152,6 @@ function App() {
       </React.Suspense>
     </BrowserRouter>
   );
-}
-
-// Componente para verificar autenticación en la página de login
-function AuthCheck({ children }) {
-  const { currentUser } = useAuth();
-  const location = useLocation();
-  
-  // Si el usuario ya está autenticado, redirigir según su rol
-  if (currentUser) {
-    const from = location.state?.from?.pathname || (currentUser.role === 'driver' ? '/driver' : '/passenger');
-    return <Navigate to={from} state={{ from: location }} replace />;
-  }
-  
-  return children;
 }
 
 // Asegurar que el contenedor raíz exista

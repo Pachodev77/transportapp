@@ -20,12 +20,15 @@ import { doc, updateDoc, getDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
+export function useAuth() {
+  return useContext(AuthContext);
+}
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Registrar un nuevo usuario
   const signup = useCallback(async (email, password, displayName, role = 'passenger') => {
     try {
       setLoading(true);
@@ -34,13 +37,11 @@ export function AuthProvider({ children }) {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const { user } = userCredential;
       
-      // Actualizar perfil del usuario
       await updateProfile(user, { 
         displayName,
         photoURL: user.photoURL || ''
       });
       
-      // Crear registro del usuario en Firestore
       await createOrUpdateUser(user.uid, {
         email: user.email,
         displayName,
@@ -55,7 +56,6 @@ export function AuthProvider({ children }) {
       console.error('Error al registrar usuario:', error);
       let errorMessage = 'Error al registrar el usuario';
       
-      // Mapear códigos de error a mensajes amigables
       switch (error.code) {
         case 'auth/email-already-in-use':
           errorMessage = 'El correo electrónico ya está en uso';
@@ -80,7 +80,6 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Iniciar sesión con email/contraseña
   const login = useCallback(async (email, password) => {
     try {
       setLoading(true);
@@ -88,7 +87,6 @@ export function AuthProvider({ children }) {
       
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // Actualizar última conexión en Firestore
       if (userCredential?.user?.uid) {
         await updateDoc(doc(db, 'users', userCredential.user.uid), {
           lastLogin: new Date().toISOString()
@@ -100,7 +98,6 @@ export function AuthProvider({ children }) {
       console.error('Error al iniciar sesión:', error);
       let errorMessage = 'Error al iniciar sesión';
       
-      // Mapear códigos de error a mensajes amigables
       switch (error.code) {
         case 'auth/user-not-found':
         case 'auth/wrong-password':
@@ -123,7 +120,6 @@ export function AuthProvider({ children }) {
     }
   }, []);
   
-  // Iniciar sesión con Google
   const loginWithGoogle = useCallback(async () => {
     try {
       const result = await signInWithPopup(
@@ -135,12 +131,11 @@ export function AuthProvider({ children }) {
       const { user } = result;
       
       if (user) {
-        // Crear o actualizar usuario en Firestore
         await createOrUpdateUser(user.uid, {
           email: user.email,
           displayName: user.displayName,
           photoURL: user.photoURL,
-          role: 'passenger', // Rol por defecto
+          role: 'passenger',
           provider: 'google.com',
           lastLogin: new Date().toISOString()
         });
@@ -151,7 +146,6 @@ export function AuthProvider({ children }) {
       console.error('Error al iniciar sesión con Google:', error);
       let errorMessage = 'Error al iniciar sesión con Google';
       
-      // Mapear códigos de error a mensajes amigables
       switch (error.code) {
         case 'auth/account-exists-with-different-credential':
           errorMessage = 'Ya existe una cuenta con el mismo correo pero con otro proveedor';
@@ -173,7 +167,6 @@ export function AuthProvider({ children }) {
     }
   }, [createOrUpdateUser]);
   
-  // Iniciar sesión con Facebook
   const loginWithFacebook = useCallback(async () => {
     try {
       const result = await signInWithPopup(
@@ -185,12 +178,11 @@ export function AuthProvider({ children }) {
       const { user } = result;
       
       if (user) {
-        // Crear o actualizar usuario en Firestore
         await createOrUpdateUser(user.uid, {
           email: user.email,
           displayName: user.displayName,
           photoURL: user.photoURL,
-          role: 'passenger', // Rol por defecto
+          role: 'passenger',
           provider: 'facebook.com',
           lastLogin: new Date().toISOString()
         });
@@ -201,7 +193,6 @@ export function AuthProvider({ children }) {
       console.error('Error al iniciar sesión con Facebook:', error);
       let errorMessage = 'Error al iniciar sesión con Facebook';
       
-      // Mapear códigos de error a mensajes amigables
       switch (error.code) {
         case 'auth/account-exists-with-different-credential':
           errorMessage = 'Ya existe una cuenta con el mismo correo pero con otro proveedor';
@@ -226,23 +217,19 @@ export function AuthProvider({ children }) {
     }
   }, [createOrUpdateUser]);
 
-  // Cerrar sesión
   const logout = () => {
     return signOut(auth);
   };
   
-  // Restablecer contraseña
   const resetPassword = (email) => {
     return sendPasswordResetEmail(auth, email);
   };
 
-  // Clear any authentication errors
   const clearError = useCallback(() => {
     setError(null);
   }, []);
 
-  // Función para verificar y actualizar el usuario en Firestore
-  const verifyAndUpdateUser = async (user) => {
+  const verifyAndUpdateUser = useCallback(async (user) => {
     if (!user) return null;
     
     const maxRetries = 3;
@@ -250,11 +237,9 @@ export function AuthProvider({ children }) {
     
     while (retryCount < maxRetries) {
       try {
-        // Verificar si el usuario existe en Firestore
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         
         if (!userDoc.exists()) {
-          // Si el usuario no existe en Firestore pero sí en Auth, crearlo
           await createOrUpdateUser(user.uid, {
             email: user.email,
             displayName: user.displayName || 'Usuario',
@@ -265,19 +250,16 @@ export function AuthProvider({ children }) {
             createdAt: new Date().toISOString()
           });
         } else {
-          // Actualizar última conexión
           await updateDoc(doc(db, 'users', user.uid), {
             lastLogin: new Date().toISOString()
           });
         }
         
-        // Si llegamos aquí, la operación fue exitosa
         return user;
       } catch (error) {
         console.error(`Error en verificación de usuario (intento ${retryCount + 1}):`, error);
         retryCount++;
         
-        // Esperar antes de reintentar (backoff exponencial)
         if (retryCount < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
         } else {
@@ -286,19 +268,16 @@ export function AuthProvider({ children }) {
         }
       }
     }
-  };
+  }, [createOrUpdateUser, db]);
 
-  // Efecto para manejar cambios en el estado de autenticación
   useEffect(() => {
     let isMounted = true;
     
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
         if (user) {
-          // Verificar y actualizar usuario en Firestore
           await verifyAndUpdateUser(user);
           
-          // Obtener datos adicionales del usuario desde Firestore
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
             const userData = userDoc.data();
@@ -333,7 +312,6 @@ export function AuthProvider({ children }) {
       }
     });
 
-    // Cleanup function
     return () => {
       isMounted = false;
       unsubscribe();
@@ -358,8 +336,4 @@ export function AuthProvider({ children }) {
       {!loading && children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }
