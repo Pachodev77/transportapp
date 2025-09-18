@@ -347,4 +347,30 @@ export const batchUpdateTrips = async (tripUpdates) => {
   }
 };
 
+/**
+ * Get trips for a specific user
+ * @param {string} userId - User ID
+ * @param {boolean} history - Whether to fetch completed trips or active trips
+ * @returns {Promise<Array>} Array of trips
+ */
+export const getUserTrips = async (userId, history = false) => {
+  try {
+    checkRateLimit();
+    const statusOperator = history ? '==' : '!=';
+    const q = query(
+      tripsCollection,
+      where('driverId', '==', userId),
+      where('status', statusOperator, 'completed'),
+      orderBy('createdAt', 'desc')
+    );
+
+    const querySnapshot = await getDocs(q);
+    const trips = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    return trips;
+  } catch (error) {
+    console.error('Error getting user trips:', error);
+    throw error;
+  }
+};
+
 export default app;
