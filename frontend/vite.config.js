@@ -36,8 +36,19 @@ export default defineConfig({
         },
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
-        assetFileNames: 'assets/[ext]/[name]-[hash][extname]',
+        assetFileNames: (assetInfo) => {
+          // Handle CSS files
+          if (assetInfo.name.endsWith('.css')) {
+            return 'assets/css/[name]-[hash][extname]';
+          }
+          // Handle other assets
+          return 'assets/[ext]/[name]-[hash][extname]';
+        },
       },
+    },
+    // Ensure CSS is properly extracted
+    css: {
+      devSourcemap: true,
     },
   },
   resolve: {

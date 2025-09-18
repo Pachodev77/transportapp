@@ -45,10 +45,31 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize services with error handling
 export const auth = getAuth(app);
+
 export const db = getFirestore(app);
 
-// Enable offline persistence
-let persistenceInitialized = false;
+// Set default settings for Firestore
+const initializeFirestore = async () => {
+  try {
+    // Enable offline persistence with error handling
+    await enableIndexedDbPersistence(db, { 
+      forceOwnership: true 
+    }).catch((error) => {
+      if (error.code === 'failed-precondition') {
+        // Multiple tabs open, persistence can only be enabled in one tab at a time
+        console.warn('Firestore persistence failed: Multiple tabs open');
+      } else if (error.code === 'unimplemented') {
+        // The current browser doesn't support all of the features required
+        console.warn('Firestore persistence is not supported in this browser');
+      }
+    });
+  } catch (error) {
+    console.error('Error initializing Firestore:', error);
+  }
+};
+
+// Initialize Firestore with persistence
+initializeFirestore();
 
 export const initializePersistence = async () => {
   if (persistenceInitialized) return;
