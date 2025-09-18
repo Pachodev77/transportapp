@@ -45,26 +45,35 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize services with error handling
 export const auth = getAuth(app);
+export const db = getFirestore(app);
 
 // Enable offline persistence
-export const enablePersistence = async () => {
+let persistenceInitialized = false;
+
+export const initializePersistence = async () => {
+  if (persistenceInitialized) return;
+  
   try {
     await setPersistence(auth, browserLocalPersistence);
     await enableIndexedDbPersistence(db, { 
       forceOwnership: true 
     });
     console.log('Firestore persistence enabled');
+    persistenceInitialized = true;
   } catch (error) {
     if (error.code === 'failed-precondition') {
       console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
     } else if (error.code === 'unimplemented') {
       console.warn('The current browser does not support all of the features required to enable persistence');
+    } else if (error.code === 'failed-precondition') {
+      console.warn('Persistence is already enabled in another tab');
     }
-    console.error('Persistence error:', error);
+    console.warn('Persistence warning:', error.message);
   }
 };
 
-export const db = getFirestore(app);
+// Initialize persistence when the app starts
+initializePersistence();
 
 // Initialize providers with additional scopes if needed
 export const googleProvider = new GoogleAuthProvider();
@@ -85,15 +94,30 @@ export const tripsCollection = collection(db, 'trips');
 export const bookingsCollection = collection(db, 'bookings');
 
 // Rate limiting
-const RATE_LIMIT_MS = 1000; // 1 request per second
+const RATE_LIMIT_MS = 300; // More lenient rate limit
 let lastRequestTime = 0;
 
 const checkRateLimit = () => {
   const now = Date.now();
-  if (now - lastRequestTime < RATE_LIMIT_MS) {
-    throw new Error('Rate limit exceeded. Please try again later.');
+  const timeSinceLastRequest = now - lastRequestTime;
+  
+  if (timeSinceLastRequest < RATE_LIMIT_MS) {
+    const waitTime = RATE_LIMIT_MS - timeSinceLastRequest;
+    console.warn(`Rate limit hit, waiting ${waitTime}ms`);
+    return waitTime;
   }
+  
   lastRequestTime = now;
+  return 0;
+};
+
+// Helper function to handle rate limiting
+const withRateLimit = async (fn) => {
+  const waitTime = checkRateLimit();
+  if (waitTime > 0) {
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+  return fn();
 };
 
 /**
@@ -103,37 +127,40 @@ const checkRateLimit = () => {
  * @returns {Promise<Object|null>} User data or null if not found
  */
 export const getUser = async (userId, fields = []) => {
-  try {
-    checkRateLimit();
-    const userRef = doc(db, 'users', userId);
-    let userDoc;
-    
-    // Try cache first
+  return withRateLimit(async () => {
     try {
-      userDoc = await getDocFromCache(userRef);
+      const userRef = doc(usersCollection, userId);
+      let userDoc;
+      
+      try {
+        // Try to get from cache first
+        userDoc = await getDocFromCache(userRef);
+      } catch (error) {
+        // If not in cache, get from server
+        userDoc = await getDoc(userRef);
+      }
+      
+      if (!userDoc.exists()) return null;
+      
+      const userData = userDoc.data();
+      
+      // If specific fields are requested, filter the response
+      if (fields.length > 0) {
+        const filteredData = {};
+        fields.forEach(field => {
+          if (userData[field] !== undefined) {
+            filteredData[field] = userData[field];
+          }
+        });
+        return { id: userDoc.id, ...filteredData };
+      }
+      
+      return { id: userDoc.id, ...userData };
     } catch (error) {
-      // If not in cache, get from server
-      userDoc = await getDoc(userRef);
+      console.error('Error getting user:', error);
+      throw error;
     }
-    
-    if (!userDoc.exists()) return null;
-    
-    const userData = userDoc.data();
-    // Filter fields if specified
-    if (fields.length > 0) {
-      return fields.reduce((acc, field) => {
-        if (userData[field] !== undefined) {
-          acc[field] = userData[field];
-        }
-        return acc;
-      }, { id: userDoc.id });
-    }
-    
-    return { id: userDoc.id, ...userData };
-  } catch (error) {
-    console.error('Error getting user:', error);
-    throw error;
-  }
+  });
 };
 
 /**
@@ -144,22 +171,28 @@ export const getUser = async (userId, fields = []) => {
  * @returns {Promise<Object>} Updated user data
  */
 export const createOrUpdateUser = async (userId, userData, merge = true) => {
-  try {
-    checkRateLimit();
-    const userRef = doc(db, 'users', userId);
-    const now = serverTimestamp();
-    const dataToSave = {
-      ...userData,
-      updatedAt: now,
-      ...(!userData.createdAt && { createdAt: now })
-    };
-    
-    await setDoc(userRef, dataToSave, { merge });
-    return { id: userId, ...dataToSave };
-  } catch (error) {
-    console.error('Error updating user:', error);
-    throw error;
-  }
+  return withRateLimit(async () => {
+    try {
+      const userRef = doc(usersCollection, userId);
+      
+      // Add timestamps
+      const now = serverTimestamp();
+      const dataToSave = {
+        ...userData,
+        updatedAt: now,
+        ...(!userData.createdAt && { createdAt: now })
+      };
+      
+      await setDoc(userRef, dataToSave, { merge });
+      
+      // Get the updated document
+      const updatedDoc = await getDoc(userRef);
+      return { id: updatedDoc.id, ...updatedDoc.data() };
+    } catch (error) {
+      console.error('Error creating/updating user:', error);
+      throw error;
+    }
+  });
 };
 
 /**
@@ -168,23 +201,28 @@ export const createOrUpdateUser = async (userId, userData, merge = true) => {
  * @returns {Promise<Object>} Created trip with ID
  */
 export const createTrip = async (tripData) => {
-  try {
-    checkRateLimit();
-    const tripRef = doc(tripsCollection);
-    const now = serverTimestamp();
-    const newTrip = {
-      ...tripData,
-      status: 'searching',
-      createdAt: now,
-      updatedAt: now,
-    };
-    
-    await setDoc(tripRef, newTrip);
-    return { id: tripRef.id, ...newTrip };
-  } catch (error) {
-    console.error('Error creating trip:', error);
-    throw error;
-  }
+  return withRateLimit(async () => {
+    try {
+      const tripRef = doc(tripsCollection);
+      const now = serverTimestamp();
+      
+      const tripWithMetadata = {
+        ...tripData,
+        status: 'pending',
+        createdAt: now,
+        updatedAt: now,
+      };
+      
+      await setDoc(tripRef, tripWithMetadata);
+      
+      // Get the created document with ID
+      const createdTrip = await getDoc(tripRef);
+      return { id: createdTrip.id, ...createdTrip.data() };
+    } catch (error) {
+      console.error('Error creating trip:', error);
+      throw error;
+    }
+  });
 };
 
 /**
@@ -354,23 +392,28 @@ export const batchUpdateTrips = async (tripUpdates) => {
  * @returns {Promise<Array>} Array of trips
  */
 export const getUserTrips = async (userId, history = false) => {
-  try {
-    checkRateLimit();
-    const statusOperator = history ? '==' : '!=';
-    const q = query(
-      tripsCollection,
-      where('driverId', '==', userId),
-      where('status', statusOperator, 'completed'),
-      orderBy('createdAt', 'desc')
-    );
-
-    const querySnapshot = await getDocs(q);
-    const trips = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    return trips;
-  } catch (error) {
-    console.error('Error getting user trips:', error);
-    throw error;
-  }
+  return withRateLimit(async () => {
+    try {
+      const tripsRef = collection(db, 'trips');
+      const status = history ? ['completed', 'cancelled'] : ['pending', 'accepted', 'in_progress'];
+      
+      const q = query(
+        tripsRef,
+        where('driverId', '==', userId),
+        where('status', 'in', status),
+        orderBy('departureTime', 'desc')
+      );
+      
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error('Error getting user trips:', error);
+      throw error;
+    }
+  });
 };
 
 /**
