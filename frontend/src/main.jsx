@@ -5,9 +5,10 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import './index.css';
-import { enablePersistence } from './firebase/config';
+import { initializePersistence } from './firebase/config';
 
-enablePersistence();
+// Initialize Firebase persistence
+initializePersistence();
 
 
 // Lazy load pages for better performance
