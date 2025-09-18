@@ -10,7 +10,7 @@ function LandingPage() {
   const { currentUser } = useAuth();
   
   const updateUserRole = useCallback(async (newRole) => {
-    if (!currentUser) return;
+    if (!currentUser) return false;
     
     try {
       const userRef = doc(db, 'users', currentUser.uid);
@@ -19,10 +19,11 @@ function LandingPage() {
         updatedAt: new Date().toISOString()
       });
       
-      // Optional: Show a success message or update UI
       console.log(`User role updated to ${newRole}`);
+      return true;
     } catch (error) {
       console.error('Error updating user role:', error);
+      return false;
     }
   }, [currentUser]);
 
@@ -94,11 +95,16 @@ function LandingPage() {
                   </div>
                   <div className="mt-3 sm:mt-0 sm:ml-3">
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (currentUser) {
                           // If user is logged in, update their role to driver
-                          updateUserRole('driver');
-                          navigate('/driver');
+                          const success = await updateUserRole('driver');
+                          if (success) {
+                            navigate('/driver');
+                          } else {
+                            console.error('Failed to update user role');
+                            // Optionally show an error message to the user
+                          }
                         } else {
                           // If not logged in, pass the role to the login page
                           navigate('/login', { 
