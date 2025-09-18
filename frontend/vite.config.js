@@ -43,7 +43,13 @@ export default defineConfig(({ command, mode }) => {
         }
       },
       // Configuración para manejar correctamente las rutas en desarrollo
-      historyApiFallback: true
+      historyApiFallback: true,
+      // Configuración de encabezados para el servidor de desarrollo
+      headers: {
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Content-Type': 'text/javascript; charset=utf-8'
+      }
     },
     
     build: {
@@ -53,30 +59,33 @@ export default defineConfig(({ command, mode }) => {
       sourcemap: isProduction ? false : 'inline',
       minify: isProduction ? 'esbuild' : false,
       
+      // Desactivar la división de código para simplificar la carga de módulos
+      modulePreload: {
+        polyfill: false,
+      },
+      
       rollupOptions: {
         output: {
-          // Dividir el código en chunks más pequeños
-          manualChunks: (id) => {
-            if (id.includes('node_modules')) {
-              if (id.includes('react') || id.includes('react-dom')) {
-                return 'vendor-react';
-              }
-              if (id.includes('firebase')) {
-                return 'vendor-firebase';
-              }
-              if (id.includes('leaflet')) {
-                return 'vendor-leaflet';
-              }
-              return 'vendor';
-            }
-          },
-          // Nombres de archivo con hash para el cache busting
-          entryFileNames: 'assets/[name].[hash].js',
-          chunkFileNames: 'assets/[name].[hash].js',
-          assetFileNames: 'assets/[name].[hash][extname]'
+          // Usar un único archivo para simplificar la carga
+          manualChunks: undefined,
+          // Nombres de archivo sin hash para facilitar la depuración
+          entryFileNames: 'assets/[name].js',
+          chunkFileNames: 'assets/[name].js',
+          assetFileNames: 'assets/[name][extname]',
+          // Usar formato IIFE para mejor compatibilidad
+          format: 'iife',
+          // Asegurar que los nombres de las variables globales sean únicos
+          name: 'TransportApp',
+          globals: {
+            react: 'React',
+            'react-dom': 'ReactDOM',
+            'react-router-dom': 'ReactRouterDOM',
+            firebase: 'firebase',
+            'leaflet': 'L'
+          }
         },
         // Mejorar el rendimiento de la compilación
-        external: [],
+        external: ['react', 'react-dom', 'react-router-dom', 'firebase', 'leaflet'],
         // Asegurar que los módulos se carguen correctamente
         preserveEntrySignatures: 'strict'
       }
@@ -85,7 +94,15 @@ export default defineConfig(({ command, mode }) => {
     preview: {
       port: 3000,
       strictPort: true,
-      host: true
-    }
+      host: true,
+      // Configuración de encabezados para el servidor de vista previa
+      headers: {
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Content-Type': 'text/javascript; charset=utf-8'
+      }
+    },
+    
+    // La configuración del servidor ya está definida más arriba
   };
 });
