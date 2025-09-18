@@ -5,6 +5,10 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import './index.css';
+import { enablePersistence } from './firebase/config';
+
+enablePersistence();
+
 
 // Lazy load pages for better performance
 const Login = React.lazy(() => import('./pages/Login'));

@@ -47,7 +47,7 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
 // Enable offline persistence
-const enablePersistence = async () => {
+export const enablePersistence = async () => {
   try {
     await setPersistence(auth, browserLocalPersistence);
     await enableIndexedDbPersistence(db, { 
@@ -65,7 +65,6 @@ const enablePersistence = async () => {
 };
 
 export const db = getFirestore(app);
-enablePersistence();
 
 // Initialize providers with additional scopes if needed
 export const googleProvider = new GoogleAuthProvider();
