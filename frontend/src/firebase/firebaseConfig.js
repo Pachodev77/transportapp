@@ -6,7 +6,7 @@ import {
   setPersistence, 
   browserLocalPersistence 
 } from 'firebase/auth';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getFirestore, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -22,8 +22,10 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase services
+// Initialize Firebase services with persistence settings
 export const auth = getAuth(app);
+
+// Initialize Firestore with persistence settings
 export const db = getFirestore(app);
 
 // Initialize auth providers
@@ -39,14 +41,27 @@ facebookProvider.setCustomParameters({
   'auth_type': 'reauthenticate'
 });
 
-// Enable offline persistence
-(async () => {
+// Export the initializePersistence function
+export const initializePersistence = async () => {
   try {
     await setPersistence(auth, browserLocalPersistence);
-    await enableIndexedDbPersistence(db, { 
-      forceOwnership: true 
-    });
-    console.log('Firestore persistence enabled');
+    
+    // Enable multi-tab indexedDB persistence
+    if (typeof window !== 'undefined') {
+      try {
+        await enableMultiTabIndexedDbPersistence(db);
+        console.log('Firestore multi-tab persistence enabled');
+        return true;
+      } catch (error) {
+        if (error.code === 'failed-precondition') {
+          console.warn('Multi-tab persistence can only be enabled in one tab at a time.');
+        } else if (error.code === 'unimplemented') {
+          console.warn('The current browser does not support multi-tab persistence.');
+        }
+        return false;
+      }
+    }
+    return true;
   } catch (error) {
     if (error.code === 'failed-precondition') {
       console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
@@ -54,7 +69,8 @@ facebookProvider.setCustomParameters({
       console.warn('The current browser does not support all of the features required to enable persistence');
     }
     console.error('Persistence error:', error);
+    return false;
   }
-})();
+};
 
 export default app;

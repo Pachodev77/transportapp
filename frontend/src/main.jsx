@@ -1,15 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import './index.css';
-import { initializePersistence } from './firebase/config';
-
-// Initialize Firebase persistence
-initializePersistence();
-
+import { initializePersistence } from './firebase/firebaseConfig';
 
 // Lazy load pages for better performance
 const Login = React.lazy(() => import('./pages/Login'));
@@ -87,75 +83,63 @@ function AuthCheck({ children }) {
 }
 
 function App() {
+  // Initialize Firebase persistence when the app starts
+  useEffect(() => {
+    const initFirebase = async () => {
+      try {
+        await initializePersistence();
+        console.log('Firebase persistence initialized');
+      } catch (error) {
+        console.error('Failed to initialize Firebase persistence:', error);
+      }
+    };
+    
+    initFirebase();
+  }, []);
+
   return (
-    <BrowserRouter basename="/">
-      <ScrollToTop />
-      <React.Suspense fallback={<Loading />}>
-        <Routes>
-          {/* Rutas públicas */}
-          <Route 
-            path="/" 
-            element={
-              <Layout>
-                <LandingPage />
-              </Layout>
-            } 
-          />
-          
-          <Route 
-            path="/login" 
-            element={
+    <React.Suspense fallback={<Loading />}>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={
               <AuthCheck>
                 <Login />
               </AuthCheck>
-            } 
-          />
-          
-          {/* Rutas protegidas */}
-          <Route
-            path="/passenger/*"
-            element={
+            } />
+            <Route path="/" element={
+              <Layout>
+                <LandingPage />
+              </Layout>
+            } />
+            <Route path="/passenger/*" element={
               <ProtectedRoute>
                 <Layout>
                   <Passenger />
                 </Layout>
               </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/driver/*"
-            element={
+            } />
+            <Route path="/driver/*" element={
               <ProtectedRoute roles={['driver']}>
                 <Layout>
                   <Driver />
                 </Layout>
               </ProtectedRoute>
-            }
-          />
-          
-          {/* Ruta de redirección después del login */}
-          <Route
-            path="/app"
-            element={
+            } />
+            <Route path="/app" element={
               <ProtectedRoute>
                 <RoleBasedRedirect />
               </ProtectedRoute>
-            }
-          />
-          
-          {/* Redirigir rutas no encontradas */}
-          <Route 
-            path="*" 
-            element={
+            } />
+            <Route path="*" element={
               <Layout>
                 <Navigate to="/" replace />
               </Layout>
-            } 
-          />
-        </Routes>
-      </React.Suspense>
-    </BrowserRouter>
+            } />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </React.Suspense>
   );
 }
 

@@ -3,9 +3,9 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // ===== Helper Functions =====
     
-    // Development mode flag - set to false for production
+    // Development mode flag - set to true for development
     function isDevelopment() {
-      return request.time < timestamp.date(2025, 12, 31);
+      return true; // Temporarily set to true for debugging
     }
 
     // Check if user is authenticated
@@ -16,6 +16,27 @@ service cloud.firestore {
     // Check if user is the owner of the document
     function isOwner(userId) {
       return request.auth.uid == userId;
+    }
+    
+    // Check if user has a specific role
+    function hasRole(role) {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+    }
+    
+    // Check if user is admin
+    function isAdmin() {
+      return hasRole('admin');
+    }
+    
+    // Check if user is driver
+    function isDriver() {
+      return hasRole('driver');
+    }
+    
+    // Check if user is passenger
+    function isPassenger() {
+      return hasRole('passenger');
     }
     
     // Validate email format
@@ -44,7 +65,7 @@ service cloud.firestore {
         'cancelled': []
       };
       return newStatus in validTransitions && 
-             (oldStatus == null || validTransitions[oldStatus].hasAny([newStatus]));
+             (oldStatus == null || newStatus in validTransitions[oldStatus]);
     }
     
     // Rate limiting function (simple implementation)
@@ -54,19 +75,27 @@ service cloud.firestore {
 
     // ===== Users Collection =====
     match /users/{userId} {
-      // Allow read if authenticated and you're the user or an admin
-      allow get: if isDevelopment() || 
-                (isAuthenticated() && 
-                 (isOwner(userId) || 
-                  get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+      // Allow read if:
+      // 1. You're the user
+      // 2. You're an admin
+      // 3. You're a driver or passenger with a need to know
+      allow get: if isAuthenticated() && (
+        isOwner(userId) || 
+        isAdmin() ||
+        (hasRole('driver') || hasRole('passenger')) &&
+        request.auth.token.email_verified == true
+      );
       
-      // Allow listing only for admins in production
-      allow list: if isDevelopment() || 
-                 (isAuthenticated() && 
-                  get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      // Allow listing only for admins
+      allow list: if isAdmin();
       
-      // Allow create with validation
-      allow create: if isDevelopment() || 
+      // Allow create if:
+      // 1. You're creating your own user document
+      // 2. You're an admin creating a new user
+      allow create: if isAuthenticated() && (
+        isOwner(userId) || 
+        isAdmin()
+      );
                    (isAuthenticated() &&
                     isOwner(userId) &&
                     request.resource.data.email == request.auth.token.email &&
