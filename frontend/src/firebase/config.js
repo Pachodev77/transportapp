@@ -373,4 +373,28 @@ export const getUserTrips = async (userId, history = false) => {
   }
 };
 
+/**
+ * Subscribe to real-time updates for a user's trips
+ * @param {string} userId - User ID
+ * @param {Function} callback - Callback function for updates
+ * @returns {Function} Unsubscribe function
+ */
+export const subscribeToTripUpdates = (userId, callback) => {
+  try {
+    const q = query(
+      tripsCollection,
+      where('driverId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+
+    return onSnapshot(q, (querySnapshot) => {
+      const trips = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      callback(trips);
+    });
+  } catch (error) {
+    console.error('Error subscribing to trip updates:', error);
+    throw error;
+  }
+};
+
 export default app;
