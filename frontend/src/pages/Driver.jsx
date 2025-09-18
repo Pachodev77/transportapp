@@ -172,7 +172,7 @@ export default function Driver() {
     }
 
     // Subscribe to real-time updates for available trips
-    const unsubscribeTrips = subscribeToAvailableTrips(
+    const unsubscribeTrips = subscribeToTrips('searching',
       (trips) => {
         setAvailableTrips(trips);
       },
