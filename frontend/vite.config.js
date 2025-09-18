@@ -20,11 +20,23 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom', 'react-router-dom'],
-          firebase: ['firebase/app', 'firebase/firestore', 'firebase/auth'],
-          leaflet: ['leaflet', 'react-leaflet'],
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+              return 'vendor_react';
+            }
+            if (id.includes('firebase')) {
+              return 'vendor_firebase';
+            }
+            if (id.includes('leaflet')) {
+              return 'vendor_leaflet';
+            }
+            return 'vendor';
+          }
         },
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: 'assets/[ext]/[name]-[hash][extname]',
       },
     },
   },
@@ -35,5 +47,8 @@ export default defineConfig({
   },
   define: {
     'process.env': {}
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', 'firebase/app', 'firebase/firestore', 'firebase/auth', 'leaflet', 'react-leaflet']
   }
 });

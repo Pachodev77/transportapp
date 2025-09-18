@@ -12,15 +12,7 @@
     <link rel="preload" as="style" href="/assets/index.css" />
     <link rel="stylesheet" href="/assets/index.css" />
     
-    <!-- Cargar React y ReactDOM desde CDN -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/react-router-dom@6.4.0/umd/react-router-dom.production.min.js"></script>
-    
-    <!-- Cargar Firebase desde CDN -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+    <!-- React, ReactDOM, React Router y Firebase se cargarán como módulos -->
     
     <!-- Leaflet CSS is imported in index.css -->
   </head>
@@ -30,24 +22,7 @@
     <!-- Scripts de la aplicación -->
     <script type="module" src="/src/main.jsx"></script>
     
-    <!-- Configuración de Firebase -->
-    <script type="module">
-      // Configuración de Firebase
-      const firebaseConfig = {
-        apiKey: "AIzaSyBwff9ZSIOE8hF3c0-kKxX7zyj8MpO0C6E",
-        authDomain: "transportapp-dfd34.firebaseapp.com",
-        projectId: "transportapp-dfd34",
-        storageBucket: "transportapp-dfd34.appspot.com",
-        messagingSenderId: "81243763076",
-        appId: "1:81243763076:web:7e0e3baca62282b0476dd1",
-        measurementId: "G-HQ0VQ56HPB"
-      };
-      
-      // Inicializar Firebase
-      firebase.initializeApp(firebaseConfig);
-      
-      // Hacer que Firebase esté disponible globalmente
-      window.firebase = firebase;
+    <!-- La configuración de Firebase ahora está en src/firebase/config.js -->
     </script>
   </body>
 </html>
