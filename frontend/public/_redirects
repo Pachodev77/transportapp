@@ -1,2 +1,12 @@
 # Redireccionar todas las rutas a index.html para SPA
 /*    /index.html   200
+
+# Manejar rutas de activos
+/assets/*    /assets/:splat    200
+
+# Manejar rutas de la API
+/api/*      /api/:splat       200
+
+# Redirigir errores 404 a la aplicación
+/404.html    404
+/*           /index.html      200

@@ -4,13 +4,12 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { FaCar, FaMapMarkerAlt, FaClock, FaUser, FaMoneyBillWave, FaStar, FaPlus, FaCheck, FaTimes, FaSpinner } from 'react-icons/fa';
 import { useAuth } from '../contexts/AuthContext';
 import { 
-  getAvailableTrips, 
+  getTripsByStatus as getTrips,
   getUserTrips, 
-  acceptTrip, 
   updateTripStatus, 
   createTrip, 
   subscribeToTripUpdates,
-  subscribeToAvailableTrips
+  subscribeToTrips
 } from '../firebase/config';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
