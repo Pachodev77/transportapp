@@ -70,7 +70,7 @@ export default function Driver() {
     });
   }, []);
   
-  const renderTripTabs = () => (
+  const TripTabs = () => (
     <div className="flex border-b border-gray-200 mb-4">
       <Button
         className={`py-2 px-4 font-medium ${!showHistory ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
