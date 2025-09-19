@@ -895,6 +895,7 @@ export default function Driver() {
               </MapContainer>
             )}
           </div>
+          {/* End of right column */}
         </div>
       </div>
     </div>
