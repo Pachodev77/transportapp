@@ -1,226 +1,110 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ===== Helper Functions =====
-    
-    // Development mode flag - set to true for development
-    function isDevelopment() {
-      return true; // Temporarily set to true for debugging
-    }
-
-    // Check if user is authenticated
+    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
-    
-    // Check if user is the owner of the document
+
     function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-    
-    // Check if user has a specific role
-    function hasRole(role) {
-      return isAuthenticated() && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
-    }
-    
-    // Check if user is admin
-    function isAdmin() {
-      return hasRole('admin');
-    }
-    
-    // Check if user is driver
-    function isDriver() {
-      return hasRole('driver');
-    }
-    
-    // Check if user is passenger
-    function isPassenger() {
-      return hasRole('passenger');
-    }
-    
-    // Validate email format
-    function isValidEmail(email) {
-      return email.matches('^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$', 'i');
-    }
-    
-    // Validate location object
-    function isValidLocation(location) {
-      return location is map && 
-             location.lat is number && 
-             location.lng is number &&
-             location.lat >= -90 && 
-             location.lat <= 90 &&
-             location.lng >= -180 && 
-             location.lng <= 180;
-    }
-    
-    // Validate trip status transition
-    function isValidStatusTransition(oldStatus, newStatus) {
-      const validTransitions = {
-        'searching': ['accepted', 'cancelled'],
-        'accepted': ['in_progress', 'cancelled'],
-        'in_progress': ['completed', 'cancelled'],
-        'completed': [],
-        'cancelled': []
-      };
-      return newStatus in validTransitions && 
-             (oldStatus == null || newStatus in validTransitions[oldStatus]);
-    }
-    
-    // Rate limiting function (simple implementation)
-    function isRateLimited() {
-      return request.time > resource.data.lastUpdated.seconds() + duration.value(1, 's');
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // ===== Users Collection =====
-    match /users/{userId} {
-      // Allow read if:
-      // 1. You're the user
-      // 2. You're an admin
-      // 3. You're a driver or passenger with a need to know
-      allow get: if isAuthenticated() && (
-        isOwner(userId) || 
-        isAdmin() ||
-        (hasRole('driver') || hasRole('passenger')) &&
-        request.auth.token.email_verified == true
-      );
-      
-      // Allow listing only for admins
-      allow list: if isAdmin();
-      
-      // Allow create if:
-      // 1. You're creating your own user document
-      // 2. You're an admin creating a new user
-      allow create: if isAuthenticated() && (
-        isOwner(userId) || 
-        isAdmin()
-      );
-                   (isAuthenticated() &&
-                    isOwner(userId) &&
-                    request.resource.data.email == request.auth.token.email &&
-                    isValidEmail(request.resource.data.email) &&
-                    request.resource.data.createdAt == request.time &&
-                    request.resource.data.updatedAt == request.time);
-      
-      // Allow update with field validation
-      allow update: if isDevelopment() || 
-                   (isAuthenticated() &&
-                    isOwner(userId) &&
-                    request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-                      'displayName', 
-                      'photoURL', 
-                      'phoneNumber',
-                      'preferences',
-                      'updatedAt'
-                    ]) &&
-                    request.resource.data.updatedAt == request.time);
-      
-      // Prevent deletes through the app
-      allow delete: if false;
+    function getUserRole(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
     }
-    
-    // ===== Trips Collection =====
+
+    function isRole(role) {
+      return isAuthenticated() && getUserRole(request.auth.uid) == role;
+    }
+
+    // Users collection rules
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isRole('admin');
+      allow list: if isRole('admin');
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId) && request.resource.data.keys().hasOnly([
+        'displayName', 
+        'photoURL', 
+        'phoneNumber',
+        'preferences',
+        'updatedAt',
+        'role' // Allow role update for self or admin
+      ]);
+    }
+
+    // Trips collection rules
     match /trips/{tripId} {
-      // Allow read if you're the driver, passenger, or an admin
-      allow get: if isDevelopment() || 
-                (isAuthenticated() && 
-                 (resource.data.driverId == request.auth.uid || 
-                  resource.data.passengerId == request.auth.uid ||
-                  get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+      // Allow read if authenticated and you're the driver, passenger, or an admin
+      allow get: if isAuthenticated() && 
+                (request.auth.uid == resource.data.driverId || 
+                 request.auth.uid == resource.data.passengerId ||
+                 isRole('admin'));
       
-      // Allow querying with filters
-      allow list: if isDevelopment() || 
-                 (isAuthenticated() && (
-                   // Users can query their own trips
-                   (request.query.where['driverId'] == request.auth.uid ||
-                    request.query.where['passengerId'] == request.auth.uid) ||
-                   // Admins can query all trips
-                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-                   // Drivers can see available trips
-                   (resource.data.status == 'searching' && 
-                    request.query.where['status'] == 'searching')
-                 ));
+      // Allow list if authenticated and querying by driverId or passengerId, or if admin
+      allow list: if isAuthenticated() && (
+                   (request.query.keys().hasOnly(['driverId']) && request.query.driverId == request.auth.uid) ||
+                   (request.query.keys().hasOnly(['passengerId']) && request.query.passengerId == request.auth.uid) ||
+                   isRole('admin') ||
+                   // Allow listing available trips for all authenticated users
+                   (request.query.keys().hasOnly(['status']) && request.query.status == 'available')
+                 );
       
-      // Allow create with validation
-      allow create: if isDevelopment() || 
-                   (isAuthenticated() &&
-                    (request.resource.data.driverId == request.auth.uid || 
-                     request.resource.data.passengerId == request.auth.uid) &&
-                    request.resource.data.status == 'searching' &&
-                    isValidLocation(request.resource.data.origin) &&
-                    isValidLocation(request.resource.data.destination) &&
-                    request.resource.data.createdAt == request.time &&
-                    request.resource.data.updatedAt == request.time);
+      // Allow create if authenticated and the trip is properly formed
+      allow create: if isAuthenticated() && 
+                   (request.resource.data.driverId == request.auth.uid || 
+                    request.resource.data.passengerId == request.auth.uid) &&
+                   request.resource.data.status in ['pending', 'searching'] &&
+                   request.resource.data.origin is map &&
+                   request.resource.data.destination is map;
       
-      // Allow update with status transition validation
-      allow update: if isDevelopment() || 
-                   (isAuthenticated() &&
-                    (resource.data.driverId == request.auth.uid || 
-                     resource.data.passengerId == request.auth.uid ||
-                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') &&
-                    isValidStatusTransition(resource.data.status, request.resource.data.status) &&
-                    request.resource.data.updatedAt == request.time);
+      // Allow updates to status by driver or passenger, or admin
+      allow update: if isAuthenticated() && 
+                   (isOwner(resource.data.driverId) || 
+                    isOwner(resource.data.passengerId) ||
+                    isRole('admin')) &&
+                   request.resource.data.keys().hasOnly(['status', 'updatedAt', 'driverId', 'acceptedAt', 'completedAt', 'availableSeats']);
       
       // Allow delete only by the driver or admin
-      allow delete: if isDevelopment() || 
-                   (isAuthenticated() && 
-                    (resource.data.driverId == request.auth.uid || 
-                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+      allow delete: if isAuthenticated() && 
+                   (isOwner(resource.data.driverId) || isRole('admin'));
     }
     
-    // ===== Bookings Collection =====
+    // Bookings collection rules
     match /bookings/{bookingId} {
       // Allow read if you're the driver, passenger, or an admin
-      allow read: if isDevelopment() || 
-                 (isAuthenticated() && 
-                  (resource.data.driverId == request.auth.uid || 
-                   resource.data.passengerId == request.auth.uid ||
-                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+      allow read: if isAuthenticated() && 
+                 (request.auth.uid == resource.data.driverId || 
+                  request.auth.uid == resource.data.passengerId ||
+                  isRole('admin'));
       
-      // Allow create with validation
-      allow create: if isDevelopment() || 
-                   (isAuthenticated() &&
-                    request.resource.data.passengerId == request.auth.uid &&
-                    request.resource.data.status == 'pending' &&
-                    request.resource.data.createdAt == request.time &&
-                    request.resource.data.updatedAt == request.time);
+      // Allow create if authenticated and the passenger is the one creating it
+      allow create: if isAuthenticated() && request.resource.data.passengerId == request.auth.uid;
       
-      // Allow update with status validation
-      allow update: if isDevelopment() || 
-                   (isAuthenticated() &&
-                    ((resource.data.driverId == request.auth.uid && 
-                      request.resource.data.status in ['accepted', 'rejected']) ||
-                     (resource.data.passengerId == request.auth.uid &&
-                      request.resource.data.status == 'cancelled') ||
-                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') &&
-                    request.resource.data.updatedAt == request.time);
+      // Allow update by driver, passenger, or admin
+      allow update: if isAuthenticated() &&
+                   (isOwner(resource.data.driverId) || 
+                    isOwner(resource.data.passengerId) ||
+                    isRole('admin')) &&
+                   request.resource.data.keys().hasOnly(['status', 'updatedAt']);
     }
     
-    // ===== Ratings Collection =====
+    // Ratings collection rules
     match /ratings/{ratingId} {
-      // Allow read for everyone (with appropriate filtering in queries)
-      allow read: if true;
+      // Allow read for authenticated users
+      allow read: if isAuthenticated();
       
-      // Allow create with validation
-      allow create: if isDevelopment() || 
-                   (isAuthenticated() &&
-                    (request.resource.data.raterId == request.auth.uid ||
-                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') &&
-                    request.resource.data.rating >= 1 &&
-                    request.resource.data.rating <= 5 &&
-                    request.resource.data.createdAt == request.time);
+      // Allow create if authenticated and the rater is the one creating it
+      allow create: if isAuthenticated() && request.resource.data.raterId == request.auth.uid;
       
-      // Prevent updates and deletes
+      // No updates or deletes after creation
       allow update, delete: if false;
     }
-    
-    // ===== System Collection (for app configuration, etc.) =====
+
+    // System collection (for app configuration, etc.)
     match /_system/{document=**} {
       // Only admins can read/write system settings
-      allow read, write: if isDevelopment() || 
-                        (isAuthenticated() && 
-                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow read, write: if isRole('admin');
     }
   }
 }

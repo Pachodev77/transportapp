@@ -13,6 +13,8 @@ import {
 } from '../firebase/config';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { STRINGS } from '../utils/constants';
+import Button from '../components/Button';
 
 // Fix for default marker icons
 const defaultIcon = new L.Icon({
@@ -59,21 +61,29 @@ export default function Driver() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('available');
+  const [currentPosition, setCurrentPosition] = useState(null);
+
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition((position) => {
+      const { latitude, longitude } = position.coords;
+      setCurrentPosition([latitude, longitude]);
+    });
+  }, []);
   
   const renderTripTabs = () => (
     <div className="flex border-b border-gray-200 mb-4">
-      <button
-        className={`py-2 px-4 font-medium ${!showHistory ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+      <Button
+        className={`py-2 px-4 font-medium ${!showHistory ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
         onClick={() => setShowHistory(false)}
       >
-        Viajes Activos
-      </button>
-      <button
-        className={`py-2 px-4 font-medium ${showHistory ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+        {STRINGS.VIAJES_ACTIVOS}
+      </Button>
+      <Button
+        className={`py-2 px-4 font-medium ${showHistory ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
         onClick={() => setShowHistory(true)}
       >
-        Historial
-      </button>
+        {STRINGS.HISTORIAL}
+      </Button>
     </div>
   );
   const [availableTrips, setAvailableTrips] = useState([]);
@@ -238,9 +248,9 @@ export default function Driver() {
 
   const handleLocationSelect = (latlng) => {
     if (!origin) {
-      setOrigin({ ...latlng, name: 'Origen' });
+      setOrigin({ ...latlng, name: STRINGS.ORIGEN });
     } else if (!destination) {
-      setDestination({ ...latlng, name: 'Destino' });
+      setDestination({ ...latlng, name: STRINGS.DESTINO });
     }
   };
 
@@ -256,7 +266,7 @@ export default function Driver() {
     e.preventDefault();
     
     if (!origin || !destination) {
-      alert('Por favor selecciona origen y destino');
+      alert(STRINGS.SELECCIONAR_ORIGEN_DESTINO);
       return;
     }
     
@@ -269,7 +279,7 @@ export default function Driver() {
         destination,
         status: 'searching',
         driverId: currentUser.uid,
-        driverName: currentUser.displayName || 'Conductor',
+        driverName: currentUser.displayName || STRINGS.CONDUCTOR,
         driverPhoto: currentUser.photoURL || '',
         price: tripDetails.price || 0,
         availableSeats: tripDetails.availableSeats || 1,
@@ -434,70 +444,79 @@ export default function Driver() {
     };
   };
 
+  const [currentPosition, setCurrentPosition] = useState(null);
+
+  useEffect(() => {
+    navigator.geolocation.getCurrentPosition((position) => {
+      const { latitude, longitude } = position.coords;
+      setCurrentPosition([latitude, longitude]);
+    });
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-light">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left sidebar */}
           <div className="lg:col-span-1 space-y-6">
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">Panel del Conductor</h2>
+              <h2 className="text-xl font-bold text-dark mb-4">{STRINGS.PANEL_DEL_CONDUCTOR}</h2>
               
               <div className="flex border-b mb-4">
-                <button 
-                  className={`flex-1 py-2 font-medium ${activeTab === 'available' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                <Button 
+                  className={`flex-1 py-2 font-medium ${activeTab === 'available' ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
                   onClick={() => setActiveTab('available')}
                 >
-                  Viajes Disponibles
-                </button>
-                <button 
-                  className={`flex-1 py-2 font-medium ${activeTab === 'my-trips' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  {STRINGS.VIAJES_DISPONIBLES}
+                </Button>
+                <Button 
+                  className={`flex-1 py-2 font-medium ${activeTab === 'my-trips' ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
                   onClick={() => setActiveTab('my-trips')}
                 >
-                  Mis Viajes
-                </button>
-                <button 
-                  className={`flex-1 py-2 font-medium ${activeTab === 'create-trip' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  {STRINGS.MIS_VIAJES}
+                </Button>
+                <Button 
+                  className={`flex-1 py-2 font-medium ${activeTab === 'create-trip' ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
                   onClick={() => setActiveTab('create-trip')}
                 >
                   <FaPlus className="inline mr-1" />
-                </button>
+                </Button>
               </div>
               
               {/* Available Trips Tab */}
               {activeTab === 'available' && (
                 <div className="space-y-4">
-                  <h3 className="font-medium text-gray-900">Solicitudes de viaje</h3>
+                  <h3 className="font-medium text-dark">{STRINGS.SOLICITUDES_DE_VIAJE}</h3>
                   {availableTrips.length === 0 ? (
-                    <p className="text-sm text-gray-500 py-4 text-center">No hay viajes disponibles en este momento</p>
+                    <p className="text-sm text-secondary py-4 text-center">{STRINGS.NO_HAY_VIAJES_DISPONIBLES}</p>
                   ) : (
                     <div className="space-y-4">
                       {availableTrips.map((trip) => (
                         <div key={trip.id} className="border rounded-lg p-4 space-y-3">
                           <div className="flex items-center">
-                            <FaMapMarkerAlt className="text-red-500 mr-2 w-4" />
-                            <span className="truncate">{trip.origin?.name || 'Origen no especificado'}</span>
+                            <FaMapMarkerAlt className="text-danger mr-2 w-4" />
+                            <span className="truncate">{trip.origin?.name || STRINGS.ORIGEN_NO_ESPECIFICADO}</span>
                           </div>
                           <div className="flex items-center">
-                            <FaMapMarkerAlt className="text-green-500 mr-2 w-4" />
-                            <span className="truncate">{trip.destination?.name || 'Destino no especificado'}</span>
+                            <FaMapMarkerAlt className="text-success mr-2 w-4" />
+                            <span className="truncate">{trip.destination?.name || STRINGS.DESTINO_NO_ESPECIFICADO}</span>
                           </div>
-                          <div className="flex items-center text-gray-500">
+                          <div className="flex items-center text-secondary">
                             <FaClock className="mr-2 w-4" />
                             <span>{formatDate(trip.departureTime)}</span>
                           </div>
-                          <div className="flex items-center text-gray-500">
+                          <div className="flex items-center text-secondary">
                             <FaUser className="mr-2 w-4" />
-                            <span>{trip.passengers || 1} pasajero{trip.passengers !== 1 ? 's' : ''}</span>
+                            <span>{trip.passengers || 1} {trip.passengers > 1 ? STRINGS.PASAJEROS : STRINGS.PASAJERO}</span>
                           </div>
-                          <div className="flex items-center text-lg font-semibold text-blue-600">
+                          <div className="flex items-center text-lg font-semibold text-primary">
                             <FaMoneyBillWave className="mr-2" />
                             ${(trip.price || 0).toLocaleString()}
                           </div>
-                          <button
+                          <Button
                             onClick={() => handleAcceptTrip(trip.id)}
-                            className="w-full bg-green-600 text-white py-2 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center"
                             disabled={loading}
+                            className="w-full bg-success text-white py-2 rounded-lg font-medium hover:bg-success-dark transition-colors flex items-center justify-center"
                           >
                             {loading ? (
                               <>
@@ -505,15 +524,15 @@ export default function Driver() {
                                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                Procesando...
+                                {STRINGS.PROCESANDO}
                               </>
                             ) : (
                               <>
                                 <FaCheck className="mr-2" />
-                                Aceptar viaje
+                                {STRINGS.ACEPTAR_VIAJE}
                               </>
                             )}
-                          </button>
+                          </Button>
                         </div>
                       ))}
                     </div>
@@ -533,59 +552,59 @@ export default function Driver() {
                         <div key={trip.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                           <div className="flex justify-between items-start mb-3">
                             <div>
-                              <h4 className="font-medium">
-                                {trip.origin?.name?.split(',')[0] || 'Origen'} → {trip.destination?.name?.split(',')[0] || 'Destino'}
+                              <h4 className="font-medium text-dark">
+                                {trip.origin?.name?.split(',')[0] || STRINGS.ORIGEN} → {trip.destination?.name?.split(',')[0] || STRINGS.DESTINO}
                               </h4>
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                 trip.status === 'accepted' 
-                                  ? 'bg-blue-100 text-blue-800' 
+                                  ? 'bg-primary text-white' 
                                   : trip.status === 'completed'
-                                    ? 'bg-gray-100 text-gray-800'
+                                    ? 'bg-secondary text-white'
                                     : trip.status === 'in_progress'
-                                      ? 'bg-yellow-100 text-yellow-800'
-                                      : 'bg-green-100 text-green-800'
+                                      ? 'bg-warning text-white'
+                                      : 'bg-success text-white'
                               }`}>
                                 {trip.status === 'accepted' 
-                                  ? 'Aceptado' 
+                                  ? STRINGS.ACEPTADO 
                                   : trip.status === 'completed' 
-                                    ? 'Completado' 
+                                    ? STRINGS.COMPLETADO 
                                     : trip.status === 'in_progress'
-                                      ? 'En curso'
-                                      : 'Disponible'}
+                                      ? STRINGS.EN_CURSO
+                                      : STRINGS.DISPONIBLE_MAYUS}
                               </span>
                             </div>
                             <div className="text-right">
-                              <div className="text-xl font-bold text-blue-600">${(trip.price || 0).toLocaleString()}</div>
-                              <div className="text-sm text-gray-500">
-                                {trip.passengers} pasajero{trip.passengers !== 1 ? 's' : ''}
+                              <div className="text-xl font-bold text-primary">${(trip.price || 0).toLocaleString()}</div>
+                              <div className="text-sm text-secondary">
+                                {trip.passengers} {trip.passengers > 1 ? STRINGS.PASAJEROS : STRINGS.PASAJERO}
                               </div>
                             </div>
                           </div>
                           
                           <div className="space-y-2 text-sm mb-4">
                             <div className="flex items-center">
-                              <FaMapMarkerAlt className="text-red-500 mr-2 w-4" />
-                              <span className="truncate">{trip.origin?.name || 'Origen no especificado'}</span>
+                              <FaMapMarkerAlt className="text-danger mr-2 w-4" />
+                              <span className="truncate">{trip.origin?.name || STRINGS.ORIGEN_NO_ESPECIFICADO}</span>
                             </div>
                             <div className="flex items-center">
-                              <FaMapMarkerAlt className="text-green-500 mr-2 w-4" />
-                              <span className="truncate">{trip.destination?.name || 'Destino no especificado'}</span>
+                              <FaMapMarkerAlt className="text-success mr-2 w-4" />
+                              <span className="truncate">{trip.destination?.name || STRINGS.DESTINO_NO_ESPECIFICADO}</span>
                             </div>
-                            <div className="flex items-center text-gray-500">
+                            <div className="flex items-center text-secondary">
                               <FaClock className="mr-2 w-4" />
                               <span>{formatDate(trip.departureTime)}</span>
                             </div>
                             {trip.carModel && (
-                              <div className="flex items-center text-gray-500">
+                              <div className="flex items-center text-secondary">
                                 <FaCar className="mr-2 w-4" />
                                 <span>{trip.carModel} {trip.carPlate ? `• ${trip.carPlate}` : ''}</span>
                               </div>
                             )}
                             {trip.passengerName && (
                               <div className="mt-2 pt-2 border-t">
-                                <p className="font-medium text-sm mb-1">Pasajero:</p>
-                                <div className="flex items-center text-sm text-gray-600">
-                                  <FaUser className="mr-2 w-4 text-gray-400" />
+                                <p className="font-medium text-sm mb-1">{STRINGS.PASAJERO}:</p>
+                                <div className="flex items-center text-sm text-dark">
+                                  <FaUser className="mr-2 w-4 text-secondary" />
                                   <span>{trip.passengerName}</span>
                                 </div>
                               </div>
@@ -594,59 +613,59 @@ export default function Driver() {
                           
                           {trip.status === 'accepted' && (
                             <div className="flex gap-2">
-                              <button
+                              <Button
                                 onClick={() => handleCompleteTrip(trip.id)}
-                                className="flex-1 bg-green-600 text-white py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
                                 disabled={loading}
+                                className="flex-1 bg-success text-white py-2 rounded-lg font-medium hover:bg-success-dark transition-colors"
                               >
-                                {loading ? 'Procesando...' : 'Completar viaje'}
-                              </button>
+                                {loading ? STRINGS.PROCESANDO : STRINGS.COMPLETAR_VIAJE}
+                              </Button>
                             </div>
                           )}
                         </div>
                       ))
                     ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <p>No tienes viajes activos</p>
-                        <button 
-                          className="mt-4 text-blue-600 hover:text-blue-800 font-medium"
+                      <div className="text-center py-8 text-secondary">
+                        <p>{STRINGS.NO_TIENES_VIAJES_ACTIVOS}</p>
+                        <Button 
+                          className="mt-4 text-primary hover:text-primary-dark font-medium"
                           onClick={() => setActiveTab('create-trip')}
                         >
-                          Crear un nuevo viaje
-                        </button>
+                          {STRINGS.CREAR_UN_NUEVO_VIAJE}
+                        </Button>
                       </div>
                     )
                   ) : (
                     // Trip history
                     tripHistory.length > 0 ? (
                       tripHistory.map((trip) => (
-                        <div key={trip.id} className="bg-white rounded-lg shadow-md p-4 border-l-4 border-green-500">
+                        <div key={trip.id} className="bg-white rounded-lg shadow-md p-4 border-l-4 border-success">
                           <div className="flex justify-between items-start">
                             <div>
-                              <h3 className="font-medium text-gray-900">
-                                {trip.origin?.name || 'Origen desconocido'} → {trip.destination?.name || 'Destino desconocido'}
+                              <h3 className="font-medium text-dark">
+                                {trip.origin?.name || STRINGS.ORIGEN_DESCONOCIDO} → {trip.destination?.name || STRINGS.DESTINO_DESCONOCIDO}
                               </h3>
-                              <p className="text-sm text-gray-500">
-                                {trip.passengerName ? `Pasajero: ${trip.passengerName}` : 'Pasajero no especificado'}
+                              <p className="text-sm text-secondary">
+                                {trip.passengerName ? `${STRINGS.PASAJERO}: ${trip.passengerName}` : STRINGS.PASAJERO_NO_ESPECIFICADO}
                               </p>
-                              <p className="text-sm text-gray-500">
-                                Precio: ${trip.price || 'No especificado'}
+                              <p className="text-sm text-secondary">
+                                {STRINGS.PRECIO}${trip.price || 'No especificado'}
                               </p>
                               {trip.completedAt && (
-                                <p className="text-xs text-gray-400 mt-1">
-                                  Completado: {formatDate(trip.completedAt, true)}
+                                <p className="text-xs text-light mt-1">
+                                  {STRINGS.COMPLETADO_PUNTOS}{formatDate(trip.completedAt, true)}
                                 </p>
                               )}
                             </div>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              Completado
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success text-white">
+                              {STRINGS.COMPLETADO}
                             </span>
                           </div>
                         </div>
                       ))
                     ) : (
                       <div className="text-center py-8">
-                        <p className="text-gray-500">Aún no tienes viajes completados en tu historial.</p>
+                        <p className="text-secondary">{STRINGS.AUN_NO_TIENES_VIAJES_COMPLETADOS}</p>
                       </div>
                     )
                   )}
@@ -656,28 +675,28 @@ export default function Driver() {
               {/* Create Trip Tab */}
               {activeTab === 'create-trip' && (
                 <form onSubmit={handleCreateTrip}>
-                  <h3 className="font-medium text-gray-900 mb-4">Crear nuevo viaje</h3>
+                  <h3 className="font-medium text-dark mb-4">{STRINGS.CREAR_NUEVO_VIAJE}</h3>
                   
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Origen</label>
-                      <div className="flex items-center bg-gray-100 rounded-lg p-3">
-                        <FaMapMarkerAlt className="text-red-500 mr-2" />
-                        <span>{origin?.name || 'Selecciona en el mapa'}</span>
+                      <label className="block text-sm font-medium text-dark mb-1">{STRINGS.ORIGEN}</label>
+                      <div className="flex items-center bg-light rounded-lg p-3">
+                        <FaMapMarkerAlt className="text-danger mr-2" />
+                        <span>{origin?.name || STRINGS.SELECCIONA_EN_MAPA}</span>
                       </div>
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Destino</label>
-                      <div className="flex items-center bg-gray-100 rounded-lg p-3">
-                        <FaMapMarkerAlt className="text-green-500 mr-2" />
-                        <span>{destination?.name || 'Selecciona en el mapa'}</span>
+                      <label className="block text-sm font-medium text-dark mb-1">{STRINGS.DESTINO}</label>
+                      <div className="flex items-center bg-light rounded-lg p-3">
+                        <FaMapMarkerAlt className="text-success mr-2" />
+                        <span>{destination?.name || STRINGS.SELECCIONA_EN_MAPA}</span>
                       </div>
                     </div>
                     
                     <div>
-                      <label htmlFor="departureTime" className="block text-sm font-medium text-gray-700 mb-1">
-                        Fecha y hora de salida
+                      <label htmlFor="departureTime" className="block text-sm font-medium text-dark mb-1">
+                        {STRINGS.FECHA_Y_HORA_DE_SALIDA}
                       </label>
                       <input
                         type="datetime-local"
@@ -685,14 +704,14 @@ export default function Driver() {
                         name="departureTime"
                         value={tripDetails.departureTime}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
                         required
                       />
                     </div>
                     
                     <div>
-                      <label htmlFor="availableSeats" className="block text-sm font-medium text-gray-700 mb-1">
-                        Asientos disponibles
+                      <label htmlFor="availableSeats" className="block text-sm font-medium text-dark mb-1">
+                        {STRINGS.ASIENTOS_DISPONIBLES_MAYUS}
                       </label>
                       <input
                         type="number"
@@ -702,18 +721,18 @@ export default function Driver() {
                         max="10"
                         value={tripDetails.availableSeats}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
                         required
                       />
                     </div>
                     
                     <div>
-                      <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
-                        Precio por asiento
+                      <label htmlFor="price" className="block text-sm font-medium text-dark mb-1">
+                        {STRINGS.PRECIO_POR_ASIENTO}
                       </label>
                       <div className="mt-1 relative rounded-md shadow-sm">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <span className="text-gray-500 sm:text-sm">$</span>
+                          <span className="text-secondary sm:text-sm">$</span>
                         </div>
                         <input
                           type="number"
@@ -722,15 +741,15 @@ export default function Driver() {
                           min="0"
                           value={tripDetails.price}
                           onChange={handleInputChange}
-                          className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
                           required
                         />
                       </div>
                     </div>
                     
                     <div>
-                      <label htmlFor="carModel" className="block text-sm font-medium text-gray-700 mb-1">
-                        Modelo del vehículo
+                      <label htmlFor="carModel" className="block text-sm font-medium text-dark mb-1">
+                        {STRINGS.MODELO_DEL_VEHICULO}
                       </label>
                       <input
                         type="text"
@@ -738,15 +757,15 @@ export default function Driver() {
                         name="carModel"
                         value={tripDetails.carModel}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Ej: Toyota Corolla 2020"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                        placeholder={STRINGS.EJ_TOYOTA_COROLLA}
                         required
                       />
                     </div>
                     
                     <div>
-                      <label htmlFor="carPlate" className="block text-sm font-medium text-gray-700 mb-1">
-                        Placa del vehículo
+                      <label htmlFor="carPlate" className="block text-sm font-medium text-dark mb-1">
+                        {STRINGS.PLACA_DEL_VEHICULO}
                       </label>
                       <input
                         type="text"
@@ -754,15 +773,15 @@ export default function Driver() {
                         name="carPlate"
                         value={tripDetails.carPlate}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Ej: ABC123"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                        placeholder={STRINGS.EJ_ABC123}
                         required
                       />
                     </div>
                     
                     <div>
-                      <label htmlFor="estimatedDuration" className="block text-sm font-medium text-gray-700 mb-1">
-                        Duración estimada
+                      <label htmlFor="estimatedDuration" className="block text-sm font-medium text-dark mb-1">
+                        {STRINGS.DURACION_ESTIMADA}
                       </label>
                       <input
                         type="text"
@@ -770,17 +789,17 @@ export default function Driver() {
                         name="estimatedDuration"
                         value={tripDetails.estimatedDuration}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Ej: 45 min"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                        placeholder={STRINGS.EJ_45_MIN}
                       />
                     </div>
                     
                     <div className="pt-2">
-                      <button
+                      <Button
                         type="submit"
                         disabled={!origin || !destination || loading}
-                        className={`w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium flex items-center justify-center ${
-                          (!origin || !destination || loading) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'
+                        className={`w-full bg-primary text-white py-3 px-4 rounded-lg font-medium flex items-center justify-center ${
+                          (!origin || !destination || loading) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-primary-dark'
                         }`}
                       >
                         {loading ? (
@@ -789,12 +808,12 @@ export default function Driver() {
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            Creando viaje...
+                            {STRINGS.CREANDO_VIAJE}
                           </>
                         ) : (
-                          'Publicar viaje'
+                          STRINGS.PUBLICAR_VIAJE
                         )}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </form>
@@ -803,85 +822,87 @@ export default function Driver() {
           </div>
           
           {/* Map - Added responsive height and full width on mobile */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-md overflow-hidden w-full h-[400px] lg:h-auto">
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-md overflow-hidden w-full h-96 lg:h-auto">
             <div className="w-full h-full">
-              <MapContainer 
-                center={[5.2226, -76.0307]} 
-                zoom={13} 
-                style={{ height: '100%', width: '100%', minHeight: '400px' }}
-                zoomControl={true}
-                whenCreated={handleMapLoad}
-              >
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              />
-              
-              {/* Passenger Location Marker */}
-              {acceptedTrip?.origin && (
-                <Marker 
-                  position={[acceptedTrip.origin.lat, acceptedTrip.origin.lng]}
-                  icon={passengerIcon}
+              {currentPosition && (
+                <MapContainer 
+                  center={currentPosition} 
+                  zoom={13} 
+                  style={{ height: '100%', width: '100%', minHeight: '400px' }}
+                  zoomControl={true}
+                  whenCreated={handleMapLoad}
                 >
-                  <Popup>
-                    <div className="text-sm">
-                      <div className="font-medium">Recoger a {acceptedTrip.passengerName || 'el pasajero'}</div>
-                      <div>{acceptedTrip.origin.name || 'Ubicación del pasajero'}</div>
-                    </div>
-                  </Popup>
-                </Marker>
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                />
+                
+                {/* Passenger Location Marker */}
+                {acceptedTrip?.origin && (
+                  <Marker 
+                    position={[acceptedTrip.origin.lat, acceptedTrip.origin.lng]}
+                    icon={passengerIcon}
+                  >
+                    <Popup>
+                      <div className="text-sm">
+                        <div className="font-medium">{STRINGS.RECOGER_A}{acceptedTrip.passengerName || STRINGS.EL_PASAJERO}</div>
+                        <div>{acceptedTrip.origin.name || STRINGS.UBICACION_DEL_PASAJERO}</div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                )}
+                
+                {/* Origin Marker */}
+                {origin && (
+                  <Marker 
+                    position={[origin.lat, origin.lng]} 
+                    icon={defaultIcon}
+                  >
+                    <Popup>{STRINGS.ORIGEN_PUNTOS}{origin.name || STRINGS.UBICACION_DE_RECOGIDA}</Popup>
+                  </Marker>
+                )}
+                
+                {/* Destination Marker */}
+                {destination && (
+                  <Marker 
+                    position={[destination.lat, destination.lng]} 
+                    icon={defaultIcon}
+                  >
+                    <Popup>{STRINGS.DESTINO_PUNTOS}{destination.name || STRINGS.UBICACION_DE_DESTINO}</Popup>
+                  </Marker>
+                )}
+                
+                {/* Available Trips Markers */}
+                {activeTab === 'available' && availableTrips.map((trip) => (
+                  <Marker 
+                    key={trip.id}
+                    position={[trip.origin.lat, trip.origin.lng]} 
+                    icon={defaultIcon}
+                  >
+                    <Popup>
+                      <div className="text-sm">
+                        <div className="font-medium">{STRINGS.SOLICITUD_DE_VIAJE}</div>
+                        <div>{STRINGS.DE}{trip.origin.name || STRINGS.ORIGEN}</div>
+                        <div>{STRINGS.A}{trip.destination.name || STRINGS.DESTINO}</div>
+                        <div>{STRINGS.PASAJEROS_PUNTOS}{trip.passengers || 1}</div>
+                        <div>{STRINGS.PRECIO}${(trip.price || 0).toLocaleString()}</div>
+                        <Button
+                          onClick={() => handleAcceptTrip(trip.id)}
+                          className="mt-2 w-full bg-success text-white py-1 px-2 rounded text-xs font-medium hover:bg-success-dark"
+                        >
+                          {STRINGS.ACEPTAR_VIAJE}
+                        </Button>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+                
+                {/* Location Selector */}
+                {activeTab === 'create-trip' && (
+                  <LocationSelector onSelect={handleLocationSelect} />
+                )}
+                </MapContainer>
               )}
-              
-              {/* Origin Marker */}
-              {origin && (
-                <Marker 
-                  position={[origin.lat, origin.lng]} 
-                  icon={defaultIcon}
-                >
-                  <Popup>Origen: {origin.name || 'Ubicación de recogida'}</Popup>
-                </Marker>
-              )}
-              
-              {/* Destination Marker */}
-              {destination && (
-                <Marker 
-                  position={[destination.lat, destination.lng]} 
-                  icon={defaultIcon}
-                >
-                  <Popup>Destino: {destination.name || 'Ubicación de destino'}</Popup>
-                </Marker>
-              )}
-              
-              {/* Available Trips Markers */}
-              {activeTab === 'available' && availableTrips.map((trip) => (
-                <Marker 
-                  key={trip.id}
-                  position={[trip.origin.lat, trip.origin.lng]} 
-                  icon={defaultIcon}
-                >
-                  <Popup>
-                    <div className="text-sm">
-                      <div className="font-medium">Solicitud de viaje</div>
-                      <div>De: {trip.origin.name || 'Origen'}</div>
-                      <div>A: {trip.destination.name || 'Destino'}</div>
-                      <div>Pasajeros: {trip.passengers || 1}</div>
-                      <div>Precio: ${(trip.price || 0).toLocaleString()}</div>
-                      <button
-                        onClick={() => handleAcceptTrip(trip.id)}
-                        className="mt-2 w-full bg-green-600 text-white py-1 px-2 rounded text-xs font-medium hover:bg-green-700"
-                      >
-                        Aceptar viaje
-                      </button>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-              
-              {/* Location Selector */}
-              {activeTab === 'create-trip' && (
-                <LocationSelector onSelect={handleLocationSelect} />
-              )}
-              </MapContainer>
             </div>
           </div>
         </div>

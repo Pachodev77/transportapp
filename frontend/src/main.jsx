@@ -1,11 +1,24 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import './index.css';
-import { initializePersistence } from './firebase/firebaseConfig';
+import { initializePersistence } from './firebase/config';
+
+// Initialize auth persistence when the app starts
+const initApp = async () => {
+  try {
+    await initializePersistence();
+    console.log('Firebase initialized successfully');
+  } catch (error) {
+    console.error('Error initializing Firebase:', error);
+  }
+};
+
+// Initialize the app
+initApp();
 
 // Lazy load pages for better performance
 const Login = React.lazy(() => import('./pages/Login'));
@@ -84,18 +97,7 @@ function AuthCheck({ children }) {
 
 function App() {
   // Initialize Firebase persistence when the app starts
-  useEffect(() => {
-    const initFirebase = async () => {
-      try {
-        await initializePersistence();
-        console.log('Firebase persistence initialized');
-      } catch (error) {
-        console.error('Failed to initialize Firebase persistence:', error);
-      }
-    };
-    
-    initFirebase();
-  }, []);
+  // Firebase persistence is now initialized at the module level
 
   return (
     <React.Suspense fallback={<Loading />}>

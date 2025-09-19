@@ -1,4 +1,4 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApp } from 'firebase/app';
 import { 
   getAuth, 
   GoogleAuthProvider, 
@@ -8,6 +8,9 @@ import {
 } from 'firebase/auth';
 import { 
   getFirestore, 
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   collection, 
   doc, 
   setDoc, 
@@ -25,76 +28,66 @@ import {
   onSnapshot,
   writeBatch,
   getDocsFromServer,
-  getDocsFromCache,
-  enableIndexedDbPersistence
+  getDocsFromCache
 } from 'firebase/firestore';
 
 // Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBwff9ZSIOE8hF3c0-kKxX7zyj8MpO0C6E",
-  authDomain: "transportapp-dfd34.firebaseapp.com",
-  projectId: "transportapp-dfd34",
-  storageBucket: "transportapp-dfd34.appspot.com",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: "81243763076",
   appId: "1:81243763076:web:7e0e3baca62282b0476dd1",
   measurementId: "G-HQ0VQ56HPB"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase only once
+let app;
+let auth;
+let db;
 
-// Initialize services with error handling
-export const auth = getAuth(app);
-
-export const db = getFirestore(app);
-
-// Set default settings for Firestore
-const initializeFirestore = async () => {
-  try {
-    // Enable offline persistence with error handling
-    await enableIndexedDbPersistence(db, { 
-      forceOwnership: true 
-    }).catch((error) => {
-      if (error.code === 'failed-precondition') {
-        // Multiple tabs open, persistence can only be enabled in one tab at a time
-        console.warn('Firestore persistence failed: Multiple tabs open');
-      } else if (error.code === 'unimplemented') {
-        // The current browser doesn't support all of the features required
-        console.warn('Firestore persistence is not supported in this browser');
-      }
-    });
-  } catch (error) {
-    console.error('Error initializing Firestore:', error);
-  }
-};
-
-// Initialize Firestore with persistence
-initializeFirestore();
-
-export const initializePersistence = async () => {
-  if (persistenceInitialized) return;
+try {
+  // Try to get existing app, if it doesn't exist, initialize a new one
+  app = getApp();
+  auth = getAuth(app);
   
+  // Initialize Firestore with persistence settings
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
+  });
+} catch (error) {
+  // If no app exists, initialize a new one
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  
+  // Initialize Firestore with persistence settings
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
+  });
+}
+
+// Initialize auth persistence
+export const initializePersistence = async () => {
   try {
-    await setPersistence(auth, browserLocalPersistence);
-    await enableIndexedDbPersistence(db, { 
-      forceOwnership: true 
-    });
-    console.log('Firestore persistence enabled');
-    persistenceInitialized = true;
-  } catch (error) {
-    if (error.code === 'failed-precondition') {
-      console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-    } else if (error.code === 'unimplemented') {
-      console.warn('The current browser does not support all of the features required to enable persistence');
-    } else if (error.code === 'failed-precondition') {
-      console.warn('Persistence is already enabled in another tab');
+    if (auth) {
+      await setPersistence(auth, browserLocalPersistence);
+      console.log('Auth persistence initialized');
+      return true;
     }
-    console.warn('Persistence warning:', error.message);
+    return false;
+  } catch (error) {
+    console.error('Error initializing auth persistence:', error);
+    return false;
   }
 };
 
-// Initialize persistence when the app starts
-initializePersistence();
+// Initialize auth persistence when the module loads
+initializePersistence().catch(console.error);
 
 // Initialize providers with additional scopes if needed
 export const googleProvider = new GoogleAuthProvider();
@@ -461,4 +454,5 @@ export const subscribeToTripUpdates = (userId, callback) => {
   }
 };
 
+export { app, auth, db };
 export default app;
