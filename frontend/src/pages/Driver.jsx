@@ -893,9 +893,9 @@ export default function Driver() {
                   <LocationSelector onSelect={handleLocationSelect} />
                 )}
               </MapContainer>
-            )}
+              )}
+            </div>
           </div>
-          {/* End of right column */}
         </div>
       </div>
     </div>
