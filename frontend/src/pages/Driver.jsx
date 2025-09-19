@@ -892,9 +892,8 @@ export default function Driver() {
                 {activeTab === 'create-trip' && (
                   <LocationSelector onSelect={handleLocationSelect} />
                 )}
-                </MapContainer>
-              )}
-            </div>
+              </MapContainer>
+            )}
           </div>
         </div>
       </div>
