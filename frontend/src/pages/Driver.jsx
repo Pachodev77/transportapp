@@ -534,7 +534,7 @@ export default function Driver() {
               {/* My Trips Tab */}
               {activeTab === 'my-trips' && (
                 <div className="space-y-4">
-                  {renderTripTabs()}
+                  {/* {renderTripTabs()} */}
                   
                   {!showHistory ? (
                     // Active trips
