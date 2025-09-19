@@ -442,16 +442,7 @@ export default function Driver() {
     return () => {
       mapInstance.off('moveend', handleMoveEnd);
     };
-  };
 
-  const [currentPosition, setCurrentPosition] = useState(null);
-
-  useEffect(() => {
-    navigator.geolocation.getCurrentPosition((position) => {
-      const { latitude, longitude } = position.coords;
-      setCurrentPosition([latitude, longitude]);
-    });
-  }, []);
 
   return (
     <div className="min-h-screen bg-light">

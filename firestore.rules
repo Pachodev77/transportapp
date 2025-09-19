@@ -20,17 +20,10 @@ service cloud.firestore {
 
     // Users collection rules
     match /users/{userId} {
-      allow read: if isOwner(userId) || isRole('admin');
+      allow read: if isAuthenticated();
       allow list: if isRole('admin');
       allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isOwner(userId) && request.resource.data.keys().hasOnly([
-        'displayName', 
-        'photoURL', 
-        'phoneNumber',
-        'preferences',
-        'updatedAt',
-        'role' // Allow role update for self or admin
-      ]);
+      allow update: if isAuthenticated();
     }
 
     // Trips collection rules
