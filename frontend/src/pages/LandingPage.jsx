@@ -180,7 +180,7 @@ function LandingPage() {
   ];
 
   return (
-    <div className="bg-white overflow-hidden">
+    <div className="bg-white overflow-hidden pt-16">
       {/* Navbar is already included in the Layout component */}
       {/* Hero Section */}
       <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 overflow-hidden">
