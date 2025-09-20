@@ -13,7 +13,6 @@ import {
   updateDoc,
   doc,
   setDoc,
-  db,
   firebase
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
@@ -70,6 +69,22 @@ export default function Passenger() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('search');
   const [currentPosition, setCurrentPosition] = useState(null);
+  const [driverLocation, setDriverLocation] = useState(null);
+
+  useEffect(() => {
+    if (selectedTrip?.driverId) {
+      const driverLocationRef = doc(db, 'locations', selectedTrip.driverId);
+      const unsubscribe = onSnapshot(driverLocationRef, (doc) => {
+        if (doc.exists()) {
+          setDriverLocation(doc.data().location);
+        }
+      });
+
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, [selectedTrip]);
   const [driverLocation, setDriverLocation] = useState(null);
 
   useEffect(() => {
@@ -680,6 +695,23 @@ export default function Passenger() {
                 })}
               >
                 <Popup>{STRINGS.DESTINO_PUNTOS}{destination.address}</Popup>
+              </Marker>
+            )}
+            {/* Driver Location Marker */}
+            {driverLocation && (
+              <Marker 
+                position={[driverLocation.latitude, driverLocation.longitude]}
+                icon={new L.Icon({
+                  ...defaultIcon.options,
+                  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+                  iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png'
+                })}
+              >
+                <Popup>
+                  <div className="space-y-1">
+                    <p className="font-medium">{selectedTrip.driverName}</p>
+                  </div>
+                </Popup>
               </Marker>
             )}
             {/* Driver Location Marker */}
