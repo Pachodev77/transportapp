@@ -198,8 +198,8 @@ export default function Passenger() {
     setError('');
     
     try {
-      // Create a new ride request
-      const rideRequest = {
+      // Create a new trip with status 'searching'
+      const tripData = {
         passengerId: currentUser.uid,
         passengerName: currentUser.displayName || STRINGS.USUARIO,
         passengerEmail: currentUser.email,
@@ -215,18 +215,19 @@ export default function Passenger() {
           name: destination.name,
           address: destination.address
         },
-        status: 'pending',
-        timestamp: Date.now(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        status: 'searching', // Changed from 'pending'
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       };
       
-      // Add the ride request to Firestore
-      await addDoc(collection(db, 'rideRequests'), rideRequest);
+      // Add the trip to the 'trips' collection
+      await addDoc(collection(db, 'trips'), tripData); // Changed from 'rideRequests'
       
       // Reset the form
       setOrigin(null);
       setDestination(null);
+      
+      alert('¡Tu solicitud de viaje ha sido publicada! Un conductor la aceptará pronto.');
       
     } catch (error) {
       console.error(STRINGS.ERROR_SOLICITAR_VIAJE, error);

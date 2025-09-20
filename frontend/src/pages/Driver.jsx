@@ -481,7 +481,7 @@ function Driver() {
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-bold text-dark mb-4">{STRINGS.PANEL_DEL_CONDUCTOR}</h2>
               
-              <div className="flex border-b mb-4">
+              <div className="flex border-b mb-4 space-x-2">
                 <Button 
                   className={`flex-1 py-2 font-medium ${activeTab === 'available' ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
                   onClick={() => setActiveTab('available')}
