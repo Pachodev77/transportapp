@@ -20,10 +20,7 @@ service cloud.firestore {
 
     // Users collection rules
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow list: if isRole('admin');
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isAuthenticated();
+      allow read, write: if isAuthenticated();
     }
 
     // Trips collection rules
@@ -35,13 +32,7 @@ service cloud.firestore {
                  isRole('admin'));
       
       // Allow list if authenticated and querying by driverId or passengerId, or if admin
-      allow list: if isAuthenticated() && (
-                   (request.query.keys().hasOnly(['driverId']) && request.query.driverId == request.auth.uid) ||
-                   (request.query.keys().hasOnly(['passengerId']) && request.query.passengerId == request.auth.uid) ||
-                   isRole('admin') ||
-                   // Allow listing available trips for all authenticated users
-                   (request.query.keys().hasOnly(['status']) && request.query.status == 'available')
-                 );
+      allow list: if isAuthenticated();
       
       // Allow create if authenticated and the trip is properly formed
       allow create: if isAuthenticated() && 
@@ -55,8 +46,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && 
                    (isOwner(resource.data.driverId) || 
                     isOwner(resource.data.passengerId) ||
-                    isRole('admin')) &&
-                   request.resource.data.keys().hasOnly(['status', 'updatedAt', 'driverId', 'acceptedAt', 'completedAt', 'availableSeats']);
+                    isRole('admin'));
       
       // Allow delete only by the driver or admin
       allow delete: if isAuthenticated() && 
