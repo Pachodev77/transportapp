@@ -814,7 +814,7 @@ function Driver() {
           </div>
           
           {/* Map - Added responsive height and full width on mobile */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-md overflow-hidden w-full h-96 lg:h-auto">
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-md overflow-hidden w-full h-96 lg:h-full">
             <div className="w-full h-full">
               {currentPosition && (
                 <MapContainer 
