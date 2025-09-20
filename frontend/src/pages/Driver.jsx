@@ -10,12 +10,9 @@ import {
   createTrip, 
   subscribeToTripUpdates,
   subscribeToTrips,
-  onSnapshot,
-  doc,
-  setDoc,
-  db,
-  firebase
+  db
 } from '../firebase/config';
+import { onSnapshot, doc, setDoc, serverTimestamp, GeoPoint } from 'firebase/firestore';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { STRINGS } from '../utils/constants';
@@ -76,7 +73,7 @@ function Driver() {
         if (currentUser) {
           const locationRef = doc(db, 'locations', currentUser.uid);
           setDoc(locationRef, { 
-            location: new firebase.firestore.GeoPoint(latitude, longitude),
+            location: new GeoPoint(latitude, longitude),
             updatedAt: serverTimestamp(),
           });
         }
@@ -133,22 +130,6 @@ function Driver() {
   const mapRef = useRef();
   const mapInitialized = useRef(false);
   const pendingCenter = useRef(null);
-  const [passengerLocation, setPassengerLocation] = useState(null);
-
-  useEffect(() => {
-    if (acceptedTrip?.passengerId) {
-      const passengerLocationRef = doc(db, 'locations', acceptedTrip.passengerId);
-      const unsubscribe = onSnapshot(passengerLocationRef, (doc) => {
-        if (doc.exists()) {
-          setPassengerLocation(doc.data().location);
-        }
-      });
-
-      return () => {
-        unsubscribe();
-      };
-    }
-  }, [acceptedTrip]);
   const [passengerLocation, setPassengerLocation] = useState(null);
 
   useEffect(() => {
@@ -885,23 +866,6 @@ function Driver() {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
-                
-  const [passengerLocation, setPassengerLocation] = useState(null);
-
-  useEffect(() => {
-    if (acceptedTrip?.passengerId) {
-      const passengerLocationRef = doc(db, 'locations', acceptedTrip.passengerId);
-      const unsubscribe = onSnapshot(passengerLocationRef, (doc) => {
-        if (doc.exists()) {
-          setPassengerLocation(doc.data().location);
-        }
-      });
-
-      return () => {
-        unsubscribe();
-      };
-    }
-  }, [acceptedTrip]);
 
                 {/* Passenger Location Marker */}
                 {passengerLocation && (
@@ -968,7 +932,6 @@ function Driver() {
                   <LocationSelector onSelect={handleLocationSelect} />
                 )}
               </MapContainer>
-              )}
             </div>
           </div>
         </div>

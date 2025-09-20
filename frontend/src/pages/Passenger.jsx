@@ -13,7 +13,7 @@ import {
   updateDoc,
   doc,
   setDoc,
-  firebase
+  GeoPoint
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
@@ -94,7 +94,7 @@ export default function Passenger() {
         if (currentUser) {
           const locationRef = doc(db, 'locations', currentUser.uid);
           setDoc(locationRef, { 
-            location: new firebase.firestore.GeoPoint(latitude, longitude),
+            location: new GeoPoint(latitude, longitude),
             updatedAt: serverTimestamp(),
           });
         }
@@ -701,7 +701,7 @@ export default function Passenger() {
             
             {/* Route Line */}
           </MapContainer>
-        )}
+        
       </div>
     </div>
   );
