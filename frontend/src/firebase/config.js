@@ -49,26 +49,20 @@ let auth;
 let db;
 
 try {
-  // Try to get existing app, if it doesn't exist, initialize a new one
   app = getApp();
-  auth = getAuth(app);
-  
-  // Initialize Firestore with persistence settings
-  db = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager()
-    })
-  });
-} catch (error) {
-  // If no app exists, initialize a new one
+} catch (e) {
   app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  
-  // Initialize Firestore with persistence settings
+}
+
+auth = getAuth(app);
+
+try {
+  db = getFirestore(app);
+} catch (e) {
   db = initializeFirestore(app, {
     localCache: persistentLocalCache({
-      tabManager: persistentMultipleTabManager()
-    })
+      tabManager: persistentMultipleTabManager(),
+    }),
   });
 }
 
@@ -222,8 +216,8 @@ export const createTrip = async (tripData) => {
       const now = serverTimestamp();
       
       const tripWithMetadata = {
-        ...tripData,
-        status: 'pending',
+        status: 'pending', // Default status
+        ...tripData,      // User-provided data overrides default
         createdAt: now,
         updatedAt: now,
       };
@@ -324,7 +318,7 @@ export const subscribeToTrips = (status, callback, fields = []) => {
       const trips = querySnapshot.docs.map(doc => {
         const data = doc.data();
         // Filter fields if specified
-        if (fields.length > 0) {
+        if (Array.isArray(fields) && fields.length > 0) {
           return {
             id: doc.id,
             ...fields.reduce((acc, field) => {

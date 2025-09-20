@@ -59,6 +59,7 @@ export default function Passenger() {
   const [activeTab, setActiveTab] = useState('search');
   const [currentPosition, setCurrentPosition] = useState(null);
   const [driverLocation, setDriverLocation] = useState(null);
+  const [locationError, setLocationError] = useState(null);
 
   useEffect(() => {
     if (selectedTrip?.driverId) {
@@ -80,6 +81,7 @@ export default function Passenger() {
       (position) => {
         const { latitude, longitude } = position.coords;
         setCurrentPosition([latitude, longitude]);
+        if (locationError) setLocationError(null);
         if (currentUser) {
           const locationRef = doc(db, 'locations', currentUser.uid);
           setDoc(locationRef, { 
@@ -89,7 +91,7 @@ export default function Passenger() {
         }
       },
       (error) => {
-        console.error('Error watching position:', error);
+        setLocationError('Location access denied. Please enable location services in your browser settings.');
       },
       {
         enableHighAccuracy: true,
@@ -415,6 +417,12 @@ export default function Passenger() {
         {error && (
           <div className="mb-4 p-3 bg-danger text-white rounded-lg">
             {error}
+          </div>
+        )}
+        {locationError && (
+          <div className="mb-4 p-3 bg-red-500 text-white rounded-lg">
+            <p className="font-bold">Location Error:</p>
+            <p>{locationError}</p>
           </div>
         )}
         

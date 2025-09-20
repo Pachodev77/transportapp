@@ -147,13 +147,11 @@ function App() {
 
 // Asegurar que el contenedor raíz exista
 const container = document.getElementById('root');
-if (container) {
+if (container && !container._reactRootContainer) {
   const root = createRoot(container);
   root.render(
     <React.StrictMode>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <App />
     </React.StrictMode>
   );
 }

@@ -66,12 +66,14 @@ function Driver() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('available');
   const [currentPosition, setCurrentPosition] = useState(null);
+  const [locationError, setLocationError] = useState(null);
 
   useEffect(() => {
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         setCurrentPosition([latitude, longitude]);
+        if (locationError) setLocationError(null); // Clear error on success
         if (currentUser) {
           const locationRef = doc(db, 'locations', currentUser.uid);
           setDoc(locationRef, { 
@@ -81,7 +83,7 @@ function Driver() {
         }
       },
       (error) => {
-        console.error('Error watching position:', error);
+        setLocationError('Location access denied. Please enable location services in your browser settings.');
       },
       {
         enableHighAccuracy: true,
@@ -295,6 +297,43 @@ function Driver() {
     }
   };
 
+  const handleAcceptTrip = async (tripId) => {
+    if (!currentUser) {
+      alert('You must be logged in to accept a trip.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const tripRef = doc(db, 'trips', tripId);
+      const tripSnap = await getDoc(tripRef);
+
+      if (!tripSnap.exists()) {
+        throw new Error('This trip is no longer available.');
+      }
+
+      const tripToAccept = { id: tripSnap.id, ...tripSnap.data() };
+
+      await updateTripStatus(tripId, 'accepted', {
+        driverId: currentUser.uid,
+        driverName: currentUser.displayName || 'Anonymous Driver',
+        driverPhoto: currentUser.photoURL || '',
+      });
+
+      setAcceptedTrip(tripToAccept);
+      localStorage.setItem('acceptedTrip', JSON.stringify(tripToAccept));
+      setAvailableTrips(prev => prev.filter(t => t.id !== tripId));
+      setMyTrips(prev => [tripToAccept, ...prev]);
+      setActiveTab('my-trips');
+
+    } catch (error) {
+      console.error('Error accepting trip:', error);
+      alert(`Failed to accept trip: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setTripDetails(prev => ({
@@ -455,6 +494,12 @@ function Driver() {
   return (
     <div className="min-h-screen bg-light">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {locationError && (
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
+            <p className="font-bold">Location Error</p>
+            <p>{locationError}</p>
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left sidebar */}
           <div className="lg:col-span-1 space-y-6">

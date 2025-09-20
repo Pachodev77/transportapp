@@ -17,6 +17,14 @@ service cloud.firestore {
     function isRole(role) {
       return isAuthenticated() && getUserRole(request.auth.uid) == role;
     }
+    
+    function isDriver() {
+      return isRole('driver');
+    }
+    
+    function isAdmin() {
+      return isRole('admin');
+    }
 
     // Users collection rules
     match /users/{userId} {
@@ -93,10 +101,46 @@ service cloud.firestore {
       allow write: if isOwner(userId);
     }
 
+    // Ride Requests collection rules
+    match /rideRequests/{requestId} {
+      // Allow read if:
+      // 1. User is authenticated
+      // 2. AND (user is the passenger OR user is a driver OR user is admin)
+      allow read: if isAuthenticated() && 
+                 (request.auth.uid == resource.data.passengerId || 
+                  isDriver() || 
+                  isAdmin());
+      
+      // Allow create if:
+      // 1. User is authenticated
+      // 2. AND user is the passenger creating the request
+      allow create: if isAuthenticated() && 
+                   request.resource.data.passengerId == request.auth.uid &&
+                   request.resource.data.status == 'pending';
+      
+      // Allow update if:
+      // 1. User is authenticated
+      // 2. AND (user is the passenger OR user is a driver OR user is admin)
+      // 3. AND only specific fields can be updated
+      allow update: if isAuthenticated() && 
+                   (request.auth.uid == resource.data.passengerId || 
+                    isDriver() || 
+                    isAdmin()) &&
+                   (request.resource.data.diff(resource.data).affectedKeys()
+                    .hasOnly(['status', 'driverId', 'driverName', 'updatedAt']));
+      
+      // Allow delete if:
+      // 1. User is authenticated
+      // 2. AND (user is the passenger OR user is admin)
+      allow delete: if isAuthenticated() && 
+                   (request.auth.uid == resource.data.passengerId || 
+                    isAdmin());
+    }
+
     // System collection (for app configuration, etc.)
     match /_system/{document=**} {
       // Only admins can read/write system settings
-      allow read, write: if isRole('admin');
+      allow read, write: if isAdmin();
     }
   }
 }
