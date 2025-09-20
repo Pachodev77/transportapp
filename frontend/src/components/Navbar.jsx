@@ -1,7 +1,9 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FaCar, FaUser, FaSignOutAlt, FaBars } from 'react-icons/fa';
+import { FaBars, FaUser, FaSignOutAlt, FaCar } from 'react-icons/fa';
+import { FaMotorcycle } from 'react-icons/fa';
+import { FaMotorcycle as FaMoto, FaTruck as FaTruckFront } from 'react-icons/fa6';
 
 export default function Navbar() {
   const { currentUser, logout } = useAuth();
@@ -23,8 +25,12 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0 flex items-center">
-              <FaCar className="h-8 w-8 text-blue-600" />
+              <div className="flex items-center space-x-1">
+                <FaCar className="h-6 w-6 text-blue-600" />
+                <FaMoto className="h-6 w-6 text-blue-600" />
+              </div>
               <span className="ml-2 text-xl font-bold text-gray-900">TransportApp</span>
+              <FaTruckFront className="ml-2 h-6 w-6 text-blue-600" />
             </Link>
             <div className="hidden md:ml-6 md:flex md:space-x-8">
               <Link
@@ -144,16 +150,6 @@ export default function Navbar() {
                   >
                     Mi perfil
                   </Link>
-                  <button
-                    onClick={() => {
-                      handleLogout();
-                      setIsOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-base font-medium text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md flex items-center"
-                  >
-                    <FaSignOutAlt className="mr-2" />
-                    Cerrar sesión
-                  </button>
                 </div>
               </div>
             ) : (
@@ -182,7 +178,7 @@ export default function Navbar() {
           </div>
 
           {/* Navigation links */}
-          <div className="py-2">
+          <div className="py-2 border-b border-gray-200">
             <Link
               to="/"
               className="block px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
@@ -200,6 +196,22 @@ export default function Navbar() {
               </Link>
             )}
           </div>
+
+          {/* Logout option */}
+          {currentUser && (
+            <div className="py-2">
+              <button
+                onClick={() => {
+                  handleLogout();
+                  setIsOpen(false);
+                }}
+                className="w-full text-left px-4 py-2 text-base font-medium text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center"
+              >
+                <FaSignOutAlt className="mr-2" />
+                Cerrar sesión
+              </button>
+            </div>
+          )}
         </div>
       )}
     </nav>
