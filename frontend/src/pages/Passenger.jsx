@@ -176,40 +176,39 @@ export default function Passenger() {
       setError(STRINGS.SELECCIONAR_ORIGEN_DESTINO);
       return;
     }
-    
+
     if (!currentUser) {
       navigate('/login', { state: { from: 'passenger' } });
       return;
     }
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
-      // Create a new trip with status 'searching'
-      const tripData = {
+      const rideRequest = {
         passengerId: currentUser.uid,
         passengerName: currentUser.displayName || STRINGS.USUARIO,
         passengerEmail: currentUser.email,
         origin: {
-          lat: origin.lat,
-          lng: origin.lng,
-          name: origin.name,
-          address: origin.address
+          address: origin.address,
+          coordinates: new GeoPoint(origin.lat, origin.lng)
         },
         destination: {
-          lat: destination.lat,
-          lng: destination.lng,
-          name: destination.name,
-          address: destination.address
+          address: destination.address,
+          coordinates: new GeoPoint(destination.lat, destination.lng)
         },
-        status: 'searching', // Changed from 'pending'
+        status: 'pending',
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        passengerPhotoURL: currentUser.photoURL || null,
+        estimatedPrice: null, 
+        estimatedDistance: null, 
+        estimatedDuration: null 
       };
       
-      // Add the trip to the 'trips' collection
-      await addDoc(collection(db, 'trips'), tripData); // Changed from 'rideRequests'
+      // Add the ride request to the 'rideRequests' collection
+      await addDoc(collection(db, 'rideRequests'), rideRequest);
       
       // Reset the form
       setOrigin(null);
@@ -252,9 +251,9 @@ export default function Passenger() {
     if (!currentUser) return;
     
     const rideRequestsQuery = query(
-      collection(db, 'trips'), // Changed from 'rideRequests'
+      collection(db, 'rideRequests'),
       where('passengerId', '==', currentUser.uid),
-      where('status', '==', 'searching'), // Added this line
+      where('status', 'in', ['pending', 'accepted', 'in_progress']),
       orderBy('createdAt', 'desc')
     );
     
@@ -264,6 +263,9 @@ export default function Passenger() {
         requests.push({ id: doc.id, ...doc.data() });
       });
       setMyRideRequests(requests);
+    }, (error) => {
+      console.error('Error al cargar solicitudes de viaje:', error);
+      setError('Error al cargar las solicitudes de viaje');
     });
     
     return () => unsubscribeRideRequests();

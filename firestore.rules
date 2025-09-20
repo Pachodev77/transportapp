@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
+    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -10,40 +10,93 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Users can read public profiles of other users
+    function getUserRole(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+    }
+
+    function isRole(role) {
+      return isAuthenticated() && getUserRole(request.auth.uid) == role;
+    }
+
+    // Users collection rules
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow write: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow list: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId);
     }
 
-    // Drivers and passengers can manage their trips
+    // Trips collection rules
     match /trips/{tripId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (request.resource.data.driverId == request.auth.uid || request.resource.data.passengerId == request.auth.uid);
-      allow update: if isAuthenticated() && (request.auth.uid == resource.data.driverId || request.auth.uid == resource.data.passengerId);
-      allow delete: if isAuthenticated() && request.auth.uid == resource.data.driverId;
+      // Allow read if authenticated and you're the driver, passenger, or an admin
+      allow get: if isAuthenticated() && 
+                (request.auth.uid == resource.data.driverId || 
+                 request.auth.uid == resource.data.passengerId ||
+                 isRole('admin'));
+      
+      // Allow list if authenticated and querying by driverId or passengerId, or if admin
+      allow list: if isAuthenticated();
+      
+      // Allow create if authenticated and the trip is properly formed
+      allow create: if isAuthenticated() && 
+                   (request.resource.data.driverId == request.auth.uid || 
+                    request.resource.data.passengerId == request.auth.uid) &&
+                   request.resource.data.status in ['pending', 'searching'] &&
+                   request.resource.data.origin is map &&
+                   request.resource.data.destination is map;
+      
+      // Allow updates to status by driver or passenger, or admin
+      allow update: if isAuthenticated() && 
+                   (isOwner(resource.data.driverId) || 
+                    isOwner(resource.data.passengerId) ||
+                    isRole('admin'));
+      
+      // Allow delete only by the driver or admin
+      allow delete: if isAuthenticated() && 
+                   (isOwner(resource.data.driverId) || isRole('admin'));
     }
-
-    // Passengers can create ride requests, drivers can see them
-    match /rideRequests/{requestId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.resource.data.passengerId == request.auth.uid;
-      allow update: if isAuthenticated() && (request.auth.uid == resource.data.passengerId || request.auth.uid == resource.data.driverId);
-      allow delete: if isAuthenticated() && request.auth.uid == resource.data.passengerId;
-    }
-
-    // Bookings can be managed by the passenger or driver
+    
+    // Bookings collection rules
     match /bookings/{bookingId} {
-      allow read: if isAuthenticated() && (request.auth.uid == resource.data.passengerId || request.auth.uid == resource.data.driverId);
+      // Allow read if you're the driver, passenger, or an admin
+      allow read: if isAuthenticated() && 
+                 (request.auth.uid == resource.data.driverId || 
+                  request.auth.uid == resource.data.passengerId ||
+                  isRole('admin'));
+      
+      // Allow create if authenticated and the passenger is the one creating it
       allow create: if isAuthenticated() && request.resource.data.passengerId == request.auth.uid;
-      allow update: if isAuthenticated() && (request.auth.uid == resource.data.passengerId || request.auth.uid == resource.data.driverId);
-      allow delete: if isAuthenticated() && request.auth.uid == resource.data.passengerId;
+      
+      // Allow update by driver, passenger, or admin
+      allow update: if isAuthenticated() &&
+                   (isOwner(resource.data.driverId) || 
+                    isOwner(resource.data.passengerId) ||
+                    isRole('admin')) &&
+                   request.resource.data.keys().hasOnly(['status', 'updatedAt']);
+    }
+    
+    // Ratings collection rules
+    match /ratings/{ratingId} {
+      // Allow read for authenticated users
+      allow read: if isAuthenticated();
+      
+      // Allow create if authenticated and the rater is the one creating it
+      allow create: if isAuthenticated() && request.resource.data.raterId == request.auth.uid;
+      
+      // No updates or deletes after creation
+      allow update, delete: if false;
     }
 
-    // Locations can be updated by the owner, and read by authenticated users (for now)
+    // Locations collection rules
     match /locations/{userId} {
-      allow read: if isAuthenticated(); // This is still not ideal, but it will make the app work for now.
+      allow read: if isAuthenticated();
       allow write: if isOwner(userId);
+    }
+
+    // System collection (for app configuration, etc.)
+    match /_system/{document=**} {
+      // Only admins can read/write system settings
+      allow read, write: if isRole('admin');
     }
   }
 }
