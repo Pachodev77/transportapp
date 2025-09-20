@@ -20,7 +20,10 @@ service cloud.firestore {
 
     // Users collection rules
     match /users/{userId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isOwner(userId);
+      allow list: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId);
     }
 
     // Trips collection rules
@@ -86,7 +89,8 @@ service cloud.firestore {
 
     // Locations collection rules
     match /locations/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
     }
 
     // System collection (for app configuration, etc.)
