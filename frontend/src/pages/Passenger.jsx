@@ -13,9 +13,10 @@ import {
   updateDoc,
   doc,
   setDoc,
-  GeoPoint
+  GeoPoint,
+  increment
 } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { db, runTransaction } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -304,37 +305,48 @@ export default function Passenger() {
       navigate('/login', { state: { from: 'passenger' } });
       return;
     }
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
-      const booking = {
-        tripId: trip.id,
-        passengerId: currentUser.uid,
-        passengerName: currentUser.displayName || STRINGS.USUARIO,
-        driverId: trip.driverId,
-        driverName: trip.driverName,
-        origin: trip.origin,
-        destination: trip.destination,
-        departureTime: trip.departureTime,
-        price: trip.price,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      
-      await addDoc(collection(db, 'bookings'), booking);
-      
-      // Update available seats
-      await updateDoc(doc(db, 'trips', trip.id), {
-        availableSeats: trip.availableSeats - 1,
-        updatedAt: serverTimestamp()
+      await runTransaction(db, async (transaction) => {
+        const tripRef = doc(db, 'trips', trip.id);
+        const tripDoc = await transaction.get(tripRef);
+
+        if (!tripDoc.exists() || tripDoc.data().availableSeats <= 0) {
+          throw new Error('No hay asientos disponibles en este viaje.');
+        }
+
+        // Decrement available seats
+        transaction.update(tripRef, {
+          availableSeats: increment(-1),
+          updatedAt: serverTimestamp(),
+        });
+
+        // Create a new booking
+        const bookingRef = doc(collection(db, 'bookings'));
+        transaction.set(bookingRef, {
+          tripId: trip.id,
+          passengerId: currentUser.uid,
+          passengerName: currentUser.displayName || STRINGS.USUARIO,
+          driverId: trip.driverId,
+          driverName: trip.driverName,
+          origin: trip.origin,
+          destination: trip.destination,
+          departureTime: trip.departureTime,
+          price: trip.price,
+          status: 'pending',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
       });
-      
+
+      alert('¡Viaje reservado con éxito!');
+
     } catch (error) {
       console.error(STRINGS.ERROR_RESERVAR_VIAJE, error);
-      setError(STRINGS.ERROR_OCURRIDO_RESERVAR_VIAJE);
+      setError(error.message || STRINGS.ERROR_OCURRIDO_RESERVAR_VIAJE);
     } finally {
       setLoading(false);
     }
@@ -345,28 +357,42 @@ export default function Passenger() {
     if (!window.confirm(STRINGS.CONFIRMAR_CANCELAR_RESERVA)) {
       return;
     }
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
-      await updateDoc(doc(db, 'bookings', bookingId), {
-        status: 'cancelled',
-        updatedAt: serverTimestamp()
-      });
-      
-      // Update available seats if the booking was confirmed
-      const booking = myBookings.find(b => b.id === bookingId);
-      if (booking && booking.status === 'confirmed') {
-        await updateDoc(doc(db, 'trips', booking.tripId), {
-          availableSeats: increment(1),
-          updatedAt: serverTimestamp()
+      await runTransaction(db, async (transaction) => {
+        const bookingRef = doc(db, 'bookings', bookingId);
+        const bookingDoc = await transaction.get(bookingRef);
+
+        if (!bookingDoc.exists()) {
+          throw new Error('Esta reserva ya no existe.');
+        }
+
+        const booking = bookingDoc.data();
+
+        // Update booking status
+        transaction.update(bookingRef, {
+          status: 'cancelled',
+          updatedAt: serverTimestamp(),
         });
-      }
-      
+
+        // Increment available seats if the booking was confirmed
+        if (booking.status === 'confirmed') {
+          const tripRef = doc(db, 'trips', booking.tripId);
+          transaction.update(tripRef, {
+            availableSeats: increment(1),
+            updatedAt: serverTimestamp(),
+          });
+        }
+      });
+
+      alert('¡Reserva cancelada con éxito!');
+
     } catch (error) {
       console.error(STRINGS.ERROR_CANCELAR_RESERVA, error);
-      setError(STRINGS.ERROR_OCURRIDO_CANCELAR_RESERVA);
+      setError(error.message || STRINGS.ERROR_OCURRIDO_CANCELAR_RESERVA);
     } finally {
       setLoading(false);
     }

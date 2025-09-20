@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FaBars, FaUser, FaSignOutAlt, FaCar } from 'react-icons/fa';
+import { FaBars, FaUser, FaSignOutAlt, FaCar, FaTruck } from 'react-icons/fa';
 import { FaMotorcycle } from 'react-icons/fa';
-import { FaMotorcycle as FaMoto, FaTruck as FaTruckFront } from 'react-icons/fa6';
+import { FaMotorcycle as FaMoto } from 'react-icons/fa6';
 
 export default function Navbar() {
   const { currentUser, logout } = useAuth();
@@ -30,7 +30,7 @@ export default function Navbar() {
                 <FaMoto className="h-6 w-6 text-blue-600" />
               </div>
               <span className="ml-2 text-xl font-bold text-gray-900">TransportApp</span>
-              <FaTruckFront className="ml-2 h-6 w-6 text-blue-600" />
+              <FaTruck className="ml-2 h-6 w-6 text-blue-600" />
             </Link>
             <div className="hidden md:ml-6 md:flex md:space-x-8">
               <Link

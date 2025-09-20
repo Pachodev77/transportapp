@@ -10,7 +10,8 @@ import {
   createTrip, 
   subscribeToTripUpdates,
   subscribeToTrips,
-  db
+  db,
+  runTransaction
 } from '../firebase/config';
 import { onSnapshot, doc, setDoc, serverTimestamp, GeoPoint } from 'firebase/firestore';
 import 'leaflet/dist/leaflet.css';
@@ -368,57 +369,44 @@ function Driver() {
       return;
     }
 
-    // Find the trip in active trips
-    const tripToComplete = myTrips.find(trip => trip.id === tripId);
-    
-    if (!tripToComplete) {
-      console.error(`Trip ${tripId} not found in active trips`);
-      console.log('Available trip IDs:', myTrips.map(t => t.id));
-      alert('No se pudo encontrar el viaje activo para completar');
-      return;
-    }
-    
     if (!window.confirm('¿Estás seguro de que deseas marcar este viaje como completado?')) {
       return;
     }
-    
+
+    setLoading(true);
     try {
-      setLoading(true);
-      
-      // Update the trip status to completed
-      await updateTripStatus(tripId, 'completed');
-      
-      // If this was the currently accepted trip, clear it
+      await runTransaction(db, async (transaction) => {
+        const tripRef = doc(db, 'trips', tripId);
+        const tripDoc = await transaction.get(tripRef);
+
+        if (!tripDoc.exists()) {
+          throw new Error('El viaje ya no existe.');
+        }
+
+        transaction.update(tripRef, {
+          status: 'completed',
+          completedAt: serverTimestamp(),
+        });
+      });
+
       if (acceptedTrip && acceptedTrip.id === tripId) {
         setAcceptedTrip(null);
         localStorage.removeItem('acceptedTrip');
       }
-      
-      // Show success message
+
       alert('¡Viaje completado con éxito!');
-      
-      // Refresh the trips list
+
       const [activeTrips, historyTrips] = await Promise.all([
-        getUserTrips(currentUser.uid, false), // Active trips
-        getUserTrips(currentUser.uid, true)   // History trips
+        getUserTrips(currentUser.uid, false),
+        getUserTrips(currentUser.uid, true)
       ]);
       
       setMyTrips(activeTrips);
       setTripHistory(historyTrips);
-      
+
     } catch (error) {
       console.error('Error completing trip:', error);
       alert(error.message || 'Error al completar el viaje. Por favor, inténtalo de nuevo.');
-      
-      // Clean up local state if the trip doesn't exist on the server
-      if (error.code === 'not-found' || error.message.includes('no existe')) {
-        console.log('Cleaning up local state for non-existent trip');
-        setMyTrips(prev => prev.filter(trip => trip.id !== tripId));
-        if (acceptedTrip?.id === tripId) {
-          setAcceptedTrip(null);
-          localStorage.removeItem('acceptedTrip');
-        }
-      }
     } finally {
       setLoading(false);
     }

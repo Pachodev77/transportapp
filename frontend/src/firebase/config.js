@@ -28,7 +28,8 @@ import {
   onSnapshot,
   writeBatch,
   getDocsFromServer,
-  getDocsFromCache
+  getDocsFromCache,
+  runTransaction
 } from 'firebase/firestore';
 
 // Firebase configuration
@@ -454,5 +455,5 @@ export const subscribeToTripUpdates = (userId, callback) => {
   }
 };
 
-export { app, auth, db };
+export { app, auth, db, runTransaction };
 export default app;
