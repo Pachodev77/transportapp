@@ -12,7 +12,9 @@ import {
   subscribeToTrips,
   onSnapshot,
   doc,
-  setDoc
+  setDoc,
+  db,
+  firebase
 } from '../firebase/config';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -131,6 +133,22 @@ function Driver() {
   const mapRef = useRef();
   const mapInitialized = useRef(false);
   const pendingCenter = useRef(null);
+  const [passengerLocation, setPassengerLocation] = useState(null);
+
+  useEffect(() => {
+    if (acceptedTrip?.passengerId) {
+      const passengerLocationRef = doc(db, 'locations', acceptedTrip.passengerId);
+      const unsubscribe = onSnapshot(passengerLocationRef, (doc) => {
+        if (doc.exists()) {
+          setPassengerLocation(doc.data().location);
+        }
+      });
+
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, [acceptedTrip]);
   
   // Function to center the map on a specific location
   const centerMapOnLocation = (lat, lng, zoom = 15) => {
@@ -869,6 +887,20 @@ function Driver() {
     }
   }, [acceptedTrip]);
 
+                {/* Passenger Location Marker */}
+                {passengerLocation && (
+                  <Marker 
+                    position={[passengerLocation.latitude, passengerLocation.longitude]}
+                    icon={passengerIcon}
+                  >
+                    <Popup>
+                      <div className="text-sm">
+                        <div className="font-medium">{STRINGS.RECOGER_A}{acceptedTrip.passengerName || STRINGS.EL_PASAJERO}</div>
+                        <div>{acceptedTrip.origin.name || STRINGS.UBICACION_DEL_PASAJERO}</div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                )}
                 {/* Passenger Location Marker */}
                 {passengerLocation && (
                   <Marker 
