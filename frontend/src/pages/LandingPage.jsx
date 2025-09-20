@@ -42,17 +42,61 @@ function LandingPage() {
   const [failedImages, setFailedImages] = useState([]);
   
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [currentFeatureIndex, setCurrentFeatureIndex] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   
-  // Efecto para cambiar la imagen automáticamente cada 4 segundos
+  // Efecto para cambiar la imagen del héroe automáticamente cada 4 segundos
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentImageIndex((prevIndex) => 
         prevIndex === heroImages.length - 1 ? 0 : prevIndex + 1
       );
-    }, 4000); // Cambiado de 2000ms a 4000ms
+    }, 4000);
     
     return () => clearInterval(interval);
   }, [heroImages.length]);
+  
+  // Efecto para el carrusel de características
+  useEffect(() => {
+    if (!isAutoPlaying) return;
+    
+    const featureInterval = setInterval(() => {
+      nextFeature();
+    }, 4000);
+    
+    return () => clearInterval(featureInterval);
+  }, [isAutoPlaying, currentFeatureIndex]);
+  
+  const goToFeature = (index) => {
+    setCurrentFeatureIndex(index);
+    setIsAutoPlaying(false);
+    // Reactivar el autoplay después de una selección manual
+    setTimeout(() => setIsAutoPlaying(true), 5000);
+  };
+  
+  // Touch events for mobile swipe
+  const [touchStart, setTouchStart] = useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
+  
+  const handleTouchStart = (e) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+  
+  const handleTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+  
+  const handleTouchEnd = () => {
+    if (touchStart - touchEnd > 50) {
+      // Swipe left
+      nextFeature();
+    }
+    
+    if (touchStart - touchEnd < -50) {
+      // Swipe right
+      prevFeature();
+    }
+  };
   
   const updateUserRole = useCallback(async (newRole) => {
     if (!currentUser) return false;
@@ -74,26 +118,48 @@ function LandingPage() {
 
   const features = [
     {
-      icon: <FaSearch className="w-8 h-8 text-blue-600 mb-4" />,
+      icon: <FaSearch className="w-6 h-6 text-blue-600" />,
       title: 'Soy pasajero',
-      description: 'Encuentra viajes disponibles en tiempo real y viaja cómodamente'
+      description: 'Encuentra viajes disponibles en tiempo real y viaja cómodamente',
+      color: 'blue'
     },
     {
-      icon: <FaCar className="w-8 h-8 text-green-600 mb-4" />,
+      icon: <FaCar className="w-6 h-6 text-green-600" />,
       title: 'Soy conductor',
-      description: 'Comparte tu viaje y ayuda a otros a llegar a su destino'
+      description: 'Comparte tu viaje y ayuda a otros a llegar a su destino',
+      color: 'green'
     },
     {
-      icon: <FaMoneyBillWave className="w-8 h-8 text-yellow-600 mb-4" />,
+      icon: <FaMoneyBillWave className="w-6 h-6 text-yellow-500" />,
       title: 'Ahorra dinero',
-      description: 'Divide los costos del viaje con otros pasajeros'
+      description: 'Divide los costos del viaje con otros pasajeros',
+      color: 'yellow'
     },
     {
-      icon: <FaShieldAlt className="w-8 h-8 text-red-600 mb-4" />,
+      icon: <FaShieldAlt className="w-6 h-6 text-red-500" />,
       title: 'Viaja seguro',
-      description: 'Perfiles verificados y sistema de valoraciones'
+      description: 'Perfiles verificados y sistema de valoraciones',
+      color: 'red'
     }
   ];
+  
+  // Function to handle next feature
+  const nextFeature = () => {
+    setCurrentFeatureIndex((prevIndex) => 
+      prevIndex === features.length - 1 ? 0 : prevIndex + 1
+    );
+    setIsAutoPlaying(false);
+    setTimeout(() => setIsAutoPlaying(true), 5000);
+  };
+  
+  // Function to handle previous feature
+  const prevFeature = () => {
+    setCurrentFeatureIndex((prevIndex) => 
+      prevIndex === 0 ? features.length - 1 : prevIndex - 1
+    );
+    setIsAutoPlaying(false);
+    setTimeout(() => setIsAutoPlaying(true), 5000);
+  };
 
   const steps = [
     {
@@ -210,76 +276,89 @@ function LandingPage() {
         </div>
       </div>
 
-      {/* Features */}
+      {/* Features Carousel */}
       <div className="py-12 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="lg:text-center">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
             <h2 className="text-base text-blue-600 font-semibold tracking-wide uppercase">Características</h2>
             <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
               Una mejor manera de viajar
             </p>
-            <p className="mt-4 max-w-2xl text-xl text-gray-500 lg:mx-auto">
+            <p className="mt-3 max-w-2xl text-xl text-gray-500 mx-auto">
               TransportApp hace que viajar sea más fácil, económico y ecológico.
             </p>
           </div>
 
-          <div className="mt-10">
-            <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="relative overflow-hidden">
+            {/* Carousel Items */}
+            <div 
+              className="transition-all duration-500 ease-in-out transform"
+              style={{
+                height: '300px',
+                position: 'relative'
+              }}
+            >
               {features.map((feature, index) => (
-                <div key={index} className="pt-6">
-                  <div className="flow-root bg-gray-50 rounded-lg px-6 pb-8">
-                    <div className="-mt-6">
-                      <div>
-                        <span className="inline-flex items-center justify-center p-3 bg-blue-500 rounded-md shadow-lg">
-                          {feature.icon}
-                        </span>
-                      </div>
-                      <h3 className="mt-8 text-lg font-medium text-gray-900 tracking-tight">{feature.title}</h3>
-                      <p className="mt-5 text-base text-gray-500">
-                        {feature.description}
-                      </p>
+                <div 
+                  key={index}
+                  className={`absolute inset-0 flex flex-col items-center justify-center p-8 bg-gray-50 rounded-xl transition-opacity duration-500 ${
+                    index === currentFeatureIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                  }`}
+                >
+                  <div className="text-center max-w-md mx-auto">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-blue-600 mb-6">
+                      {React.cloneElement(feature.icon, { className: 'w-8 h-8' })}
                     </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
+                    <p className="text-gray-600">{feature.description}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* How it works */}
-      <div className="bg-gray-50 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="lg:text-center">
-            <h2 className="text-base text-blue-600 font-semibold tracking-wide uppercase">¿Cómo funciona?</h2>
-            <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-              Empieza a viajar en 3 sencillos pasos
-            </p>
+            {/* Navigation Arrows */}
+            <button 
+              onClick={() => {
+                setCurrentFeatureIndex(prev => (prev === 0 ? features.length - 1 : prev - 1));
+                setIsAutoPlaying(false);
+                setTimeout(() => setIsAutoPlaying(true), 5000);
+              }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white p-2 rounded-full shadow-md text-gray-700 hover:text-blue-600 focus:outline-none z-20"
+              aria-label="Anterior característica"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button 
+              onClick={() => {
+                setCurrentFeatureIndex(prev => (prev === features.length - 1 ? 0 : prev + 1));
+                setIsAutoPlaying(false);
+                setTimeout(() => setIsAutoPlaying(true), 5000);
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white p-2 rounded-full shadow-md text-gray-700 hover:text-blue-600 focus:outline-none z-20"
+              aria-label="Siguiente característica"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
-
-          <div className="mt-10">
-            <div className="relative">
-              <div className="absolute top-0 h-full w-6 inset-0 left-1/2 transform -translate-x-1/2 bg-blue-500 rounded-full md:hidden"></div>
-              <div className="space-y-6 md:space-y-0 md:grid md:grid-cols-3 md:gap-6 lg:gap-8">
-                {steps.map((step, index) => (
-                  <div key={index} className="relative md:flex md:flex-col">
-                    <div className="flex items-center">
-                      <div className="flex items-center justify-center h-12 w-12 rounded-full bg-blue-500 text-white text-xl font-bold z-10">
-                        {step.number}
-                      </div>
-                      <h3 className="ml-4 text-lg leading-6 font-medium text-gray-900 md:mt-4">
-                        {step.title}
-                      </h3>
-                    </div>
-                    <div className="mt-2 ml-16 md:ml-0 md:mt-4">
-                      <p className="text-base text-gray-500">
-                        {step.description}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          
+          {/* Indicators */}
+          <div className="flex justify-center space-x-2 p-4">
+            {features.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => goToFeature(index)}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  index === currentFeatureIndex 
+                    ? `bg-${features[currentFeatureIndex].color}-500 w-6` 
+                    : 'bg-gray-300 hover:bg-gray-400 w-2'
+                }`}
+                aria-label={`Ir a característica ${index + 1}`}
+              />
+            ))}
           </div>
         </div>
       </div>
