@@ -442,6 +442,7 @@ function Driver() {
     return () => {
       mapInstance.off('moveend', handleMoveEnd);
     };
+  };
 
 
   return (
