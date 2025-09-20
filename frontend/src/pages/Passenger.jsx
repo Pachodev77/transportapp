@@ -85,22 +85,6 @@ export default function Passenger() {
       };
     }
   }, [selectedTrip]);
-  const [driverLocation, setDriverLocation] = useState(null);
-
-  useEffect(() => {
-    if (selectedTrip?.driverId) {
-      const driverLocationRef = doc(db, 'locations', selectedTrip.driverId);
-      const unsubscribe = onSnapshot(driverLocationRef, (doc) => {
-        if (doc.exists()) {
-          setDriverLocation(doc.data().location);
-        }
-      });
-
-      return () => {
-        unsubscribe();
-      };
-    }
-  }, [selectedTrip]);
 
   useEffect(() => {
     const watchId = navigator.geolocation.watchPosition(
@@ -714,71 +698,8 @@ export default function Passenger() {
                 </Popup>
               </Marker>
             )}
-            {/* Driver Location Marker */}
-            {driverLocation && (
-              <Marker 
-                position={[driverLocation.latitude, driverLocation.longitude]}
-                icon={new L.Icon({
-                  ...defaultIcon.options,
-                  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
-                  iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png'
-                })}
-              >
-                <Popup>
-                  <div className="space-y-1">
-                    <p className="font-medium">{selectedTrip.driverName}</p>
-                  </div>
-                </Popup>
-              </Marker>
-            )}
             
             {/* Route Line */}
-            {origin && destination && (
-              <Polyline 
-                positions={[
-                  [origin.lat, origin.lng],
-                  [destination.lat, destination.lng]
-                ]} 
-                color="blue"
-                weight={3}
-                opacity={0.7}
-              />
-            )}
-            
-  const [driverLocation, setDriverLocation] = useState(null);
-
-  useEffect(() => {
-    if (selectedTrip?.driverId) {
-      const driverLocationRef = doc(db, 'locations', selectedTrip.driverId);
-      const unsubscribe = onSnapshot(driverLocationRef, (doc) => {
-        if (doc.exists()) {
-          setDriverLocation(doc.data().location);
-        }
-      });
-
-      return () => {
-        unsubscribe();
-      };
-    }
-  }, [selectedTrip]);
-
-            {/* Driver Location Marker */}
-            {driverLocation && (
-              <Marker 
-                position={[driverLocation.latitude, driverLocation.longitude]}
-                icon={new L.Icon({
-                  ...defaultIcon.options,
-                  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
-                  iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png'
-                })}
-              >
-                <Popup>
-                  <div className="space-y-1">
-                    <p className="font-medium">{selectedTrip.driverName}</p>
-                  </div>
-                </Popup>
-              </Marker>
-            )}
           </MapContainer>
         )}
       </div>
