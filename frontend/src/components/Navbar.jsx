@@ -116,44 +116,48 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {isOpen && (
-        <div className="md:hidden absolute right-0 z-50 mt-2 bg-white shadow-lg rounded-lg w-64">
-          <div className="pt-2 pb-3 space-y-1 bg-white w-64">
-            <Link
-              to="/"
-              className="border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
-              onClick={() => setIsOpen(false)}
-            >
-              Inicio
-            </Link>
-            {currentUser && (
-              <Link
-                to={currentUser.role === 'driver' ? '/driver' : '/passenger'}
-                className="border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800 block pl-3 pr-4 py-2 border-l-4 text-base font-medium"
-                onClick={() => setIsOpen(false)}
-              >
-                {currentUser.role === 'driver' ? 'Mis Viajes' : 'Buscar Viaje'}
-              </Link>
-            )}
-          </div>
-          <div className="pt-4 pb-3 border-t border-gray-200 px-4">
+        <div className="md:hidden absolute right-0 top-full z-50 mt-0.5 bg-white shadow-lg rounded-b-lg w-64">
+          {/* User info section */}
+          <div className="pt-4 pb-3 px-4 border-b border-gray-200">
             {currentUser ? (
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
-                    <FaUser className="h-6 w-6" />
+              <div className="space-y-3">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
+                      <FaUser className="h-6 w-6" />
+                    </div>
+                  </div>
+                  <div className="ml-3">
+                    <div className="text-base font-medium text-gray-800">
+                      {currentUser.displayName || currentUser.email}
+                    </div>
+                    <div className="text-sm font-medium text-gray-500">
+                      {currentUser.role === 'driver' ? 'Conductor' : 'Pasajero'}
+                    </div>
                   </div>
                 </div>
-                <div className="ml-3">
-                  <div className="text-base font-medium text-gray-800">
-                    {currentUser.displayName || currentUser.email}
-                  </div>
-                  <div className="text-sm font-medium text-gray-500">
-                    {currentUser.role === 'driver' ? 'Conductor' : 'Pasajero'}
-                  </div>
+                <div className="space-y-1">
+                  <Link
+                    to="/profile"
+                    className="block w-full text-left px-3 py-2 text-base font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-md"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Mi perfil
+                  </Link>
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setIsOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-base font-medium text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md flex items-center"
+                  >
+                    <FaSignOutAlt className="mr-2" />
+                    Cerrar sesión
+                  </button>
                 </div>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Link
                   to="/login"
                   className="w-full flex justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
@@ -162,7 +166,7 @@ export default function Navbar() {
                 >
                   Iniciar sesión
                 </Link>
-                <p className="text-center text-sm text-gray-500">
+                <p className="text-center text-sm text-gray-600">
                   ¿No tienes cuenta?{' '}
                   <Link
                     to="/login"
@@ -175,26 +179,25 @@ export default function Navbar() {
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Navigation links */}
+          <div className="py-2">
+            <Link
+              to="/"
+              className="block px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
+              onClick={() => setIsOpen(false)}
+            >
+              Inicio
+            </Link>
             {currentUser && (
-              <div className="mt-3 space-y-1">
-                <Link
-                  to="/profile"
-                  className="block px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Mi perfil
-                </Link>
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setIsOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 flex items-center"
-                >
-                  <FaSignOutAlt className="mr-2" />
-                  Cerrar sesión
-                </button>
-              </div>
+              <Link
+                to={currentUser.role === 'driver' ? '/driver' : '/passenger'}
+                className="block px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
+                onClick={() => setIsOpen(false)}
+              >
+                {currentUser.role === 'driver' ? 'Mis Viajes' : 'Buscar Viaje'}
+              </Link>
             )}
           </div>
         </div>
