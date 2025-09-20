@@ -816,10 +816,9 @@ function Driver() {
           {/* Map - Added responsive height and full width on mobile */}
           <div className="lg:col-span-2 bg-white rounded-xl shadow-md overflow-hidden w-full h-96 lg:h-full">
             <div className="w-full h-full">
-              {currentPosition && (
-                <MapContainer 
-                  center={currentPosition} 
-                  zoom={13} 
+              <MapContainer 
+                  center={currentPosition || [0, 0]} 
+                  zoom={currentPosition ? 13 : 2} 
                   style={{ height: '100%', width: '100%', minHeight: '400px' }}
                   zoomControl={true}
                   whenCreated={handleMapLoad}

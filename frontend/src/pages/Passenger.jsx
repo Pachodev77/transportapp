@@ -611,10 +611,9 @@ export default function Passenger() {
       
       {/* Map Section */}
       <div className="w-full lg:w-2/3 h-64 lg:h-full">
-        {currentPosition && (
           <MapContainer 
-            center={currentPosition}
-            zoom={13}
+            center={currentPosition || [0, 0]}
+            zoom={currentPosition ? 13 : 2}
             style={{ height: '100%', width: '100%', minHeight: '400px' }}
           >
             <TileLayer
