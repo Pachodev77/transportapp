@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { FaGoogle, FaFacebook, FaEnvelope, FaUser, FaLock, FaUserTie, FaUserShield, FaSpinner } from 'react-icons/fa';
 
@@ -29,6 +29,14 @@ export default function Login() {
   useEffect(() => {
     if (error) clearError();
   }, [isLogin]);
+
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.role) {
+      setRole(location.state.role);
+    }
+  }, [location.state]);
 
   async function handleLogin(e) {
     e.preventDefault();
