@@ -84,6 +84,11 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Locations collection rules
+    match /locations/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
     // System collection (for app configuration, etc.)
     match /_system/{document=**} {
       // Only admins can read/write system settings

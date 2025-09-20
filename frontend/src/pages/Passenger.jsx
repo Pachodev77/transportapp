@@ -7,11 +7,12 @@ import {
   query, 
   where, 
   addDoc, 
-  onSnapshot, 
+  onSnapshot,
   serverTimestamp,
   orderBy,
   updateDoc,
-  doc
+  doc,
+  setDoc
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
@@ -69,11 +70,32 @@ export default function Passenger() {
   const [currentPosition, setCurrentPosition] = useState(null);
 
   useEffect(() => {
-    navigator.geolocation.getCurrentPosition((position) => {
-      const { latitude, longitude } = position.coords;
-      setCurrentPosition([latitude, longitude]);
-    });
-  }, []);
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setCurrentPosition([latitude, longitude]);
+        if (currentUser) {
+          const locationRef = doc(db, 'locations', currentUser.uid);
+          setDoc(locationRef, { 
+            location: new firebase.firestore.GeoPoint(latitude, longitude),
+            updatedAt: serverTimestamp(),
+          });
+        }
+      },
+      (error) => {
+        console.error('Error watching position:', error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0,
+      }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [currentUser]);
   
   const tabs = [
     { id: 'search', name: STRINGS.BUSCAR_VIAJE },
@@ -656,11 +678,27 @@ export default function Passenger() {
               />
             )}
             
-            {/* Available Trips Markers */}
-            {activeTab === 'search' && availableTrips.map((trip) => (
+  const [driverLocation, setDriverLocation] = useState(null);
+
+  useEffect(() => {
+    if (selectedTrip?.driverId) {
+      const driverLocationRef = doc(db, 'locations', selectedTrip.driverId);
+      const unsubscribe = onSnapshot(driverLocationRef, (doc) => {
+        if (doc.exists()) {
+          setDriverLocation(doc.data().location);
+        }
+      });
+
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, [selectedTrip]);
+
+            {/* Driver Location Marker */}
+            {driverLocation && (
               <Marker 
-                key={trip.id}
-                position={[trip.origin.lat, trip.origin.lng]}
+                position={[driverLocation.latitude, driverLocation.longitude]}
                 icon={new L.Icon({
                   ...defaultIcon.options,
                   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
@@ -669,47 +707,11 @@ export default function Passenger() {
               >
                 <Popup>
                   <div className="space-y-1">
-                    <p className="font-medium">{trip.driverName}</p>
-                    <p>${trip.price?.toLocaleString()}</p>
-                    <p>{trip.availableSeats} {trip.availableSeats > 1 ? STRINGS.ASIENTOS_DISPONIBLES : STRINGS.ASIENTO_DISPONIBLE}</p>
-                    <p>{formatDate(trip.departureTime)}</p>
+                    <p className="font-medium">{selectedTrip.driverName}</p>
                   </div>
                 </Popup>
               </Marker>
-            ))}
-            
-            {/* User's Bookings Markers */}
-            {activeTab === 'my-trips' && myBookings.map((booking) => (
-              <Marker 
-                key={booking.id}
-                position={[booking.origin.lat, booking.origin.lng]}
-                icon={new L.Icon({
-                  ...defaultIcon.options,
-                  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png',
-                  iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png'
-                })}
-              >
-                <Popup>
-                  <div className="space-y-1">
-                    <p className="font-medium">
-                      {booking.origin.address.split(',')[0]} → {booking.destination.address.split(',')[0]}
-                    </p>
-                    <p>${booking.price?.toLocaleString()}</p>
-                    <p className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${
-                      booking.status === 'confirmed' 
-                        ? 'bg-success text-white' 
-                        : booking.status === 'cancelled' 
-                          ? 'bg-secondary text-white' 
-                          : 'bg-warning text-white'
-                    }`}>
-                      {booking.status === 'confirmed' ? STRINGS.CONFIRMADO : 
-                       booking.status === 'pending' ? STRINGS.PENDIENTE : 
-                       booking.status === 'cancelled' ? STRINGS.CANCELADO : booking.status}
-                    </p>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+            )}
           </MapContainer>
         )}
       </div>

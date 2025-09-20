@@ -9,7 +9,10 @@ import {
   updateTripStatus, 
   createTrip, 
   subscribeToTripUpdates,
-  subscribeToTrips
+  subscribeToTrips,
+  onSnapshot,
+  doc,
+  setDoc
 } from '../firebase/config';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -64,11 +67,32 @@ function Driver() {
   const [currentPosition, setCurrentPosition] = useState(null);
 
   useEffect(() => {
-    navigator.geolocation.getCurrentPosition((position) => {
-      const { latitude, longitude } = position.coords;
-      setCurrentPosition([latitude, longitude]);
-    });
-  }, []);
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setCurrentPosition([latitude, longitude]);
+        if (currentUser) {
+          const locationRef = doc(db, 'locations', currentUser.uid);
+          setDoc(locationRef, { 
+            location: new firebase.firestore.GeoPoint(latitude, longitude),
+            updatedAt: serverTimestamp(),
+          });
+        }
+      },
+      (error) => {
+        console.error('Error watching position:', error);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0,
+      }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [currentUser]);
   
   const TripTabs = () => (
     <div className="flex border-b border-gray-200 mb-4">
@@ -828,10 +852,27 @@ function Driver() {
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 />
                 
+  const [passengerLocation, setPassengerLocation] = useState(null);
+
+  useEffect(() => {
+    if (acceptedTrip?.passengerId) {
+      const passengerLocationRef = doc(db, 'locations', acceptedTrip.passengerId);
+      const unsubscribe = onSnapshot(passengerLocationRef, (doc) => {
+        if (doc.exists()) {
+          setPassengerLocation(doc.data().location);
+        }
+      });
+
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, [acceptedTrip]);
+
                 {/* Passenger Location Marker */}
-                {acceptedTrip?.origin && (
+                {passengerLocation && (
                   <Marker 
-                    position={[acceptedTrip.origin.lat, acceptedTrip.origin.lng]}
+                    position={[passengerLocation.latitude, passengerLocation.longitude]}
                     icon={passengerIcon}
                   >
                     <Popup>
