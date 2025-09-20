@@ -12,6 +12,15 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'firebase': ['firebase/app', 'firebase/firestore', 'firebase/auth'],
+          'leaflet': ['leaflet', 'react-leaflet'],
+          'react': ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
   },
   resolve: {
     alias: {

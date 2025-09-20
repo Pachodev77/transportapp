@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaCar, FaSearch, FaShieldAlt, FaMoneyBillWave } from 'react-icons/fa';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,6 +8,51 @@ import { db } from '../firebase/config';
 function LandingPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  
+  // Array de imágenes para el carrusel
+  const heroImages = [
+    { 
+      id: 1,
+      url: 'https://images.unsplash.com/photo-1493238792000-8113da705763?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
+      alt: 'Personas en un vehículo'
+    },
+    { 
+      id: 2,
+      url: 'https://images.unsplash.com/photo-1502877338535-766e1452684a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
+      alt: 'Auto en carretera al atardecer'
+    },
+    { 
+      id: 3,
+      url: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
+      alt: 'Auto deportivo en carretera'
+    },
+    { 
+      id: 4,
+      url: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
+      alt: 'Personas felices en un auto familiar'
+    },
+    { 
+      id: 5,
+      url: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
+      alt: 'Persona en motocicleta en la ciudad'
+    }
+  ];
+  
+  // Estado para rastrear qué imágenes fallaron al cargar
+  const [failedImages, setFailedImages] = useState([]);
+  
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
+  // Efecto para cambiar la imagen automáticamente cada 4 segundos
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => 
+        prevIndex === heroImages.length - 1 ? 0 : prevIndex + 1
+      );
+    }, 4000); // Cambiado de 2000ms a 4000ms
+    
+    return () => clearInterval(interval);
+  }, [heroImages.length]);
   
   const updateUserRole = useCallback(async (newRole) => {
     if (!currentUser) return false;
@@ -69,7 +114,7 @@ function LandingPage() {
   ];
 
   return (
-    <div className="bg-white">
+    <div className="bg-white overflow-hidden">
       {/* Navbar is already included in the Layout component */}
       {/* Hero Section */}
       <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 overflow-hidden">
@@ -125,12 +170,44 @@ function LandingPage() {
             </main>
           </div>
         </div>
-        <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2">
-          <img
-            className="h-56 w-full object-cover sm:h-72 md:h-96 lg:w-full lg:h-full"
-            src="https://images.unsplash.com/photo-1493238792000-8113da705763?ixlib=rb-1.2.1&auto=format&fit=crop&w=2850&q=80"
-            alt="Dos personas sonriendo dentro de un vehículo"
-          />
+        <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2 overflow-hidden">
+          <div className="relative w-full h-full">
+            {heroImages.map((image, index) => {
+              const hasError = failedImages.includes(image.id);
+              
+              return (
+                <div 
+                  key={image.id}
+                  className={`absolute inset-0 flex items-center justify-center ${
+                    index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  style={{
+                    transition: 'opacity 0.3s ease-in-out',
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: '#f0f0f0'
+                  }}
+                >
+                  {!hasError ? (
+                    <img
+                      src={image.url}
+                      alt={image.alt}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        console.error(`Error al cargar la imagen ${image.id}: ${image.url}`);
+                        setFailedImages(prev => [...prev, image.id]);
+                      }}
+                      loading="eager"
+                    />
+                  ) : (
+                    <div className="text-6xl font-bold text-gray-500">
+                      {image.id}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
