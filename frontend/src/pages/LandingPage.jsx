@@ -118,7 +118,7 @@ function LandingPage() {
       {/* Navbar is already included in the Layout component */}
       {/* Hero Section */}
       <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 overflow-hidden">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full mx-auto">
           <div className="relative z-10 pb-8 bg-transparent sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32">
             <main className="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
               <div className="sm:text-center lg:text-left">
@@ -170,21 +170,20 @@ function LandingPage() {
             </main>
           </div>
         </div>
-        <div className="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2 overflow-hidden">
-          <div className="relative w-full h-full">
+        <div className="relative h-64 sm:h-72 md:h-96 lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2 lg:h-full overflow-hidden">
+          <div className="absolute inset-0 w-full h-full">
             {heroImages.map((image, index) => {
               const hasError = failedImages.includes(image.id);
               
               return (
                 <div 
                   key={image.id}
-                  className={`absolute inset-0 flex items-center justify-center ${
+                  className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${
                     index === currentImageIndex ? 'opacity-100' : 'opacity-0'
                   }`}
                   style={{
-                    transition: 'opacity 0.3s ease-in-out',
                     width: '100%',
-                    height: '100%',
+                    minHeight: '100%',
                     backgroundColor: '#f0f0f0'
                   }}
                 >
@@ -192,7 +191,7 @@ function LandingPage() {
                     <img
                       src={image.url}
                       alt={image.alt}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover min-h-[256px] sm:min-h-[288px] md:min-h-[384px] lg:min-h-full"
                       onError={(e) => {
                         console.error(`Error al cargar la imagen ${image.id}: ${image.url}`);
                         setFailedImages(prev => [...prev, image.id]);
