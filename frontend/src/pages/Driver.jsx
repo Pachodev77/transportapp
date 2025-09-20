@@ -17,6 +17,7 @@ import { onSnapshot, doc, setDoc, serverTimestamp, GeoPoint } from 'firebase/fir
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { STRINGS } from '../utils/constants';
+import { formatDate } from '../utils/dateUtils';
 import Button from '../components/Button';
 
 // Fix for default marker icons
@@ -407,27 +408,6 @@ function Driver() {
     } catch (error) {
       console.error('Error completing trip:', error);
       alert(error.message || 'Error al completar el viaje. Por favor, inténtalo de nuevo.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'No especificada';
-    try {
-      const options = { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric', 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      };
-      const date = new Date(dateString);
-      return isNaN(date.getTime()) ? 'Fecha inválida' : date.toLocaleDateString('es-ES', options);
-    } catch (error) {
-      console.error('Error formatting date:', error);
-      return 'Fecha inválida';
     }
   };
 

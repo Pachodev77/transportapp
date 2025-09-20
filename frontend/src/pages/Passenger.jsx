@@ -21,6 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { STRINGS } from '../utils/constants';
+import { formatDate } from '../utils/dateUtils';
 import Button from '../components/Button';
 
 // Fix for default marker icons
@@ -43,19 +44,6 @@ function LocationSelector({ onSelect }) {
   return null;
 }
 
-// Format date helper function
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  const options = { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  };
-  return new Date(dateString).toLocaleDateString('es-CO', options);
-};
 
 export default function Passenger() {
   const { currentUser } = useAuth();
@@ -231,6 +219,7 @@ export default function Passenger() {
       
     } catch (error) {
       console.error(STRINGS.ERROR_SOLICITAR_VIAJE, error);
+      alert(`Error al crear el viaje: ${error.message}`); // Added alert
       setError(STRINGS.ERROR_OCURRIDO_SOLICITAR_VIAJE);
     } finally {
       setLoading(false);
@@ -263,8 +252,9 @@ export default function Passenger() {
     if (!currentUser) return;
     
     const rideRequestsQuery = query(
-      collection(db, 'rideRequests'),
+      collection(db, 'trips'), // Changed from 'rideRequests'
       where('passengerId', '==', currentUser.uid),
+      where('status', '==', 'searching'), // Added this line
       orderBy('createdAt', 'desc')
     );
     
