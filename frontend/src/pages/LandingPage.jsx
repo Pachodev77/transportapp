@@ -208,13 +208,18 @@ function LandingPage() {
                     <button
                       onClick={async () => {
                         if (currentUser) {
+                          if (!currentUser.uid) {
+                            alert('User ID not found. Please log in again.');
+                            console.error('currentUser.uid is missing.');
+                            return;
+                          }
                           // If user is logged in, update their role to driver
                           const success = await updateUserRole('driver');
                           if (success) {
                             navigate('/driver');
                           } else {
+                            alert('Failed to update your role to driver. Please try again.');
                             console.error('Failed to update user role');
-                            // Optionally show an error message to the user
                           }
                         } else {
                           // If not logged in, pass the role to the login page

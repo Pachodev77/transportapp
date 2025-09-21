@@ -112,7 +112,6 @@ const checkRateLimit = () => {
   
   if (timeSinceLastRequest < RATE_LIMIT_MS) {
     const waitTime = RATE_LIMIT_MS - timeSinceLastRequest;
-    console.warn(`Rate limit hit, waiting ${waitTime}ms`);
     return waitTime;
   }
   
@@ -306,7 +305,7 @@ export const getTripsByStatus = async (status, {
  * @param {string[]} fields - Fields to include in updates
  * @returns {Function} Unsubscribe function
  */
-export const subscribeToTrips = (status, callback, fields = []) => {
+export const subscribeToTrips = (status, onNext, onError, fields = []) => {
   try {
     const q = query(
       tripsCollection,
@@ -331,11 +330,14 @@ export const subscribeToTrips = (status, callback, fields = []) => {
         }
         return { id: doc.id, ...data };
       });
-      callback(trips);
-    });
+      onNext(trips);
+    }, onError); // Pass onError to onSnapshot
   } catch (error) {
-    console.error('Error subscribing to trips:', error);
-    throw error;
+    console.error('Error setting up trip subscription:', error);
+    if (onError) {
+      onError(error);
+    }
+    return () => {}; // Return a no-op unsubscribe function
   }
 };
 

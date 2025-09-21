@@ -13,7 +13,7 @@ import {
   db,
   runTransaction
 } from '../firebase/config';
-import { onSnapshot, doc, setDoc, serverTimestamp, GeoPoint } from 'firebase/firestore';
+import { onSnapshot, doc, setDoc, getDoc, serverTimestamp, GeoPoint } from 'firebase/firestore';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { STRINGS } from '../utils/constants';
@@ -61,6 +61,18 @@ function LocationSelector({ onSelect }) {
   return null;
 }
 
+function RecenterMap({ position, zoom }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (position && position[0] !== 0 && position[1] !== 0) {
+      map.flyTo(position, zoom);
+    }
+  }, [position, zoom, map]);
+
+  return null;
+}
+
 function Driver() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
@@ -83,7 +95,7 @@ function Driver() {
         }
       },
       (error) => {
-        setLocationError('Location access denied. Please enable location services in your browser settings.');
+        setLocationError(`Location access denied (Code: ${error.code}). Please ensure location services are enabled for your browser and this site.`);
       },
       {
         enableHighAccuracy: true,
@@ -224,13 +236,15 @@ function Driver() {
     }
 
     // Subscribe to real-time updates for available trips
-    const unsubscribeTrips = subscribeToTrips('searching',
+    const unsubscribeTrips = subscribeToTrips(
+      'searching',
       (trips) => {
         setAvailableTrips(trips);
       },
       (error) => {
         console.error('Error fetching available trips:', error);
-      }
+      },
+      [] // Explicitly request all fields
     );
 
     return () => {
@@ -474,11 +488,7 @@ function Driver() {
     const handleMoveEnd = () => {
       if (mapRef.current) {
         const center = mapRef.current.getCenter();
-        console.log('Map moved to:', { 
-          lat: center.lat, 
-          lng: center.lng,
-          zoom: mapRef.current.getZoom()
-        });
+        
       }
     };
     
@@ -875,6 +885,7 @@ function Driver() {
                   zoomControl={true}
                   whenCreated={handleMapLoad}
                 >
+                <RecenterMap position={currentPosition} zoom={13} />
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

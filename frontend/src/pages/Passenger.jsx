@@ -44,6 +44,17 @@ function LocationSelector({ onSelect }) {
   return null;
 }
 
+function RecenterMap({ position, zoom }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (position && position[0] !== 0 && position[1] !== 0) {
+      map.flyTo(position, zoom);
+    }
+  }, [position, zoom, map]);
+
+  return null;
+}
 
 export default function Passenger() {
   const { currentUser } = useAuth();
@@ -91,7 +102,7 @@ export default function Passenger() {
         }
       },
       (error) => {
-        setLocationError('Location access denied. Please enable location services in your browser settings.');
+        setLocationError(`Location access denied (Code: ${error.code}). Please ensure location services are enabled for your browser and this site.`);
       },
       {
         enableHighAccuracy: true,
@@ -686,6 +697,7 @@ export default function Passenger() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             />
+            <RecenterMap position={currentPosition} zoom={13} />
             <LocationSelector onSelect={handleLocationSelect} />
             
             {/* Origin Marker */}
