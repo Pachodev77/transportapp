@@ -502,8 +502,8 @@ function Driver() {
 
 
   return (
-    <div className="min-h-screen bg-light">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-light pt-16"> {/* Añadido pt-16 para el espacio de la navbar */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {locationError && (
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
             <p className="font-bold">Location Error</p>
@@ -875,16 +875,23 @@ function Driver() {
             </div>
           </div>
           
-          {/* Map - Added responsive height and full width on mobile */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-md overflow-hidden w-full h-96 lg:h-full">
+          {/* Map - Responsive container */}
+          <div className="lg:col-span-2 bg-white rounded-xl shadow-md overflow-hidden w-full" style={{ height: 'calc(100vh - 4rem)' }}>
             <div className="w-full h-full">
               <MapContainer 
-                  center={currentPosition || [0, 0]} 
-                  zoom={currentPosition ? 13 : 2} 
-                  style={{ height: '100%', width: '100%', minHeight: '400px' }}
-                  zoomControl={true}
-                  whenCreated={handleMapLoad}
-                >
+                center={currentPosition || [0, 0]} 
+                zoom={currentPosition ? 13 : 2} 
+                style={{ 
+                  height: '100%', 
+                  width: '100%',
+                  minHeight: '400px',
+                  position: 'relative',
+                  zIndex: 1
+                }}
+                zoomControl={true}
+                whenCreated={handleMapLoad}
+                key={JSON.stringify(currentPosition)} // Force re-render on position change
+              >
                 <RecenterMap position={currentPosition} zoom={13} />
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

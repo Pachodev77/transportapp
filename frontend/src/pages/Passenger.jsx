@@ -425,18 +425,20 @@ export default function Passenger() {
   };
 
   return (
-    <div className="min-h-screen bg-light flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-light flex flex-col lg:flex-row pt-16"> {/* Añadido pt-16 para el espacio de la navbar */}
       {/* Sidebar */}
       <div className="w-full lg:w-1/3 bg-white p-6 overflow-y-auto">
         <h1 className="text-2xl font-bold mb-6 text-dark">{STRINGS.SOLICITAR_VIAJE}</h1>
         
         {/* Tabs */}
-        <div className="flex border-b mb-4">
+        <div className="flex border-b mb-4 space-x-2">
           {tabs.map((tab) => (
             <Button 
               key={tab.id}
               className={`flex-1 py-2 font-medium ${
-                activeTab === tab.id ? 'text-primary border-b-2 border-primary' : 'text-secondary'
+                activeTab === tab.id 
+                  ? 'text-primary border-b-2 border-primary' 
+                  : 'text-secondary hover:text-primary transition-colors'
               }`}
               onClick={() => setActiveTab(tab.id)}
             >
@@ -510,17 +512,6 @@ export default function Passenger() {
           </div>
         ) : activeTab === 'search' ? (
           <>
-            <div className="mb-6 p-4 bg-primary-light rounded-lg">
-              <p className="text-sm text-primary-dark mb-3">
-                <span className="font-semibold">{STRINGS.INSTRUCCIONES}</span> {STRINGS.SELECCIONA_ORIGEN_DESTINO_MAPA}
-              </p>
-              <ol className="list-decimal list-inside text-sm space-y-1 text-primary-dark">
-                <li>{STRINGS.SELECCIONA_PUNTO_ORIGEN}</li>
-                <li>{STRINGS.SELECCIONA_PUNTO_DESTINO}</li>
-                <li>{STRINGS.CONFIRMA_SOLICITUD_VIAJE}</li>
-              </ol>
-            </div>
-            
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-dark mb-1">{STRINGS.ORIGEN}</label>
@@ -706,12 +697,19 @@ export default function Passenger() {
         )}
       </div>
       
-      {/* Map Section */}
-      <div className="w-full lg:w-2/3 h-64 lg:h-full">
+      {/* Map Section - Responsive container */}
+      <div className="w-full lg:w-2/3" style={{ height: 'calc(100vh - 4rem)' }}>
           <MapContainer 
             center={currentPosition || [0, 0]}
             zoom={currentPosition ? 13 : 2}
-            style={{ height: '100%', width: '100%', minHeight: '400px' }}
+            style={{ 
+              height: '100%', 
+              width: '100%',
+              minHeight: '400px',
+              position: 'relative',
+              zIndex: 1
+            }}
+            key={JSON.stringify(currentPosition)} // Force re-render on position change
           >
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
