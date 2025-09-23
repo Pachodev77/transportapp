@@ -31,10 +31,28 @@ const defaultIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
-// Custom icon for passenger location
+// Custom icons for map markers
+const driverIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+  iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
 const passengerIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
   iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+const destinationIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+  iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
@@ -502,38 +520,50 @@ function Driver() {
 
 
   return (
-    <div className="min-h-screen bg-light pt-16"> {/* Añadido pt-16 para el espacio de la navbar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <div className="min-h-screen bg-light pt-16">
+      {/* Título principal - Visible en todas las pantallas */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
+        <h1 className="text-2xl font-bold text-dark">{STRINGS.PANEL_DEL_CONDUCTOR}</h1>
+      </div>
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
         {locationError && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
-            <p className="font-bold">Location Error</p>
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded" role="alert">
+            <p className="font-bold">Error de Ubicación</p>
             <p>{locationError}</p>
           </div>
         )}
+        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left sidebar */}
-          <div className="lg:col-span-1 space-y-6">
+          {/* Sidebar izquierda - Contenido principal */}
+          <div className="lg:col-span-1 space-y-6 order-2 lg:order-1">
+            {/* Tabs - Visibles en móviles y escritorio */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-bold text-dark mb-4">{STRINGS.PANEL_DEL_CONDUCTOR}</h2>
               
-              <div className="flex border-b mb-4 space-x-2">
+              <div className="flex border-b mb-4 space-x-2 overflow-x-auto">
                 <Button 
-                  className={`flex-1 py-2 font-medium ${activeTab === 'available' ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
+                  className={`flex-1 min-w-max py-2 px-2 text-sm font-medium whitespace-nowrap ${
+                    activeTab === 'available' ? 'text-primary border-b-2 border-primary' : 'text-secondary'
+                  }`}
                   onClick={() => setActiveTab('available')}
                 >
                   {STRINGS.VIAJES_DISPONIBLES}
                 </Button>
                 <Button 
-                  className={`flex-1 py-2 font-medium ${activeTab === 'my-trips' ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
+                  className={`flex-1 min-w-max py-2 px-2 text-sm font-medium whitespace-nowrap ${
+                    activeTab === 'my-trips' ? 'text-primary border-b-2 border-primary' : 'text-secondary'
+                  }`}
                   onClick={() => setActiveTab('my-trips')}
                 >
                   {STRINGS.MIS_VIAJES}
                 </Button>
                 <Button 
-                  className={`flex-1 py-2 font-medium ${activeTab === 'create-trip' ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
+                  className={`flex-1 min-w-max py-2 px-2 text-sm font-medium whitespace-nowrap ${
+                    activeTab === 'create-trip' ? 'text-primary border-b-2 border-primary' : 'text-secondary'
+                  }`}
                   onClick={() => setActiveTab('create-trip')}
                 >
-                  <FaPlus className="inline mr-1" />
+                  <FaPlus className="inline mr-1" /> {activeTab === 'create-trip' ? 'Nuevo viaje' : ''}
                 </Button>
               </div>
               
@@ -875,95 +905,91 @@ function Driver() {
             </div>
           </div>
           
-          {/* Map - Responsive container */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-md overflow-hidden w-full" style={{ height: 'calc(100vh - 4rem)' }}>
-            <div className="w-full h-full">
-              <MapContainer 
-                center={currentPosition || [0, 0]} 
-                zoom={currentPosition ? 13 : 2} 
-                style={{ 
-                  height: '100%', 
-                  width: '100%',
-                  minHeight: '400px',
-                  position: 'relative',
-                  zIndex: 1
-                }}
-                zoomControl={true}
-                whenCreated={handleMapLoad}
-                key={JSON.stringify(currentPosition)} // Force re-render on position change
-              >
-                <RecenterMap position={currentPosition} zoom={13} />
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                />
-
-                {/* Passenger Location Marker */}
-                {passengerLocation && (
-                  <Marker 
-                    position={[passengerLocation.latitude, passengerLocation.longitude]}
-                    icon={passengerIcon}
-                  >
-                    <Popup>
-                      <div className="text-sm">
-                        <div className="font-medium">{STRINGS.RECOGER_A}{acceptedTrip.passengerName || STRINGS.EL_PASAJERO}</div>
-                        <div>{acceptedTrip.origin.name || STRINGS.UBICACION_DEL_PASAJERO}</div>
-                      </div>
-                    </Popup>
-                  </Marker>
-                )}
+          {/* Mapa - Visible en móviles (arriba) y escritorio (derecha) */}
+          <div className="lg:col-span-2 order-1 lg:order-2 bg-white rounded-xl shadow-md overflow-hidden" style={{ height: 'calc(100vh - 8rem)' }}>
+            <MapContainer 
+              center={currentPosition || [0, 0]} 
+              zoom={currentPosition ? 13 : 2} 
+              style={{ 
+                height: '100%', 
+                width: '100%',
+                position: 'relative',
+                zIndex: 1
+              }}
+              zoomControl={true}
+              whenCreated={handleMapLoad}
+              key={`map-${JSON.stringify(currentPosition)}-${window.innerWidth}`}
+            >
+              <RecenterMap position={currentPosition} zoom={13} />
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              />
+              {currentPosition && (
+                <Marker 
+                  position={currentPosition} 
+                  icon={driverIcon}
+                >
+                  <Popup>{STRINGS.TU_UBICACION}</Popup>
+                </Marker>
+              )}
+              
+              {/* Mostrar marcadores de viajes disponibles */}
+              {availableTrips && availableTrips.length > 0 && availableTrips.map((trip) => {
+                const origin = trip.origin || {};
+                const destination = trip.destination || {};
                 
-                {/* Origin Marker */}
-                {origin && (
-                  <Marker 
-                    position={[origin.lat, origin.lng]} 
-                    icon={defaultIcon}
-                  >
-                    <Popup>{STRINGS.ORIGEN_PUNTOS}{origin.name || STRINGS.UBICACION_DE_RECOGIDA}</Popup>
-                  </Marker>
-                )}
-                
-                {/* Destination Marker */}
-                {destination && (
-                  <Marker 
-                    position={[destination.lat, destination.lng]} 
-                    icon={defaultIcon}
-                  >
-                    <Popup>{STRINGS.DESTINO_PUNTOS}{destination.name || STRINGS.UBICACION_DE_DESTINO}</Popup>
-                  </Marker>
-                )}
-                
-                {/* Available Trips Markers */}
-                {activeTab === 'available' && availableTrips.map((trip) => (
-                  <Marker 
-                    key={trip.id}
-                    position={[trip.origin.lat, trip.origin.lng]} 
-                    icon={defaultIcon}
-                  >
-                    <Popup>
-                      <div className="text-sm">
-                        <div className="font-medium">{STRINGS.SOLICITUD_DE_VIAJE}</div>
-                        <div>{STRINGS.DE}{trip.origin.name || STRINGS.ORIGEN}</div>
-                        <div>{STRINGS.A}{trip.destination.name || STRINGS.DESTINO}</div>
-                        <div>{STRINGS.PASAJEROS_PUNTOS}{trip.passengers || 1}</div>
-                        <div>{STRINGS.PRECIO}${(trip.price || 0).toLocaleString()}</div>
-                        <Button
-                          onClick={() => handleAcceptTrip(trip.id)}
-                          className="mt-2 w-full bg-success text-white py-1 px-2 rounded text-xs font-medium hover:bg-success-dark"
-                        >
-                          {STRINGS.ACEPTAR_VIAJE}
-                        </Button>
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
-                
-                {/* Location Selector */}
-                {activeTab === 'create-trip' && (
-                  <LocationSelector onSelect={handleLocationSelect} />
-                )}
-              </MapContainer>
-            </div>
+                return (
+                  <React.Fragment key={trip.id}>
+                    {origin.latitude && origin.longitude && (
+                      <Marker 
+                        position={[origin.latitude, origin.longitude]} 
+                        icon={passengerIcon}
+                      >
+                        <Popup>
+                          <div>
+                            <p className="font-bold">{STRINGS.ORIGEN_DEL_VIAJE}</p>
+                            <p>{origin.address || 'Ubicación de origen'}</p>
+                            {trip.id && (
+                              <button 
+                                className="mt-2 bg-blue-500 text-white px-2 py-1 rounded text-sm"
+                                onClick={() => handleAcceptTrip(trip.id)}
+                              >
+                                {STRINGS.ACEPTAR_VIAJE}
+                              </button>
+                            )}
+                          </div>
+                        </Popup>
+                      </Marker>
+                    )}
+                    
+                    {destination.latitude && destination.longitude && (
+                      <Marker 
+                        position={[destination.latitude, destination.longitude]} 
+                        icon={destinationIcon}
+                      >
+                        <Popup>{STRINGS.DESTINO_DEL_VIAJE}</Popup>
+                      </Marker>
+                    )}
+                    
+                    {origin.latitude && origin.longitude && destination.latitude && destination.longitude && (
+                      <Polyline 
+                        positions={[
+                          [origin.latitude, origin.longitude],
+                          [destination.latitude, destination.longitude]
+                        ]} 
+                        color="blue"
+                      />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+              
+              {/* Selector de ubicación para crear viaje */}
+              {activeTab === 'create-trip' && (
+                <LocationSelector onSelect={handleLocationSelect} />
+              )}
+            </MapContainer>
           </div>
         </div>
       </div>

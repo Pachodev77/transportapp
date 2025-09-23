@@ -425,17 +425,17 @@ export default function Passenger() {
   };
 
   return (
-    <div className="min-h-screen bg-light flex flex-col lg:flex-row pt-16"> {/* Añadido pt-16 para el espacio de la navbar */}
-      {/* Sidebar */}
-      <div className="w-full lg:w-1/3 bg-white p-6 overflow-y-auto">
-        <h1 className="text-2xl font-bold mb-6 text-dark">{STRINGS.SOLICITAR_VIAJE}</h1>
+    <div className="min-h-screen bg-light flex flex-col lg:flex-row pt-16">
+      {/* Contenido principal - En móviles: abajo del mapa, en desktop: al lado del mapa */}
+      <div className="w-full lg:w-1/3 bg-white p-6 overflow-y-auto order-2 lg:order-1">
+        <h1 className="text-2xl font-bold mb-6 text-dark hidden lg:block">{STRINGS.SOLICITAR_VIAJE}</h1>
         
         {/* Tabs */}
-        <div className="flex border-b mb-4 space-x-2">
+        <div className="flex border-b mb-4 space-x-2 overflow-x-auto">
           {tabs.map((tab) => (
             <Button 
               key={tab.id}
-              className={`flex-1 py-2 font-medium ${
+              className={`flex-1 min-w-max py-2 px-2 text-sm font-medium whitespace-nowrap ${
                 activeTab === tab.id 
                   ? 'text-primary border-b-2 border-primary' 
                   : 'text-secondary hover:text-primary transition-colors'
@@ -696,21 +696,26 @@ export default function Passenger() {
           </div>
         )}
       </div>
-      
-      {/* Map Section - Responsive container */}
-      <div className="w-full lg:w-2/3" style={{ height: 'calc(100vh - 4rem)' }}>
-          <MapContainer 
-            center={currentPosition || [0, 0]}
-            zoom={currentPosition ? 13 : 2}
-            style={{ 
-              height: '100%', 
-              width: '100%',
-              minHeight: '400px',
-              position: 'relative',
-              zIndex: 1
-            }}
-            key={JSON.stringify(currentPosition)} // Force re-render on position change
-          >
+
+      {/* Mapa - En móviles: arriba del contenido, en desktop: a la derecha */}
+      <div className="w-full lg:w-2/3 order-1 lg:order-2 bg-white rounded-xl shadow-md overflow-hidden" style={{ height: 'calc(100vh - 4rem)' }}>
+        {/* Título - Solo visible en móviles */}
+        <div className="lg:hidden bg-white p-4 border-b">
+          <h1 className="text-xl font-bold text-dark">{STRINGS.SOLICITAR_VIAJE}</h1>
+        </div>
+        
+        <MapContainer 
+          center={currentPosition || [0, 0]}
+          zoom={currentPosition ? 13 : 2}
+          style={{ 
+            height: '100%', 
+            width: '100%',
+            position: 'relative',
+            zIndex: 1
+          }}
+          zoomControl={true}
+          key={`map-${JSON.stringify(currentPosition)}-${window.innerWidth}`}
+        >
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
