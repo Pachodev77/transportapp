@@ -24,7 +24,7 @@ import { STRINGS } from '../utils/constants';
 import { formatDate } from '../utils/dateUtils';
 import Button from '../components/Button';
 
-// Fix for default marker icons
+// Icons for map markers
 const defaultIcon = new L.Icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -32,6 +32,26 @@ const defaultIcon = new L.Icon({
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+// Custom driver icon
+const driverIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  shadowSize: [41, 41]
+});
+
+// Custom passenger icon
+const passengerIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
   shadowSize: [41, 41]
 });
 
@@ -698,6 +718,56 @@ export default function Passenger() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             />
             <RecenterMap position={currentPosition} zoom={13} />
+            
+            {/* Passenger Location Marker */}
+            {currentPosition && (
+              <Marker 
+                position={currentPosition} 
+                icon={passengerIcon}
+              >
+                <Popup>{STRINGS.TU_UBICACION}</Popup>
+              </Marker>
+            )}
+            
+            {/* Driver Location Marker */}
+            {driverLocation && (
+              <Marker 
+                position={[driverLocation.latitude, driverLocation.longitude]} 
+                icon={driverIcon}
+              >
+                <Popup>{STRINGS.CONDUCTOR}</Popup>
+              </Marker>
+            )}
+            
+            {/* Origin and Destination Markers */}
+            {origin && (
+              <Marker 
+                position={[origin.lat, origin.lng]} 
+                icon={defaultIcon}
+              >
+                <Popup>{STRINGS.ORIGEN}: {origin.address}</Popup>
+              </Marker>
+            )}
+            
+            {destination && (
+              <Marker 
+                position={[destination.lat, destination.lng]} 
+                icon={defaultIcon}
+              >
+                <Popup>{STRINGS.DESTINO}: {destination.address}</Popup>
+              </Marker>
+            )}
+            
+            {/* Route between origin and destination */}
+            {origin && destination && (
+              <Polyline 
+                positions={[
+                  [origin.lat, origin.lng],
+                  [destination.lat, destination.lng]
+                ]} 
+                color="blue"
+              />
+            )}
             <LocationSelector onSelect={handleLocationSelect} />
             
             {/* Origin Marker */}
