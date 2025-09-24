@@ -412,7 +412,7 @@ export const getUserTrips = async (userId, history = false) => {
         tripsRef,
         where('driverId', '==', userId),
         where('status', 'in', status),
-        orderBy('departureTime', 'desc')
+        orderBy('createdAt', 'desc')
       );
       
       const querySnapshot = await getDocs(q);

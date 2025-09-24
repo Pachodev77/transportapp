@@ -141,7 +141,7 @@ function Driver() {
   }, [currentUser]);
   
   const TripTabs = () => (
-    <div className="flex border-b border-gray-200 mb-4">
+    <div className="flex border-b border-gray-200 mb-4 space-x-4">
       <Button
         className={`py-2 px-4 font-medium ${!showHistory ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
         onClick={() => setShowHistory(false)}
@@ -414,70 +414,62 @@ function Driver() {
   useEffect(() => {
     if (!currentUser) return;
 
+    // Initial load of trips
     const loadAndFetchTrips = async () => {
       setLoading(true);
+      try {
+        const [activeTrips, historyTrips] = await Promise.all([
+          getUserTrips(currentUser.uid, false), // false for active trips
+          getUserTrips(currentUser.uid, true)   // true for history
+        ]);
 
-      // 1. Get trip from localStorage (if any)
-      let savedTrip = null;
-      const savedTripJSON = localStorage.getItem('acceptedTrip');
-      if (savedTripJSON) {
-        try {
-          savedTrip = JSON.parse(savedTripJSON);
-        } catch {
-          savedTrip = null;
-        }
+        setMyTrips(activeTrips);
+        setTripHistory(historyTrips);
+
+        // Find and set the currently accepted trip from the initial load
+        const currentlyAcceptedTrip = activeTrips.find(
+          trip => trip.status === 'accepted' || trip.status === 'in_progress'
+        );
+        setAcceptedTrip(currentlyAcceptedTrip || null);
+
+      } catch (error) {
+        console.error("Error loading initial trips:", error);
+        setError("Failed to load trip data.");
+      } finally {
+        setLoading(false);
       }
-
-      // 2. Fetch trips from Firestore
-      const [activeTrips, historyTrips] = await Promise.all([
-        getUserTrips(currentUser.uid, false),
-        getUserTrips(currentUser.uid, true)
-      ]);
-
-      // 3. Merge and set state
-      let finalActiveTrips = activeTrips;
-      if (savedTrip && !activeTrips.some(t => t.id === savedTrip.id)) {
-        // If Firestore didn't return the saved trip, add it to the list.
-        // This handles the race condition where the fetch is stale.
-        finalActiveTrips = [savedTrip, ...activeTrips];
-      }
-
-      if (savedTrip) {
-        setAcceptedTrip(savedTrip);
-      }
-      setMyTrips(finalActiveTrips);
-      setTripHistory(historyTrips);
-      setLoading(false);
     };
 
     loadAndFetchTrips();
 
-    // 4. Set up subscription for real-time updates
+    // Set up subscription for real-time updates
     const unsubscribe = subscribeToTripUpdates(
       currentUser.uid,
-      (trips) => {
-        setMyTrips(trips.filter(trip => trip.status !== 'completed' && trip.status !== 'cancelled'));
+      (updatedTrips) => {
+        // Filter trips into active and history
+        const activeTrips = updatedTrips.filter(
+          trip => trip.status !== 'completed' && trip.status !== 'cancelled'
+        );
+        const historyTrips = updatedTrips.filter(
+          trip => trip.status === 'completed' || trip.status === 'cancelled'
+        );
+
+        setMyTrips(activeTrips);
+        setTripHistory(historyTrips);
         
-        // Use functional update to access previous state without adding a dependency
-        setAcceptedTrip(prevAcceptedTrip => {
-          if (prevAcceptedTrip) {
-            const updatedTrip = trips.find(t => t.id === prevAcceptedTrip.id);
-            if (updatedTrip) {
-              // Only update if data has actually changed to prevent loops
-              if (JSON.stringify(updatedTrip) !== JSON.stringify(prevAcceptedTrip)) {
-                localStorage.setItem('acceptedTrip', JSON.stringify(updatedTrip));
-                return updatedTrip;
-              }
-            }
-          }
-          return prevAcceptedTrip; // No change needed
-        });
+        // Find and set the currently accepted trip from the real-time updates
+        const currentlyAcceptedTrip = activeTrips.find(
+          trip => trip.status === 'accepted' || trip.status === 'in_progress'
+        );
+        setAcceptedTrip(currentlyAcceptedTrip || null);
       },
       (error) => {
         console.error('Error subscribing to trip updates:', error);
+        setError("Failed to get real-time trip updates.");
       }
     );
     
+    // Cleanup subscription on component unmount
     return () => {
       if (typeof unsubscribe === 'function') {
         unsubscribe();
@@ -689,24 +681,13 @@ function Driver() {
         });
       });
 
-      if (acceptedTrip && acceptedTrip.id === tripId) {
-        setAcceptedTrip(null);
-        localStorage.removeItem('acceptedTrip');
-      }
-
       alert('¡Viaje completado con éxito!');
-
-      const [activeTrips, historyTrips] = await Promise.all([
-        getUserTrips(currentUser.uid, false),
-        getUserTrips(currentUser.uid, true)
-      ]);
-      
-      setMyTrips(activeTrips);
-      setTripHistory(historyTrips);
 
     } catch (error) {
       console.error('Error completing trip:', error);
       alert(error.message || 'Error al completar el viaje. Por favor, inténtalo de nuevo.');
+    } finally {
+      setLoading(false);
     }
   };
 

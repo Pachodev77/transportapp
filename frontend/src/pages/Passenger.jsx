@@ -479,7 +479,7 @@ export default function Passenger() {
           </div>
         )}
 
-        {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && (
+        {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && selectedTrip.passengerId === currentUser?.uid && (
           <div className="mb-4 p-4 bg-success text-white rounded-lg text-center shadow-lg animate-pulse">
             <p className="font-bold text-lg">¡Tu conductor está en camino!</p>
             {selectedTrip.driverName && <p><strong>{selectedTrip.driverName}</strong> llegará pronto.</p>}
