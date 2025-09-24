@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap, Polyline } from 'react-leaflet';
 import { FaCar, FaMapMarkerAlt, FaClock, FaUser, FaMoneyBillWave, FaStar, FaPlus, FaCheck, FaTimes, FaSpinner } from 'react-icons/fa';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -13,7 +13,20 @@ import {
   db,
   runTransaction
 } from '../firebase/config';
-import { onSnapshot, doc, setDoc, getDoc, serverTimestamp, GeoPoint } from 'firebase/firestore';
+import { 
+  onSnapshot, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  serverTimestamp, 
+  GeoPoint, 
+  collection, 
+  query, 
+  where, 
+  orderBy,
+  addDoc,
+  updateDoc
+} from 'firebase/firestore';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { STRINGS } from '../utils/constants';
@@ -165,6 +178,146 @@ function Driver() {
   const mapInitialized = useRef(false);
   const pendingCenter = useRef(null);
   const [passengerLocation, setPassengerLocation] = useState(null);
+  const [error, setError] = useState(null);
+
+  // Función para procesar coordenadas (mover fuera del efecto para mejor rendimiento)
+  const processCoords = useCallback((coords) => {
+    if (!coords) {
+      console.warn('No se proporcionaron coordenadas');
+      return null;
+    }
+    
+    // Si es un GeoPoint de Firestore (con _lat y _long)
+    if (coords._lat !== undefined && coords._long !== undefined) {
+      return { 
+        lat: Number(coords._lat), 
+        lng: Number(coords._long)
+      };
+    }
+    
+    // Si es un objeto con lat/lng
+    if (coords.lat !== undefined && coords.lng !== undefined) {
+      return { 
+        lat: Number(coords.lat), 
+        lng: Number(coords.lng)
+      };
+    }
+    
+    // Si es un array [lng, lat] (formato GeoJSON)
+    if (Array.isArray(coords) && coords.length === 2) {
+      return { 
+        lat: Number(coords[1]), 
+        lng: Number(coords[0])
+      };
+    }
+    
+    console.warn('Formato de coordenadas no reconocido:', coords);
+    return null;
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) {
+      console.log('Usuario no autenticado, no se pueden cargar viajes');
+      return;
+    }
+    
+    console.log('🔍 Buscando solicitudes de viaje pendientes...');
+    
+    try {
+      const q = query(
+        collection(db, 'rideRequests'),
+        where('status', '==', 'pending'),
+        orderBy('createdAt', 'desc')
+      );
+      
+      console.log('🔧 Consulta Firestore creada:', {
+        collection: 'rideRequests',
+        filters: ['status == pending'],
+        orderBy: 'createdAt desc'
+      });
+      
+      const unsubscribe = onSnapshot(
+        q, 
+        (querySnapshot) => {
+          console.log(`✅ Se encontraron ${querySnapshot.size} solicitudes de viaje`);
+          
+          if (querySnapshot.empty) {
+            console.log('ℹ️ No se encontraron viajes pendientes en la base de datos');
+            setAvailableTrips([]);
+            return;
+          }
+          
+          const trips = [];
+          
+          querySnapshot.forEach((doc) => {
+            try {
+              const data = doc.data();
+              console.log('📝 Procesando viaje ID:', doc.id, 'Datos:', data);
+              
+              // Procesar coordenadas
+              const originCoords = processCoords(data.origin?.coordinates);
+              const destCoords = processCoords(data.destination?.coordinates);
+              
+              if (!originCoords || !destCoords) {
+                console.warn(`Viaje ${doc.id} ignorado: coordenadas inválidas`);
+                return;
+              }
+              
+              // Crear objeto de viaje con formato consistente
+              const tripData = {
+                id: doc.id,
+                ...data,
+                origin: {
+                  address: data.origin?.address || 'Origen no especificado',
+                  coordinates: originCoords
+                },
+                destination: {
+                  address: data.destination?.address || 'Destino no especificado',
+                  coordinates: destCoords
+                },
+                passengerName: data.passengerName || 'Pasajero desconocido',
+                status: data.status || 'pending',
+                createdAt: data.createdAt?.toDate() || new Date(),
+                price: data.price || 0
+              };
+              
+              console.log('📍 Viaje procesado:', {
+                id: tripData.id,
+                origin: {
+                  address: tripData.origin.address,
+                  coordinates: tripData.origin.coordinates
+                },
+                destination: {
+                  address: tripData.destination.address,
+                  coordinates: tripData.destination.coordinates
+                },
+                passenger: tripData.passengerName
+              });
+              
+              trips.push(tripData);
+            } catch (error) {
+              console.error('❌ Error al procesar el viaje:', doc.id, error);
+            }
+          });
+          
+          console.log('🚀 Viajes disponibles para mostrar:', trips);
+          setAvailableTrips(trips);
+        },
+        (error) => {
+          console.error('❌ Error en la consulta de viajes:', error);
+          setLocationError('Error al cargar las solicitudes de viaje: ' + error.message);
+        }
+      );
+      
+      return () => {
+        console.log('👋 Desuscribiendo del listener de viajes');
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error('🔥 Error al configurar la consulta de viajes:', error);
+      setLocationError('Error al configurar la consulta: ' + error.message);
+    }
+  }, [currentUser, processCoords]);
 
   useEffect(() => {
     if (acceptedTrip?.passengerId) {
@@ -238,39 +391,7 @@ function Driver() {
     }
   }, [acceptedTrip]);
 
-  // Fetch available trips and subscribe to updates
-  useEffect(() => {
-    if (!currentUser) return;
 
-    // Load saved trip from localStorage if exists
-    const savedTrip = JSON.parse(localStorage.getItem('acceptedTrip'));
-    if (savedTrip?.origin) {
-      setAcceptedTrip(savedTrip);
-      // Center map on saved trip location
-      setTimeout(() => {
-        const { lat, lng } = savedTrip.origin;
-        centerMapOnLocation(lat, lng);
-      }, 500);
-    }
-
-    // Subscribe to real-time updates for available trips
-    const unsubscribeTrips = subscribeToTrips(
-      'searching',
-      (trips) => {
-        setAvailableTrips(trips);
-      },
-      (error) => {
-        console.error('Error fetching available trips:', error);
-      },
-      [] // Explicitly request all fields
-    );
-
-    return () => {
-      if (typeof unsubscribeTrips === 'function') {
-        unsubscribeTrips();
-      }
-    };
-  }, [currentUser]);
 
   // Fetch user's trips (both active and history)
   useEffect(() => {
@@ -329,38 +450,88 @@ function Driver() {
     }
   };
 
-  const handleAcceptTrip = async (tripId) => {
+  const handleAcceptTrip = async (requestId) => {
     if (!currentUser) {
-      alert('You must be logged in to accept a trip.');
+      navigate('/login', { state: { from: 'driver' } });
       return;
     }
 
     setLoading(true);
-    try {
-      const tripRef = doc(db, 'trips', tripId);
-      const tripSnap = await getDoc(tripRef);
+    setError('');
 
-      if (!tripSnap.exists()) {
-        throw new Error('This trip is no longer available.');
+    try {
+      // 1. Obtener la solicitud de viaje
+      const requestRef = doc(db, 'rideRequests', requestId);
+      const requestDoc = await getDoc(requestRef);
+      
+      if (!requestDoc.exists()) {
+        throw new Error('La solicitud de viaje ya no está disponible');
       }
 
-      const tripToAccept = { id: tripSnap.id, ...tripSnap.data() };
-
-      await updateTripStatus(tripId, 'accepted', {
+      const requestData = requestDoc.data();
+      
+      // 2. Crear un nuevo viaje en la colección 'trips'
+      const tripRef = await addDoc(collection(db, 'trips'), {
+        status: 'accepted',
         driverId: currentUser.uid,
-        driverName: currentUser.displayName || 'Anonymous Driver',
-        driverPhoto: currentUser.photoURL || '',
+        driverName: currentUser.displayName || 'Conductor',
+        driverPhotoURL: currentUser.photoURL || null,
+        passengerId: requestData.passengerId,
+        passengerName: requestData.passengerName,
+        passengerPhotoURL: requestData.passengerPhotoURL || null,
+        origin: requestData.origin,
+        destination: requestData.destination,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        estimatedPrice: requestData.estimatedPrice || 0,
+        estimatedDistance: requestData.estimatedDistance || 0,
+        estimatedDuration: requestData.estimatedDuration || 0,
+        // Agregar información del vehículo si está disponible
+        carModel: tripDetails.carModel || '',
+        carPlate: tripDetails.carPlate || '',
+        // Inicializar el estado del viaje
+        currentLocation: null,
+        startTime: null,
+        endTime: null,
+        route: [],
+        // Información de pago
+        paymentStatus: 'pending',
+        paymentMethod: 'cash', // Por defecto, se puede cambiar
+        // Calificación
+        driverRating: null,
+        passengerRating: null,
+        // Notas adicionales
+        notes: ''
       });
 
-      setAcceptedTrip(tripToAccept);
-      localStorage.setItem('acceptedTrip', JSON.stringify(tripToAccept));
-      setAvailableTrips(prev => prev.filter(t => t.id !== tripId));
-      setMyTrips(prev => [tripToAccept, ...prev]);
-      setActiveTab('my-trips');
+      // 3. Actualizar el estado de la solicitud a 'accepted'
+      await updateDoc(requestRef, {
+        status: 'accepted',
+        driverId: currentUser.uid,
+        driverName: currentUser.displayName || 'Conductor',
+        driverPhotoURL: currentUser.photoURL || null,
+        tripId: tripRef.id,
+        updatedAt: serverTimestamp()
+      });
+
+      // 4. Actualizar el estado local
+      const tripDoc = await getDoc(tripRef);
+      if (tripDoc.exists()) {
+        const tripData = { id: tripDoc.id, ...tripDoc.data() };
+        setAcceptedTrip(tripData);
+        setActiveTab('my-trips');
+        
+        // 5. Opcional: Notificar al pasajero (puedes implementar esto con Firebase Cloud Messaging)
+        // await notifyPassenger(tripData.passengerId, 'Tu viaje ha sido aceptado');
+        
+        // Mostrar mensaje de éxito
+        alert(`¡Viaje aceptado! Estás en camino a recoger a ${tripData.passengerName || 'el pasajero'}.`);
+      }
 
     } catch (error) {
-      console.error('Error accepting trip:', error);
-      alert(`Failed to accept trip: ${error.message}`);
+      console.error('Error al aceptar el viaje:', error);
+      setError(`Error al aceptar el viaje: ${error.message}`);
+      alert(`Error al aceptar el viaje: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -906,19 +1077,32 @@ function Driver() {
           </div>
           
           {/* Mapa - Visible en móviles (arriba) y escritorio (derecha) */}
-          <div className="lg:col-span-2 order-1 lg:order-2 bg-white rounded-xl shadow-md overflow-hidden" style={{ height: 'calc(100vh - 8rem)' }}>
+          <div className="lg:col-span-2 order-1 lg:order-2 bg-white rounded-xl shadow-md overflow-hidden relative" style={{ height: 'calc(100vh - 8rem)' }}>
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+              {!currentPosition && (
+                <div className="text-center p-4 bg-white rounded-lg shadow-lg">
+                  <p className="text-lg font-medium text-gray-700">Cargando mapa...</p>
+                  <p className="text-sm text-gray-500 mt-1">Obteniendo tu ubicación</p>
+                </div>
+              )}
+            </div>
+            
             <MapContainer 
               center={currentPosition || [0, 0]} 
-              zoom={currentPosition ? 13 : 2} 
+              zoom={currentPosition ? 15 : 2} 
               style={{ 
                 height: '100%', 
                 width: '100%',
                 position: 'relative',
-                zIndex: 1
+                zIndex: 10,
+                backgroundColor: '#e5e7eb' // Fondo gris claro mientras carga
               }}
               zoomControl={true}
-              whenCreated={handleMapLoad}
-              key={`map-${JSON.stringify(currentPosition)}-${window.innerWidth}`}
+              whenCreated={(mapInstance) => {
+                console.log('Mapa inicializado:', mapInstance);
+                handleMapLoad(mapInstance);
+              }}
+              key={`map-${currentPosition ? 'with-position' : 'no-position'}-${window.innerWidth}`}
             >
               <RecenterMap position={currentPosition} zoom={13} />
               <TileLayer
@@ -935,55 +1119,84 @@ function Driver() {
               )}
               
               {/* Mostrar marcadores de viajes disponibles */}
-              {availableTrips && availableTrips.length > 0 && availableTrips.map((trip) => {
-                const origin = trip.origin || {};
-                const destination = trip.destination || {};
-                
-                return (
-                  <React.Fragment key={trip.id}>
-                    {origin.latitude && origin.longitude && (
-                      <Marker 
-                        position={[origin.latitude, origin.longitude]} 
-                        icon={passengerIcon}
-                      >
-                        <Popup>
-                          <div>
-                            <p className="font-bold">{STRINGS.ORIGEN_DEL_VIAJE}</p>
-                            <p>{origin.address || 'Ubicación de origen'}</p>
-                            {trip.id && (
-                              <button 
-                                className="mt-2 bg-blue-500 text-white px-2 py-1 rounded text-sm"
-                                onClick={() => handleAcceptTrip(trip.id)}
+              {availableTrips && availableTrips.length > 0 ? (
+                availableTrips.map((trip) => {
+                  try {
+                    console.log(`Procesando marcadores para viaje ${trip.id}:`, trip);
+                    
+                    // Verificar que las coordenadas sean válidas
+                    if (!trip.origin?.coordinates || !trip.destination?.coordinates) {
+                      console.warn(`Viaje ${trip.id} sin coordenadas válidas`);
+                      return null;
+                    }
+                    
+                    // Obtener coordenadas en formato [lat, lng] para Leaflet
+                    const originCoords = [
+                      trip.origin.coordinates.lat,
+                      trip.origin.coordinates.lng
+                    ];
+                    
+                    const destCoords = [
+                      trip.destination.coordinates.lat,
+                      trip.destination.coordinates.lng
+                    ];
+                    
+                    console.log('Coordenadas procesadas:', { originCoords, destCoords });
+
+                    return (
+                      <React.Fragment key={`trip-${trip.id}`}>
+                        {/* Marcador de origen */}
+                        <Marker
+                          position={originCoords}
+                          icon={passengerIcon}
+                        >
+                          <Popup>
+                            <div className="text-sm">
+                              <p className="font-semibold">Origen</p>
+                              <p>{trip.origin?.address || 'Dirección no disponible'}</p>
+                              <p>Pasajero: {trip.passengerName || 'No disponible'}</p>
+                              <button
+                                onClick={() => handleAcceptTrip(trip)}
+                                className="mt-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs"
                               >
-                                {STRINGS.ACEPTAR_VIAJE}
+                                Aceptar viaje
                               </button>
-                            )}
-                          </div>
-                        </Popup>
-                      </Marker>
-                    )}
-                    
-                    {destination.latitude && destination.longitude && (
-                      <Marker 
-                        position={[destination.latitude, destination.longitude]} 
-                        icon={destinationIcon}
-                      >
-                        <Popup>{STRINGS.DESTINO_DEL_VIAJE}</Popup>
-                      </Marker>
-                    )}
-                    
-                    {origin.latitude && origin.longitude && destination.latitude && destination.longitude && (
-                      <Polyline 
-                        positions={[
-                          [origin.latitude, origin.longitude],
-                          [destination.latitude, destination.longitude]
-                        ]} 
-                        color="blue"
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
+                            </div>
+                          </Popup>
+                        </Marker>
+
+                        {/* Marcador de destino */}
+                        <Marker
+                          position={destCoords}
+                          icon={destinationIcon}
+                        >
+                          <Popup>
+                            <div className="text-sm">
+                              <p className="font-semibold">Destino</p>
+                              <p>{trip.destination?.address || 'Dirección no disponible'}</p>
+                            </div>
+                          </Popup>
+                        </Marker>
+
+                        {/* Línea entre origen y destino */}
+                        <Polyline
+                          positions={[originCoords, destCoords]}
+                          color="blue"
+                          weight={3}
+                          opacity={0.7}
+                        />
+                      </React.Fragment>
+                    );
+                  } catch (error) {
+                    console.error(`Error al renderizar marcadores para el viaje ${trip.id}:`, error);
+                    return null;
+                  }
+                })
+              ) : (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white bg-opacity-90 px-4 py-2 rounded-lg shadow-lg">
+                  <p className="text-sm text-gray-700">No hay viajes disponibles en este momento</p>
+                </div>
+              )}
               
               {/* Selector de ubicación para crear viaje */}
               {activeTab === 'create-trip' && (

@@ -107,9 +107,15 @@ service cloud.firestore {
       // 1. User is authenticated
       // 2. AND (user is the passenger OR user is a driver OR user is admin)
       allow read: if isAuthenticated() && 
-                 (request.auth.uid == resource.data.passengerId || 
+                 (request.auth.uid == resource.data.passengerId ||
                   isDriver() || 
                   isAdmin());
+                  
+      // Allow drivers to list ride requests with status 'pending'
+      allow list: if isAuthenticated() && 
+                 (isDriver() || isAdmin()) &&
+                 request.query.limit != null &&
+                 request.query.where['status'] == 'pending';
       
       // Allow create if:
       // 1. User is authenticated
