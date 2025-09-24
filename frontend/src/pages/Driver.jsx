@@ -180,11 +180,35 @@ function Driver() {
   const [passengerLocation, setPassengerLocation] = useState(null);
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    // Load saved trip from localStorage on initial component mount
+    const savedTripJSON = localStorage.getItem('acceptedTrip');
+    if (savedTripJSON) {
+      try {
+        const savedTrip = JSON.parse(savedTripJSON);
+        if (savedTrip && savedTrip.id) { // Basic validation
+          setAcceptedTrip(savedTrip);
+        }
+      } catch (e) {
+        console.error("Failed to parse acceptedTrip from localStorage", e);
+        localStorage.removeItem('acceptedTrip'); // Clear corrupted item
+      }
+    }
+  }, []); // Empty dependency array ensures this runs only once on mount
+
   // Función para procesar coordenadas (mover fuera del efecto para mejor rendimiento)
   const processCoords = useCallback((coords) => {
     if (!coords) {
       console.warn('No se proporcionaron coordenadas');
       return null;
+    }
+
+    // Handle serialized GeoPoint from localStorage ({latitude, longitude})
+    if (coords.latitude !== undefined && coords.longitude !== undefined) {
+      return {
+        lat: Number(coords.latitude),
+        lng: Number(coords.longitude)
+      };
     }
     
     // Si es un GeoPoint de Firestore (con _lat y _long)
@@ -371,9 +395,16 @@ function Driver() {
 
   // Effect to handle map centering when acceptedTrip changes
   useEffect(() => {
-    if (!acceptedTrip?.origin) return;
-    
-    const { lat, lng } = acceptedTrip.origin;
+    if (!acceptedTrip?.origin?.coordinates) return;
+
+    const coords = processCoords(acceptedTrip.origin.coordinates);
+
+    if (!coords) {
+      console.error('Invalid coordinates in acceptedTrip:', acceptedTrip.origin.coordinates);
+      return;
+    }
+
+    const { lat, lng } = coords;
     if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
       console.error('Invalid coordinates in acceptedTrip:', { lat, lng });
       return;
@@ -389,7 +420,7 @@ function Driver() {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [acceptedTrip]);
+  }, [acceptedTrip, processCoords]);
 
 
 
@@ -421,14 +452,21 @@ function Driver() {
       currentUser.uid,
       (trips) => {
         setMyTrips(trips.filter(trip => trip.status !== 'completed' && trip.status !== 'cancelled'));
-        // Update acceptedTrip if it's one of the updated trips
-        if (acceptedTrip) {
-          const updatedTrip = trips.find(t => t.id === acceptedTrip.id);
-          if (updatedTrip) {
-            setAcceptedTrip(updatedTrip);
-            localStorage.setItem('acceptedTrip', JSON.stringify(updatedTrip));
+        
+        // Use functional update to access previous state without adding a dependency
+        setAcceptedTrip(prevAcceptedTrip => {
+          if (prevAcceptedTrip) {
+            const updatedTrip = trips.find(t => t.id === prevAcceptedTrip.id);
+            if (updatedTrip) {
+              // Only update if data has actually changed to prevent loops
+              if (JSON.stringify(updatedTrip) !== JSON.stringify(prevAcceptedTrip)) {
+                localStorage.setItem('acceptedTrip', JSON.stringify(updatedTrip));
+                return updatedTrip;
+              }
+            }
           }
-        }
+          return prevAcceptedTrip; // No change needed
+        });
       },
       (error) => {
         console.error('Error subscribing to trip updates:', error);
@@ -440,7 +478,7 @@ function Driver() {
         unsubscribe();
       }
     };
-  }, [currentUser, acceptedTrip]);
+  }, [currentUser]);
 
   const handleLocationSelect = (latlng) => {
     if (!origin) {
@@ -504,20 +542,31 @@ function Driver() {
         notes: ''
       });
 
-      // 3. Actualizar el estado de la solicitud a 'accepted'
+      // 3. Actualizar el estado de la solicitud a 'accepted' en una sola operación
+      // Solo incluir campos permitidos por las reglas de seguridad
       await updateDoc(requestRef, {
         status: 'accepted',
         driverId: currentUser.uid,
         driverName: currentUser.displayName || 'Conductor',
-        driverPhotoURL: currentUser.photoURL || null,
-        tripId: tripRef.id,
         updatedAt: serverTimestamp()
+        // Nota: No podemos incluir tripId ni driverPhotoURL aquí ya que no están en la lista de campos permitidos
+        // en las reglas de seguridad. Si necesitas estos campos, deberás actualizar las reglas de seguridad.
       });
 
       // 4. Actualizar el estado local
       const tripDoc = await getDoc(tripRef);
       if (tripDoc.exists()) {
-        const tripData = { id: tripDoc.id, ...tripDoc.data() };
+        const data = tripDoc.data();
+        // Create a consistently structured trip object for immediate UI update
+        const tripData = {
+          id: tripDoc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate(),
+          updatedAt: data.updatedAt?.toDate(),
+        };
+
+        // Manually add the new trip to the 'myTrips' state for immediate UI update
+        setMyTrips(prevMyTrips => [tripData, ...prevMyTrips]);
         setAcceptedTrip(tripData);
         setActiveTab('my-trips');
         
@@ -596,14 +645,17 @@ function Driver() {
 
   // Effect to handle map centering when a trip is accepted
   useEffect(() => {
-    if (acceptedTrip?.origin && mapRef.current) {
-      const { lat, lng } = acceptedTrip.origin;
-      mapRef.current.flyTo([lat, lng], 15, {
-        animate: true,
-        duration: 1.5
-      });
+    if (acceptedTrip?.origin?.coordinates && mapRef.current) {
+      const coords = processCoords(acceptedTrip.origin.coordinates);
+      if (coords) {
+        const { lat, lng } = coords;
+        mapRef.current.flyTo([lat, lng], 15, {
+          animate: true,
+          duration: 1.5
+        });
+      }
     }
-  }, [acceptedTrip]);
+  }, [acceptedTrip, processCoords]);
 
   const handleCompleteTrip = async (tripId) => {
     if (!tripId) {
@@ -750,11 +802,11 @@ function Driver() {
                         <div key={trip.id} className="border rounded-lg p-4 space-y-3">
                           <div className="flex items-center">
                             <FaMapMarkerAlt className="text-danger mr-2 w-4" />
-                            <span className="truncate">{trip.origin?.name || STRINGS.ORIGEN_NO_ESPECIFICADO}</span>
+                            <span className="truncate">{trip.origin?.address || STRINGS.ORIGEN_NO_ESPECIFICADO}</span>
                           </div>
                           <div className="flex items-center">
                             <FaMapMarkerAlt className="text-success mr-2 w-4" />
-                            <span className="truncate">{trip.destination?.name || STRINGS.DESTINO_NO_ESPECIFICADO}</span>
+                            <span className="truncate">{trip.destination?.address || STRINGS.DESTINO_NO_ESPECIFICADO}</span>
                           </div>
                           <div className="flex items-center text-secondary">
                             <FaClock className="mr-2 w-4" />
@@ -808,7 +860,7 @@ function Driver() {
                           <div className="flex justify-between items-start mb-3">
                             <div>
                               <h4 className="font-medium text-dark">
-                                {trip.origin?.name?.split(',')[0] || STRINGS.ORIGEN} → {trip.destination?.name?.split(',')[0] || STRINGS.DESTINO}
+                                {trip.origin?.address?.split(',')[0] || STRINGS.ORIGEN} → {trip.destination?.address?.split(',')[0] || STRINGS.DESTINO}
                               </h4>
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                 trip.status === 'accepted' 
@@ -839,11 +891,11 @@ function Driver() {
                           <div className="space-y-2 text-sm mb-4">
                             <div className="flex items-center">
                               <FaMapMarkerAlt className="text-danger mr-2 w-4" />
-                              <span className="truncate">{trip.origin?.name || STRINGS.ORIGEN_NO_ESPECIFICADO}</span>
+                              <span className="truncate">{trip.origin?.address || STRINGS.ORIGEN_NO_ESPECIFICADO}</span>
                             </div>
                             <div className="flex items-center">
                               <FaMapMarkerAlt className="text-success mr-2 w-4" />
-                              <span className="truncate">{trip.destination?.name || STRINGS.DESTINO_NO_ESPECIFICADO}</span>
+                              <span className="truncate">{trip.destination?.address || STRINGS.DESTINO_NO_ESPECIFICADO}</span>
                             </div>
                             <div className="flex items-center text-secondary">
                               <FaClock className="mr-2 w-4" />
@@ -1156,7 +1208,7 @@ function Driver() {
                               <p>{trip.origin?.address || 'Dirección no disponible'}</p>
                               <p>Pasajero: {trip.passengerName || 'No disponible'}</p>
                               <button
-                                onClick={() => handleAcceptTrip(trip)}
+                                onClick={() => handleAcceptTrip(trip.id)}
                                 className="mt-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs"
                               >
                                 Aceptar viaje
