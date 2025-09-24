@@ -292,10 +292,30 @@ export default function Passenger() {
     
     const unsubscribeRideRequests = onSnapshot(rideRequestsQuery, (snapshot) => {
       const requests = [];
+      let activeTrip = null;
       snapshot.forEach((doc) => {
-        requests.push({ id: doc.id, ...doc.data() });
+        const data = doc.data();
+        // Process the request object to ensure data consistency
+        const request = {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate(),
+            updatedAt: data.updatedAt?.toDate(),
+        };
+        requests.push(request);
+        // Find the active trip to track
+        if (request.status === 'accepted' || request.status === 'in_progress') {
+          activeTrip = request;
+        }
       });
       setMyRideRequests(requests);
+
+      if (activeTrip) {
+        setSelectedTrip(activeTrip);
+      } else {
+        // If no trip is active, clear the selected trip
+        setSelectedTrip(null);
+      }
     }, (error) => {
       console.error('Error al cargar solicitudes de viaje:', error);
       setError('Error al cargar las solicitudes de viaje');
@@ -458,6 +478,14 @@ export default function Passenger() {
             <p>{locationError}</p>
           </div>
         )}
+
+        {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && (
+          <div className="mb-4 p-4 bg-success text-white rounded-lg text-center shadow-lg animate-pulse">
+            <p className="font-bold text-lg">¡Tu conductor está en camino!</p>
+            {selectedTrip.driverName && <p><strong>{selectedTrip.driverName}</strong> llegará pronto.</p>}
+          </div>
+        )}
+        
         
         {activeTab === 'my-requests' ? (
           <div className="space-y-4">

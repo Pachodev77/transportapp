@@ -180,21 +180,7 @@ function Driver() {
   const [passengerLocation, setPassengerLocation] = useState(null);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    // Load saved trip from localStorage on initial component mount
-    const savedTripJSON = localStorage.getItem('acceptedTrip');
-    if (savedTripJSON) {
-      try {
-        const savedTrip = JSON.parse(savedTripJSON);
-        if (savedTrip && savedTrip.id) { // Basic validation
-          setAcceptedTrip(savedTrip);
-        }
-      } catch (e) {
-        console.error("Failed to parse acceptedTrip from localStorage", e);
-        localStorage.removeItem('acceptedTrip'); // Clear corrupted item
-      }
-    }
-  }, []); // Empty dependency array ensures this runs only once on mount
+
 
   // Función para procesar coordenadas (mover fuera del efecto para mejor rendimiento)
   const processCoords = useCallback((coords) => {
@@ -427,27 +413,46 @@ function Driver() {
   // Fetch user's trips (both active and history)
   useEffect(() => {
     if (!currentUser) return;
-    
-    const fetchUserTrips = async () => {
-      try {
-        setLoading(true);
-        const [activeTrips, historyTrips] = await Promise.all([
-          getUserTrips(currentUser.uid, false), // Active trips
-          getUserTrips(currentUser.uid, true)   // History trips
-        ]);
-        
-        setMyTrips(activeTrips);
-        setTripHistory(historyTrips);
-      } catch (error) {
-        console.error('Error fetching user trips:', error);
-      } finally {
-        setLoading(false);
+
+    const loadAndFetchTrips = async () => {
+      setLoading(true);
+
+      // 1. Get trip from localStorage (if any)
+      let savedTrip = null;
+      const savedTripJSON = localStorage.getItem('acceptedTrip');
+      if (savedTripJSON) {
+        try {
+          savedTrip = JSON.parse(savedTripJSON);
+        } catch {
+          savedTrip = null;
+        }
       }
+
+      // 2. Fetch trips from Firestore
+      const [activeTrips, historyTrips] = await Promise.all([
+        getUserTrips(currentUser.uid, false),
+        getUserTrips(currentUser.uid, true)
+      ]);
+
+      // 3. Merge and set state
+      let finalActiveTrips = activeTrips;
+      if (savedTrip && !activeTrips.some(t => t.id === savedTrip.id)) {
+        // If Firestore didn't return the saved trip, add it to the list.
+        // This handles the race condition where the fetch is stale.
+        finalActiveTrips = [savedTrip, ...activeTrips];
+      }
+
+      if (savedTrip) {
+        setAcceptedTrip(savedTrip);
+      }
+      setMyTrips(finalActiveTrips);
+      setTripHistory(historyTrips);
+      setLoading(false);
     };
-    
-    fetchUserTrips();
-    
-    // Subscribe to real-time updates for active trips
+
+    loadAndFetchTrips();
+
+    // 4. Set up subscription for real-time updates
     const unsubscribe = subscribeToTripUpdates(
       currentUser.uid,
       (trips) => {
@@ -1169,6 +1174,51 @@ function Driver() {
                   <Popup>{STRINGS.TU_UBICACION}</Popup>
                 </Marker>
               )}
+
+              {/* Render the accepted trip route and markers */}
+              {acceptedTrip && (() => {
+                const originCoords = processCoords(acceptedTrip.origin?.coordinates);
+                const destCoords = processCoords(acceptedTrip.destination?.coordinates);
+
+                if (!originCoords || !destCoords) return null;
+
+                return (
+                  <React.Fragment>
+                    {/* Passenger's pickup location marker */}
+                    <Marker
+                      position={[originCoords.lat, originCoords.lng]}
+                      icon={passengerIcon}
+                    >
+                      <Popup>
+                        <div className="text-sm">
+                          <p className="font-semibold">Recoger a {acceptedTrip.passengerName}</p>
+                          <p>{acceptedTrip.origin?.address}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+
+                    {/* Destination marker */}
+                    <Marker
+                      position={[destCoords.lat, destCoords.lng]}
+                      icon={destinationIcon}
+                    >
+                      <Popup>
+                        <div className="text-sm">
+                          <p className="font-semibold">Destino</p>
+                          <p>{acceptedTrip.destination?.address}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+
+                    {/* Route line */}
+                    <Polyline
+                      positions={[[originCoords.lat, originCoords.lng], [destCoords.lat, destCoords.lng]]}
+                      color="green"
+                      weight={5}
+                    />
+                  </React.Fragment>
+                );
+              })()}
               
               {/* Mostrar marcadores de viajes disponibles */}
               {availableTrips && availableTrips.length > 0 ? (
