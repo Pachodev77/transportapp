@@ -701,10 +701,10 @@ export default function Passenger() {
                       <span>{STRINGS.CANCELANDO}</span>
                     </>
                   ) : (
-                    <>
-                      <FaCar />
+                    <div className="flex items-center justify-center">
+                      <FaCar className="mr-2" />
                       <span>{STRINGS.CANCELAR_VIAJE}</span>
-                    </>
+                    </div>
                   )}
                 </Button>
               ) : (
@@ -718,10 +718,10 @@ export default function Passenger() {
                       <span>{STRINGS.BUSCANDO_CONDUCTOR}</span>
                     </>
                   ) : (
-                    <>
-                      <FaCar />
+                    <div className="flex items-center justify-center">
+                      <FaCar className="mr-2" />
                       <span>{STRINGS.SOLICITAR_VIAJE}</span>
-                    </>
+                    </div>
                   )}
                 </Button>
               )}
