@@ -24,6 +24,7 @@ import L from 'leaflet';
 import { STRINGS } from '../utils/constants';
 import { formatDate } from '../utils/dateUtils';
 import Button from '../components/Button';
+import Routing from '../components/Routing';
 
 // Icons for map markers
 const defaultIcon = new L.Icon({
@@ -834,12 +835,9 @@ export default function Passenger() {
                 >
                   <Popup>{STRINGS.DESTINO}: {selectedTrip.destination.address}</Popup>
                 </Marker>
-                <Polyline 
-                  positions={[
-                    [selectedTrip.origin.coordinates.latitude, selectedTrip.origin.coordinates.longitude],
-                    [selectedTrip.destination.coordinates.latitude, selectedTrip.destination.coordinates.longitude]
-                  ]} 
-                  color="blue"
+                <Routing
+                  origin={{ lat: selectedTrip.origin.coordinates.latitude, lng: selectedTrip.origin.coordinates.longitude }}
+                  destination={{ lat: selectedTrip.destination.coordinates.latitude, lng: selectedTrip.destination.coordinates.longitude }}
                 />
               </>
             ) : (
@@ -863,10 +861,7 @@ export default function Passenger() {
                 )}
 
                 {origin && destination && (
-                  <Polyline 
-                    positions={[[origin.lat, origin.lng], [destination.lat, destination.lng]]} 
-                    color="blue"
-                  />
+                  <Routing origin={origin} destination={destination} />
                 )}
               </>
             )}

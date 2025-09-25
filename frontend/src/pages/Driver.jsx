@@ -32,6 +32,7 @@ import L from 'leaflet';
 import { STRINGS } from '../utils/constants';
 import { formatDate } from '../utils/dateUtils';
 import Button from '../components/Button';
+import Routing from '../components/Routing';
 
 // Fix for default marker icons
 const defaultIcon = new L.Icon({
@@ -1187,12 +1188,7 @@ function Driver() {
                       </Popup>
                     </Marker>
 
-                    {/* Route line */}
-                    <Polyline
-                      positions={[[originCoords.lat, originCoords.lng], [destCoords.lat, destCoords.lng]]}
-                      color="green"
-                      weight={5}
-                    />
+                    <Routing origin={originCoords} destination={destCoords} />
                   </React.Fragment>
                 );
               })()}
@@ -1257,13 +1253,7 @@ function Driver() {
                           </Popup>
                         </Marker>
 
-                        {/* Línea entre origen y destino */}
-                        <Polyline
-                          positions={[originCoords, destCoords]}
-                          color="blue"
-                          weight={3}
-                          opacity={0.7}
-                        />
+
                       </React.Fragment>
                     );
                   } catch (error) {
