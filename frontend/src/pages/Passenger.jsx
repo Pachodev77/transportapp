@@ -24,6 +24,7 @@ import L from 'leaflet';
 import { STRINGS } from '../utils/constants';
 import { formatDate } from '../utils/dateUtils';
 import Button from '../components/Button';
+import AddressInput from '../components/AddressInput';
 import Routing from '../components/Routing';
 
 // Icons for map markers
@@ -97,7 +98,26 @@ export default function Passenger() {
   const [currentPosition, setCurrentPosition] = useState(null);
   const [driverLocation, setDriverLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
+  const [originQuery, setOriginQuery] = useState('');
+  const [destinationQuery, setDestinationQuery] = useState('');
   const [suggestedPrice, setSuggestedPrice] = useState('');
+  const [hasActiveRequest, setHasActiveRequest] = useState(false);
+
+  useEffect(() => {
+    setHasActiveRequest(myRideRequests.some(
+      (request) => request.status === 'pending' || request.status === 'accepted' || request.status === 'in_progress'
+    ));
+  }, [myRideRequests]);
+
+  useEffect(() => {
+    if (selectedTrip) {
+      setOriginQuery(selectedTrip.origin.address);
+      setDestinationQuery(selectedTrip.destination.address);
+    } else {
+      setOriginQuery('');
+      setDestinationQuery('');
+    }
+  }, [selectedTrip]);
 
   useEffect(() => {
     if (selectedTrip?.driverId) {
@@ -186,6 +206,49 @@ export default function Passenger() {
     } catch (error) {
       console.error('Error getting address:', error);
       return STRINGS.UBICACION_SELECCIONADA;
+    }
+  };
+
+  const handleSetCurrentLocationAsOrigin = async () => {
+    if (currentPosition) {
+      try {
+        const address = await getAddressFromCoordinates(currentPosition[0], currentPosition[1]);
+        setOrigin({
+          lat: currentPosition[0],
+          lng: currentPosition[1],
+          name: STRINGS.ORIGEN,
+          address: address || STRINGS.UBICACION_SELECCIONADA
+        });
+        setOriginQuery(address || STRINGS.UBICACION_SELECCIONADA);
+      } catch (error) {
+        console.error('Error getting address from current location:', error);
+        setError(STRINGS.ERROR_OBTENER_DIRECCION);
+      }
+    }
+  };
+
+  const canCancelActiveRequest = () => {
+    if (!selectedTrip) return false;
+
+    if (selectedTrip.status === 'pending') {
+      return true; // Can cancel pending requests at any time
+    }
+
+    if (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') {
+      if (!selectedTrip.acceptedAt) return false; // Should not happen if accepted
+
+      const acceptedTime = selectedTrip.acceptedAt.toDate(); // Convert Firestore timestamp to Date object
+      const thirtySecondsAgo = new Date(Date.now() - 30 * 1000);
+
+      return acceptedTime > thirtySecondsAgo;
+    }
+
+    return false;
+  };
+
+  const handleCancelActiveRequest = () => {
+    if (selectedTrip) {
+      handleCancelRequest(selectedTrip.id);
     }
   };
 
@@ -588,21 +651,22 @@ export default function Passenger() {
         ) : activeTab === 'search' ? (
           <>
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-dark mb-1">{STRINGS.ORIGEN}</label>
-                <div className="flex items-center bg-light rounded-lg p-3">
-                  <FaMapMarkerAlt className="text-danger mr-2" />
-                  <span>{origin?.address || STRINGS.SELECCIONA_EN_MAPA}</span>
-                </div>
-              </div>
+              <AddressInput
+                label={STRINGS.ORIGEN}
+                icon={<FaMapMarkerAlt className="text-danger" />}
+                onSelect={(location) => setOrigin(location)}
+                value={originQuery}
+                onChange={setOriginQuery}
+                onUseCurrentLocation={handleSetCurrentLocationAsOrigin}
+              />
               
-              <div>
-                <label className="block text-sm font-medium text-dark mb-1">{STRINGS.DESTINO}</label>
-                <div className="flex items-center bg-light rounded-lg p-3">
-                  <FaMapMarkerAlt className="text-success mr-2" />
-                  <span>{destination?.address || STRINGS.SELECCIONA_EN_MAPA}</span>
-                </div>
-              </div>
+              <AddressInput
+                label={STRINGS.DESTINO}
+                icon={<FaMapMarkerAlt className="text-success" />}
+                onSelect={(location) => setDestination(location)}
+                value={destinationQuery}
+                onChange={setDestinationQuery}
+              />
 
               <div>
                 <label htmlFor="price" className="block text-sm font-medium text-dark mb-1">
@@ -626,22 +690,41 @@ export default function Passenger() {
                 </div>
               </div>
               
-              <Button
-                onClick={handleRequestRide}
-                disabled={!origin || !destination || loading}
-              >
-                {loading ? (
-                  <>
-                    <FaSpinner className="animate-spin" />
-                    <span>{STRINGS.BUSCANDO_CONDUCTOR}</span>
-                  </>
-                ) : (
-                  <>
-                    <FaCar />
-                    <span>{STRINGS.SOLICITAR_VIAJE}</span>
-                  </>
-                )}
-              </Button>
+              {hasActiveRequest ? (
+                <Button
+                  onClick={handleCancelActiveRequest}
+                  disabled={loading || !canCancelActiveRequest()}
+                >
+                  {loading ? (
+                    <>
+                      <FaSpinner className="animate-spin" />
+                      <span>{STRINGS.CANCELANDO}</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaCar />
+                      <span>{STRINGS.CANCELAR_VIAJE}</span>
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleRequestRide}
+                  disabled={!origin || !destination || loading}
+                >
+                  {loading ? (
+                    <>
+                      <FaSpinner className="animate-spin" />
+                      <span>{STRINGS.BUSCANDO_CONDUCTOR}</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaCar />
+                      <span>{STRINGS.SOLICITAR_VIAJE}</span>
+                    </>
+                  )}
+                </Button>
+              )}
               
               {origin && destination && (
                 <p className="mt-2 text-xs text-center text-secondary">

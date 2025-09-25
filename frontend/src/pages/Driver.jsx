@@ -542,7 +542,8 @@ function Driver() {
         status: 'accepted',
         driverId: currentUser.uid,
         driverName: currentUser.displayName || 'Conductor',
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        acceptedAt: serverTimestamp()
         // Nota: No podemos incluir tripId ni driverPhotoURL aquí ya que no están en la lista de campos permitidos
         // en las reglas de seguridad. Si necesitas estos campos, deberás actualizar las reglas de seguridad.
       });

@@ -96,4 +96,5 @@ export const STRINGS = {
   A: "A: ",
   PASAJEROS_PUNTOS: "Pasajeros: ",
   PRECIO_SUGERIDO: "Precio sugerido",
+  CANCELAR_VIAJE: "Cancelar viaje",
 };

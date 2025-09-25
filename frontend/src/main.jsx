@@ -145,13 +145,14 @@ function App() {
   );
 }
 
-// Asegurar que el contenedor raíz exista
 const container = document.getElementById('root');
-if (container && !container._reactRootContainer) {
-  const root = createRoot(container);
-  root.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  );
+
+if (!window.reactRoot) {
+  window.reactRoot = createRoot(container);
 }
+
+window.reactRoot.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
