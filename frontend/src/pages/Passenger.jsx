@@ -36,25 +36,29 @@ const defaultIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
-// Custom driver icon
-const driverIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  shadowSize: [41, 41]
-});
+// Custom icons for map markers
+const createMarkerIcon = (content, color) => {
+  const svg = `
+    <svg width="30" height="42" viewBox="0 0 30 42" xmlns="http://www.w3.org/2000/svg">
+      <path d="M15 0C6.716 0 0 6.716 0 15C0 23.284 15 42 15 42S30 23.284 30 15C30 6.716 23.284 0 15 0Z" fill="${color}"/>
+      ${content}
+    </svg>
+  `;
+  return new L.DivIcon({
+    html: svg,
+    className: '',
+    iconSize: [30, 42],
+    iconAnchor: [15, 42]
+  });
+};
 
-// Custom passenger icon
-const passengerIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  shadowSize: [41, 41]
-});
+const createLetterContent = (letter) => `<text x="15" y="20" font-size="15" font-weight="bold" fill="white" text-anchor="middle">${letter}</text>`;
+const createIconContent = (iconClass) => `<foreignObject x="0" y="0" width="30" height="30"><div style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;"><i class="${iconClass}" style="font-size: 16px; color: white;"></i></div></foreignObject>`;
+
+const originIcon = createMarkerIcon(createLetterContent('A'), '#3498db');
+const destinationIcon = createMarkerIcon(createLetterContent('B'), '#e74c3c');
+const driverIcon = createMarkerIcon(createIconContent('fa-solid fa-car'), '#2ecc71');
+const passengerIcon = createMarkerIcon(createIconContent('fa-solid fa-person'), '#f1c40f');
 
 function LocationSelector({ onSelect }) {
   useMapEvents({
@@ -802,94 +806,10 @@ export default function Passenger() {
             )}
             
             {/* Driver Location Marker */}
-            {driverLocation && (
+            {driverLocation && selectedTrip && (
               <Marker 
                 position={[driverLocation.latitude, driverLocation.longitude]} 
                 icon={driverIcon}
-              >
-                <Popup>{STRINGS.CONDUCTOR}</Popup>
-              </Marker>
-            )}
-            
-            {/* Origin and Destination Markers */}
-            {selectedTrip ? (
-              <>
-                <Marker
-                  position={[selectedTrip.origin.coordinates.latitude, selectedTrip.origin.coordinates.longitude]}
-                  icon={defaultIcon}
-                >
-                  <Popup>{STRINGS.ORIGEN}: {selectedTrip.origin.address}</Popup>
-                </Marker>
-                <Marker
-                  position={[selectedTrip.destination.coordinates.latitude, selectedTrip.destination.coordinates.longitude]}
-                  icon={defaultIcon}
-                >
-                  <Popup>{STRINGS.DESTINO}: {selectedTrip.destination.address}</Popup>
-                </Marker>
-              </>
-            ) : (
-              <>
-                {origin && (
-                  <Marker 
-                    position={[origin.lat, origin.lng]} 
-                    icon={defaultIcon}
-                  >
-                    <Popup>{STRINGS.ORIGEN}: {origin.address}</Popup>
-                  </Marker>
-                )}
-                
-                {destination && (
-                  <Marker 
-                    position={[destination.lat, destination.lng]} 
-                    icon={defaultIcon}
-                  >
-                    <Popup>{STRINGS.DESTINO}: {destination.address}</Popup>
-                  </Marker>
-                )}
-              </>
-            )}
-            
-            {/* Route between origin and destination */}
-            {origin && destination && (
-              <Polyline 
-                positions={[
-                  [origin.lat, origin.lng],
-                  [destination.lat, destination.lng]
-                ]} 
-                color="blue"
-              />
-            )}
-            <LocationSelector onSelect={handleLocationSelect} />
-            
-            {/* Origin Marker */}
-            {origin && (
-              <Marker position={[origin.lat, origin.lng]} icon={defaultIcon}>
-                <Popup>{STRINGS.ORIGEN_PUNTOS}{origin.address}</Popup>
-              </Marker>
-            )}
-            
-            {/* Destination Marker */}
-            {destination && (
-              <Marker 
-                position={[destination.lat, destination.lng]} 
-                icon={new L.Icon({
-                  ...defaultIcon.options,
-                  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-                  iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png'
-                })}
-              >
-                <Popup>{STRINGS.DESTINO_PUNTOS}{destination.address}</Popup>
-              </Marker>
-            )}
-            {/* Driver Location Marker */}
-            {driverLocation && (
-              <Marker 
-                position={[driverLocation.latitude, driverLocation.longitude]}
-                icon={new L.Icon({
-                  ...defaultIcon.options,
-                  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
-                  iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png'
-                })}
               >
                 <Popup>
                   <div className="space-y-1">
@@ -898,6 +818,59 @@ export default function Passenger() {
                 </Popup>
               </Marker>
             )}
+            
+            {/* Origin and Destination Markers */}
+            {selectedTrip ? (
+              <>
+                <Marker
+                  position={[selectedTrip.origin.coordinates.latitude, selectedTrip.origin.coordinates.longitude]}
+                  icon={originIcon}
+                >
+                  <Popup>{STRINGS.ORIGEN}: {selectedTrip.origin.address}</Popup>
+                </Marker>
+                <Marker
+                  position={[selectedTrip.destination.coordinates.latitude, selectedTrip.destination.coordinates.longitude]}
+                  icon={destinationIcon}
+                >
+                  <Popup>{STRINGS.DESTINO}: {selectedTrip.destination.address}</Popup>
+                </Marker>
+                <Polyline 
+                  positions={[
+                    [selectedTrip.origin.coordinates.latitude, selectedTrip.origin.coordinates.longitude],
+                    [selectedTrip.destination.coordinates.latitude, selectedTrip.destination.coordinates.longitude]
+                  ]} 
+                  color="blue"
+                />
+              </>
+            ) : (
+              <>
+                {origin && (
+                  <Marker 
+                    position={[origin.lat, origin.lng]} 
+                    icon={originIcon}
+                  >
+                    <Popup>{STRINGS.ORIGEN}: {origin.address}</Popup>
+                  </Marker>
+                )}
+                
+                {destination && (
+                  <Marker 
+                    position={[destination.lat, destination.lng]} 
+                    icon={destinationIcon}
+                  >
+                    <Popup>{STRINGS.DESTINO}: {destination.address}</Popup>
+                  </Marker>
+                )}
+
+                {origin && destination && (
+                  <Polyline 
+                    positions={[[origin.lat, origin.lng], [destination.lat, destination.lng]]} 
+                    color="blue"
+                  />
+                )}
+              </>
+            )}
+            <LocationSelector onSelect={handleLocationSelect} />
             
             {/* Route Line */}
           </MapContainer>

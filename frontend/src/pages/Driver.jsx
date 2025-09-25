@@ -45,32 +45,28 @@ const defaultIcon = new L.Icon({
 });
 
 // Custom icons for map markers
-const driverIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
-  iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+const createMarkerIcon = (content, color) => {
+  const svg = `
+    <svg width="30" height="42" viewBox="0 0 30 42" xmlns="http://www.w3.org/2000/svg">
+      <path d="M15 0C6.716 0 0 6.716 0 15C0 23.284 15 42 15 42S30 23.284 30 15C30 6.716 23.284 0 15 0Z" fill="${color}"/>
+      ${content}
+    </svg>
+  `;
+  return new L.DivIcon({
+    html: svg,
+    className: '',
+    iconSize: [30, 42],
+    iconAnchor: [15, 42]
+  });
+};
 
-const passengerIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-  iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+const createLetterContent = (letter) => `<text x="15" y="20" font-size="15" font-weight="bold" fill="white" text-anchor="middle">${letter}</text>`;
+const createIconContent = (iconClass) => `<foreignObject x="0" y="0" width="30" height="30"><div style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;"><i class="${iconClass}" style="font-size: 16px; color: white;"></i></div></foreignObject>`;
 
-const destinationIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
-  iconRetinaUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+const originIcon = createMarkerIcon(createLetterContent('A'), '#3498db');
+const destinationIcon = createMarkerIcon(createLetterContent('B'), '#e74c3c');
+const driverIcon = createMarkerIcon(createIconContent('fa-solid fa-car'), '#2ecc71');
+const passengerIcon = createMarkerIcon(createIconContent('fa-solid fa-person'), '#f1c40f');
 
 function LocationSelector({ onSelect }) {
   const map = useMap();
@@ -1168,7 +1164,7 @@ function Driver() {
                     {/* Passenger's pickup location marker */}
                     <Marker
                       position={[originCoords.lat, originCoords.lng]}
-                      icon={passengerIcon}
+                      icon={originIcon}
                     >
                       <Popup>
                         <div className="text-sm">
@@ -1231,7 +1227,7 @@ function Driver() {
                         {/* Marcador de origen */}
                         <Marker
                           position={originCoords}
-                          icon={passengerIcon}
+                          icon={originIcon}
                         >
                           <Popup>
                             <div className="text-sm">
