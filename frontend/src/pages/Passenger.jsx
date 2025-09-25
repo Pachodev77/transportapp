@@ -14,7 +14,8 @@ import {
   doc,
   setDoc,
   GeoPoint,
-  increment
+  increment,
+  getDocs
 } from 'firebase/firestore';
 import { db, runTransaction } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
@@ -215,6 +216,15 @@ export default function Passenger() {
       return;
     }
 
+    const hasActiveRequest = myRideRequests.some(
+      (request) => request.status === 'pending' || request.status === 'accepted'
+    );
+
+    if (hasActiveRequest) {
+      setError('Ya tienes una solicitud de viaje activa.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -282,6 +292,37 @@ export default function Passenger() {
   // Fetch user's ride requests
   useEffect(() => {
     if (!currentUser) return;
+
+    const getInitialRideRequests = async () => {
+      const rideRequestsQuery = query(
+        collection(db, 'rideRequests'),
+        where('passengerId', '==', currentUser.uid),
+        where('status', 'in', ['pending', 'accepted', 'in_progress']),
+        orderBy('createdAt', 'desc')
+      );
+      const snapshot = await getDocs(rideRequestsQuery);
+      const requests = [];
+      let activeTrip = null;
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const request = {
+            id: doc.id,
+            ...data,
+            createdAt: data.createdAt?.toDate(),
+            updatedAt: data.updatedAt?.toDate(),
+        };
+        requests.push(request);
+        if (request.status === 'accepted' || request.status === 'in_progress') {
+          activeTrip = request;
+        }
+      });
+      setMyRideRequests(requests);
+      if (activeTrip) {
+        setSelectedTrip(activeTrip);
+      }
+    };
+
+    getInitialRideRequests();
     
     const rideRequestsQuery = query(
       collection(db, 'rideRequests'),
@@ -771,22 +812,41 @@ export default function Passenger() {
             )}
             
             {/* Origin and Destination Markers */}
-            {origin && (
-              <Marker 
-                position={[origin.lat, origin.lng]} 
-                icon={defaultIcon}
-              >
-                <Popup>{STRINGS.ORIGEN}: {origin.address}</Popup>
-              </Marker>
-            )}
-            
-            {destination && (
-              <Marker 
-                position={[destination.lat, destination.lng]} 
-                icon={defaultIcon}
-              >
-                <Popup>{STRINGS.DESTINO}: {destination.address}</Popup>
-              </Marker>
+            {selectedTrip ? (
+              <>
+                <Marker
+                  position={[selectedTrip.origin.coordinates.latitude, selectedTrip.origin.coordinates.longitude]}
+                  icon={defaultIcon}
+                >
+                  <Popup>{STRINGS.ORIGEN}: {selectedTrip.origin.address}</Popup>
+                </Marker>
+                <Marker
+                  position={[selectedTrip.destination.coordinates.latitude, selectedTrip.destination.coordinates.longitude]}
+                  icon={defaultIcon}
+                >
+                  <Popup>{STRINGS.DESTINO}: {selectedTrip.destination.address}</Popup>
+                </Marker>
+              </>
+            ) : (
+              <>
+                {origin && (
+                  <Marker 
+                    position={[origin.lat, origin.lng]} 
+                    icon={defaultIcon}
+                  >
+                    <Popup>{STRINGS.ORIGEN}: {origin.address}</Popup>
+                  </Marker>
+                )}
+                
+                {destination && (
+                  <Marker 
+                    position={[destination.lat, destination.lng]} 
+                    icon={defaultIcon}
+                  >
+                    <Popup>{STRINGS.DESTINO}: {destination.address}</Popup>
+                  </Marker>
+                )}
+              </>
             )}
             
             {/* Route between origin and destination */}
