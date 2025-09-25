@@ -97,6 +97,7 @@ export default function Passenger() {
   const [currentPosition, setCurrentPosition] = useState(null);
   const [driverLocation, setDriverLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
+  const [suggestedPrice, setSuggestedPrice] = useState('');
 
   useEffect(() => {
     if (selectedTrip?.driverId) {
@@ -250,7 +251,7 @@ export default function Passenger() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         passengerPhotoURL: currentUser.photoURL || null,
-        estimatedPrice: null, 
+        estimatedPrice: parseInt(suggestedPrice) || 0, // Use the suggested price
         estimatedDistance: null, 
         estimatedDuration: null 
       };
@@ -600,6 +601,28 @@ export default function Passenger() {
                 <div className="flex items-center bg-light rounded-lg p-3">
                   <FaMapMarkerAlt className="text-success mr-2" />
                   <span>{destination?.address || STRINGS.SELECCIONA_EN_MAPA}</span>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="price" className="block text-sm font-medium text-dark mb-1">
+                  {STRINGS.PRECIO_SUGERIDO}
+                </label>
+                <div className="mt-1 relative rounded-md shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-secondary sm:text-sm">$</span>
+                  </div>
+                  <input
+                    type="number"
+                    id="price"
+                    name="price"
+                    min="0"
+                    placeholder="0"
+                    value={suggestedPrice}
+                    onChange={(e) => setSuggestedPrice(e.target.value)}
+                    className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                    required
+                  />
                 </div>
               </div>
               

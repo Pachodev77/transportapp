@@ -285,7 +285,7 @@ function Driver() {
                 passengerName: data.passengerName || 'Pasajero desconocido',
                 status: data.status || 'pending',
                 createdAt: data.createdAt?.toDate() || new Date(),
-                price: data.price || 0
+                estimatedPrice: data.estimatedPrice || 0
               };
               
               console.log('📍 Viaje procesado:', {
@@ -801,7 +801,7 @@ function Driver() {
                           </div>
                           <div className="flex items-center text-lg font-semibold text-primary">
                             <FaMoneyBillWave className="mr-2" />
-                            ${(trip.price || 0).toLocaleString()}
+                            ${(trip.estimatedPrice || 0).toLocaleString()}
                           </div>
                           <Button
                             onClick={() => handleAcceptTrip(trip.id)}

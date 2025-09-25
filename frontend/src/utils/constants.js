@@ -95,4 +95,5 @@ export const STRINGS = {
   DE: "De: ",
   A: "A: ",
   PASAJEROS_PUNTOS: "Pasajeros: ",
+  PRECIO_SUGERIDO: "Precio sugerido",
 };
