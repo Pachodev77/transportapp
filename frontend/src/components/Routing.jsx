@@ -1,35 +1,51 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet-routing-machine';
 
 const Routing = ({ origin, destination }) => {
   const map = useMap();
+  const [routingControl, setRoutingControl] = useState(null);
 
   useEffect(() => {
-    if (!map || !origin || !destination) return;
+    if (!map) return;
 
-    const routingControl = L.Routing.control({
-      waypoints: [
-        L.latLng(origin.lat, origin.lng),
-        L.latLng(destination.lat, destination.lng)
-      ],
+    const control = L.Routing.control({
+      waypoints: [], // Start with empty waypoints
       routeWhileDragging: false,
-      show: false, // Hide the itinerary panel
-      addWaypoints: false, // Prevent users from adding new waypoints
-      createMarker: () => null, // Disable default markers
+      show: false,
+      addWaypoints: false,
+      createMarker: () => null,
       lineOptions: {
         styles: [{ color: '#6FA1EC', opacity: 1, weight: 5 }]
       }
     }).addTo(map);
 
+    setRoutingControl(control);
+
+    // Cleanup: remove the control when the component unmounts
     return () => {
-      if (routingControl) {
-        routingControl.setWaypoints([]);
-        map.removeControl(routingControl);
+      if (map && control) {
+        map.removeControl(control);
       }
     };
-  }, [map, origin, destination]);
+  }, [map]); // Effect runs only once when the map is ready
+
+  useEffect(() => {
+    // This effect runs when origin or destination changes
+    if (routingControl) {
+      if (origin && destination) {
+        // Set waypoints if we have both
+        routingControl.setWaypoints([
+          L.latLng(origin.lat, origin.lng),
+          L.latLng(destination.lat, destination.lng)
+        ]);
+      } else {
+        // Otherwise, clear the waypoints
+        routingControl.setWaypoints([]);
+      }
+    }
+  }, [routingControl, origin, destination]);
 
   return null;
 };
