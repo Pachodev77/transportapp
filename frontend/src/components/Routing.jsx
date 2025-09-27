@@ -19,7 +19,8 @@ const Routing = ({ origin, destination }) => {
       lineOptions: {
         styles: [{ color: '#6FA1EC', opacity: 1, weight: 5 }]
       },
-      fitSelectedRoutes: false // Disable automatic map fitting to the route
+      fitSelectedRoutes: false, // Disable automatic map fitting to the route
+      autoRoute: false // Prevent automatic route calculation
     }).addTo(map);
 
     setRoutingControl(control);
@@ -42,6 +43,7 @@ const Routing = ({ origin, destination }) => {
             L.latLng(origin.lat, origin.lng),
             L.latLng(destination.lat, destination.lng)
           ]);
+          routingControl.route(); // Manually trigger route calculation
         } else {
           // Otherwise, clear the waypoints
           routingControl.setWaypoints([]);
