@@ -139,24 +139,31 @@ export default function Passenger() {
     }
   }, [selectedTrip, currentPosition, driverLocation]);
 
-  const [mapViewMode, setMapViewMode] = useState('allPoints'); // 'allPoints' or 'currentLocation'
+  const [mapViewMode, setMapViewMode] = useState('currentLocation'); // Default to currentLocation
+  const intervalRef = useRef(null); // Use a ref to store the interval ID
 
   useEffect(() => {
-    let intervalId;
+    // Clear any existing interval when the effect re-runs or component unmounts
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
     if (selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress')) {
-      // Start with 'allPoints' view
-      setMapViewMode('allPoints');
-      intervalId = setInterval(() => {
+      // If a trip is active, start alternating, starting with 'allPoints'
+      setMapViewMode('allPoints'); // Start with all points when trip becomes active
+      intervalRef.current = setInterval(() => {
         setMapViewMode(prevMode => (prevMode === 'allPoints' ? 'currentLocation' : 'allPoints'));
       }, 10000); // Toggle every 10 seconds
     } else {
-      // Clear interval and reset mode if no active trip
-      setMapViewMode('allPoints'); // Default view when no active trip
+      // If no active trip, default to 'currentLocation'
+      setMapViewMode('currentLocation');
     }
 
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
   }, [selectedTrip]);

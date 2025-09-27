@@ -185,30 +185,15 @@ function Driver() {
   
   const [pointsToFit, setPointsToFit] = useState(null);
   const [mapViewMode, setMapViewMode] = useState('allPoints'); // 'allPoints' or 'currentLocation'
+  const intervalRef = useRef(null); // Use a ref to store the interval ID
   const [acceptedTrip, setAcceptedTrip] = useState(null);
+  const [map, setMap] = useState(null);
   const mapRef = useRef();
   const mapInitialized = useRef(false);
   const pendingCenter = useRef(null);
   const [passengerLocation, setPassengerLocation] = useState(null);
   const [error, setError] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
-
-  const TripTabs = () => (
-    <div className="flex border-b border-gray-200 mb-4 space-x-4">
-      <Button
-        className={`py-2 px-4 font-medium ${!showHistory ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
-        onClick={() => setShowHistory(false)}
-      >
-        {STRINGS.VIAJES_ACTIVOS}
-      </Button>
-      <Button
-        className={`py-2 px-4 font-medium ${showHistory ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
-        onClick={() => setShowHistory(true)}
-      >
-        {STRINGS.HISTORIAL}
-      </Button>
-    </div>
-  );
   const [availableTrips, setAvailableTrips] = useState([]);
   const [myTrips, setMyTrips] = useState([]);
   const [tripHistory, setTripHistory] = useState([]);
@@ -343,6 +328,48 @@ function Driver() {
       };
     }
   }, [acceptedTrip]);
+  
+  // Effect to update points to fit when a trip is active
+  useEffect(() => {
+    console.log('DEBUG: pointsToFit useEffect triggered.');
+    console.log('DEBUG: acceptedTrip status:', acceptedTrip?.status);
+    console.log('DEBUG: currentPosition:', currentPosition);
+    console.log('DEBUG: passengerLocation:', passengerLocation);
+    console.log('DEBUG: acceptedTrip.origin?.coordinates:', acceptedTrip?.origin?.coordinates);
+    console.log('DEBUG: acceptedTrip.destination?.coordinates:', acceptedTrip?.destination?.coordinates);
+
+    if (acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress')) {
+      const points = [];
+      
+      // 1. Driver's current position
+      if (currentPosition) {
+        points.push({ lat: currentPosition[0], lng: currentPosition[1] });
+      }
+      
+      // 2. Passenger's last known location
+      if (passengerLocation) {
+        points.push(processCoords(passengerLocation));
+      }
+      
+      // 3. Trip origin (Point A)
+      if (acceptedTrip.origin?.coordinates) {
+        points.push(processCoords(acceptedTrip.origin.coordinates));
+      }
+      
+      // 4. Trip destination (Point B)
+      if (acceptedTrip.destination?.coordinates) {
+        points.push(processCoords(acceptedTrip.destination.coordinates));
+      }
+      
+      console.log('DEBUG: Points before filtering:', points);
+      const filteredPoints = points.filter(p => p && typeof p.lat === 'number' && typeof p.lng === 'number');
+      console.log('DEBUG: Points after filtering:', filteredPoints);
+      setPointsToFit(filteredPoints);
+    } else {
+      setPointsToFit(null);
+      console.log('DEBUG: acceptedTrip not active, pointsToFit set to null.');
+    }
+  }, [acceptedTrip, currentPosition, passengerLocation, processCoords]);
   
   // Function to center the map on a specific location
   const centerMapOnLocation = (lat, lng, zoom = 15) => {
@@ -1132,9 +1159,13 @@ function Driver() {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
-              {mapViewMode === 'allPoints' && pointsToFit && pointsToFit.length > 0 && (
-                <FitBoundsToMarkers points={pointsToFit} />
-              )}
+              {mapViewMode === 'allPoints' && pointsToFit && pointsToFit.length > 0 && (() => {
+                console.log('DEBUG: MapContainer rendering FitBoundsToMarkers.');
+                console.log('DEBUG: mapViewMode:', mapViewMode);
+                console.log('DEBUG: pointsToFit:', pointsToFit);
+                console.log('DEBUG: pointsToFit.length:', pointsToFit?.length);
+                return <FitBoundsToMarkers points={pointsToFit} />;
+              })()}
               {currentPosition && (
                 <Marker 
                   position={currentPosition} 
