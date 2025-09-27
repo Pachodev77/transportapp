@@ -538,7 +538,14 @@ function Driver() {
         notes: ''
       });
 
-      // 3. Actualizar el estado de la solicitud a 'accepted' y vincular el ID del viaje
+      // 3. Create the chat room for this trip
+      const chatRef = doc(db, 'chats', tripRef.id);
+      await setDoc(chatRef, {
+        participant_uids: [currentUser.uid, requestData.passengerId],
+        createdAt: serverTimestamp(),
+      });
+
+      // 4. Actualizar el estado de la solicitud a 'accepted' y vincular el ID del viaje
       await updateDoc(requestRef, {
         status: 'accepted',
         driverId: currentUser.uid,

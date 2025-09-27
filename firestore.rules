@@ -151,29 +151,27 @@ service cloud.firestore {
 
     // Chat collection rules
     match /chats/{tripId} {
-      function getTrip() {
-        return get(/databases/$(database)/documents/trips/$(tripId)).data;
-      }
+      // Allow read on the chat document itself if you are a participant
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participant_uids;
 
-      function isTripParticipant() {
-        let trip = getTrip();
-        return request.auth.uid == trip.driverId || request.auth.uid == trip.passengerId;
-      }
+      // When creating the chat document, only the driver can do it.
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.participant_uids[0];
 
-      // Allow participants to read the message collection
-      allow read: if isAuthenticated() && isTripParticipant();
-
-      // Rules for the 'messages' sub-collection
       match /messages/{messageId} {
-        // Allow participants to list and get messages
-        allow read: if isAuthenticated() && isTripParticipant();
+        // A user is a participant if their UID is in the parent chat document's participant_uids array.
+        function isChatParticipant() {
+          return request.auth.uid in get(/databases/$(database)/documents/chats/$(tripId)).data.participant_uids;
+        }
 
-        // Allow a participant to create a message, ensuring the senderId is correct
+        // Allow participants to read messages
+        allow read: if isAuthenticated() && isChatParticipant();
+
+        // Allow participants to create messages, validating the senderId
         allow create: if isAuthenticated() &&
-                      isTripParticipant() &&
-                      request.resource.data.senderId == request.auth.uid;
+                       isChatParticipant() &&
+                       request.resource.data.senderId == request.auth.uid;
 
-        // Don't allow updates or deletes to keep chat history immutable
+        // Do not allow updates or deletes to keep chat history immutable
         allow update, delete: if false;
       }
     }
