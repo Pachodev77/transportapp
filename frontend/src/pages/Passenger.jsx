@@ -910,7 +910,6 @@ export default function Passenger() {
             zIndex: 1
           }}
           zoomControl={true}
-          key={`map-${JSON.stringify(currentPosition)}-${window.innerWidth}`}
         >
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

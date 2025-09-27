@@ -133,7 +133,7 @@ service cloud.firestore {
                     isDriver() || 
                     isAdmin()) &&
                    (request.resource.data.diff(resource.data).affectedKeys()
-                    .hasOnly(['status', 'driverId', 'driverName', 'updatedAt', 'tripId', 'driverPhotoURL']));
+                    .hasOnly(['status', 'driverId', 'driverName', 'updatedAt', 'tripId', 'driverPhotoURL', 'acceptedAt']));
       
       // Allow delete if:
       // 1. User is authenticated

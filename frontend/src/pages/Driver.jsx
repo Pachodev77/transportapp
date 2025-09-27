@@ -1158,12 +1158,24 @@ function Driver() {
               {acceptedTrip && (() => {
                 const originCoords = processCoords(acceptedTrip.origin?.coordinates);
                 const destCoords = processCoords(acceptedTrip.destination?.coordinates);
+                const driverCoords = currentPosition ? { lat: currentPosition[0], lng: currentPosition[1] } : null;
 
                 if (!originCoords || !destCoords) return null;
 
+                // Default route is from passenger pickup (A) to destination (B)
+                let routeOrigin = originCoords;
+                let routeDestination = destCoords;
+
+                // If trip is 'accepted', driver needs to get to the passenger.
+                // Route should be from driver's location to pickup point (A).
+                if (acceptedTrip.status === 'accepted' && driverCoords) {
+                  routeOrigin = driverCoords;
+                  routeDestination = originCoords;
+                }
+
                 return (
                   <React.Fragment>
-                    {/* Passenger's pickup location marker */}
+                    {/* Passenger's pickup location marker (A) */}
                     <Marker
                       position={[originCoords.lat, originCoords.lng]}
                       icon={originIcon}
@@ -1176,7 +1188,7 @@ function Driver() {
                       </Popup>
                     </Marker>
 
-                    {/* Destination marker */}
+                    {/* Destination marker (B) */}
                     <Marker
                       position={[destCoords.lat, destCoords.lng]}
                       icon={destinationIcon}
@@ -1189,7 +1201,8 @@ function Driver() {
                       </Popup>
                     </Marker>
 
-                    <Routing origin={originCoords} destination={destCoords} />
+                    {/* Render the calculated route */}
+                    <Routing origin={routeOrigin} destination={routeDestination} />
                   </React.Fragment>
                 );
               })()}
