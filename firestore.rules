@@ -148,5 +148,34 @@ service cloud.firestore {
       // Only admins can read/write system settings
       allow read, write: if isAdmin();
     }
+
+    // Chat collection rules
+    match /chats/{tripId} {
+      function getTrip() {
+        return get(/databases/$(database)/documents/trips/$(tripId)).data;
+      }
+
+      function isTripParticipant() {
+        let trip = getTrip();
+        return request.auth.uid == trip.driverId || request.auth.uid == trip.passengerId;
+      }
+
+      // Allow participants to read the message collection
+      allow read: if isAuthenticated() && isTripParticipant();
+
+      // Rules for the 'messages' sub-collection
+      match /messages/{messageId} {
+        // Allow participants to list and get messages
+        allow read: if isAuthenticated() && isTripParticipant();
+
+        // Allow a participant to create a message, ensuring the senderId is correct
+        allow create: if isAuthenticated() &&
+                      isTripParticipant() &&
+                      request.resource.data.senderId == request.auth.uid;
+
+        // Don't allow updates or deletes to keep chat history immutable
+        allow update, delete: if false;
+      }
+    }
   }
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Polyline, useMap } from 'react-leaflet';
-import { FaSearch, FaMapMarkerAlt, FaCar, FaSpinner, FaStar, FaClock } from 'react-icons/fa';
+import { FaSearch, FaMapMarkerAlt, FaCar, FaSpinner, FaStar, FaClock, FaCommentDots } from 'react-icons/fa';
 import { 
   collection, 
   query, 
@@ -26,6 +26,7 @@ import { formatDate } from '../utils/dateUtils';
 import Button from '../components/Button';
 import AddressInput from '../components/AddressInput';
 import Routing from '../components/Routing';
+import Chat from '../components/Chat';
 
 // Icons for map markers
 const defaultIcon = new L.Icon({
@@ -102,6 +103,7 @@ export default function Passenger() {
   const [destinationQuery, setDestinationQuery] = useState('');
   const [suggestedPrice, setSuggestedPrice] = useState('');
   const [hasActiveRequest, setHasActiveRequest] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
@@ -566,9 +568,20 @@ export default function Passenger() {
 
   return (
     <div className="min-h-screen bg-light flex flex-col lg:flex-row pt-16">
+      {isChatOpen && selectedTrip && (
+        <Chat tripId={selectedTrip.tripId || selectedTrip.id} onClose={() => setIsChatOpen(false)} />
+      )}
+
       {/* Contenido principal - En móviles: abajo del mapa, en desktop: al lado del mapa */}
       <div className="w-full lg:w-1/3 bg-white p-6 overflow-y-auto order-2 lg:order-1">
-        <h1 className="text-2xl font-bold mb-6 text-dark hidden lg:block">{STRINGS.SOLICITAR_VIAJE}</h1>
+                <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-dark hidden lg:block">{STRINGS.SOLICITAR_VIAJE}</h1>
+          {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && (
+            <button onClick={() => setIsChatOpen(true)} className="p-2 rounded-full hover:bg-gray-200 transition-colors lg:block hidden">
+              <FaCommentDots className="text-primary text-2xl" />
+            </button>
+          )}
+        </div>
         
         {/* Tabs */}
         <div className="flex border-b mb-4 space-x-2 overflow-x-auto">
@@ -896,8 +909,13 @@ export default function Passenger() {
       {/* Mapa - En móviles: arriba del contenido, en desktop: a la derecha */}
       <div className="w-full lg:w-2/3 order-1 lg:order-2 bg-white rounded-xl shadow-md overflow-hidden" style={{ height: 'calc(100vh - 4rem)' }}>
         {/* Título - Solo visible en móviles */}
-        <div className="lg:hidden bg-white p-4 border-b">
+        <div className="lg:hidden bg-white p-4 border-b flex items-center justify-between">
           <h1 className="text-xl font-bold text-dark">{STRINGS.SOLICITAR_VIAJE}</h1>
+          {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && (
+            <button onClick={() => setIsChatOpen(true)} className="p-2 rounded-full hover:bg-gray-200 transition-colors">
+              <FaCommentDots className="text-primary text-2xl" />
+            </button>
+          )}
         </div>
         
         <MapContainer 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap, Polyline } from 'react-leaflet';
-import { FaCar, FaMapMarkerAlt, FaClock, FaUser, FaMoneyBillWave, FaStar, FaPlus, FaCheck, FaTimes, FaSpinner } from 'react-icons/fa';
+import { FaCar, FaMapMarkerAlt, FaClock, FaUser, FaMoneyBillWave, FaStar, FaPlus, FaCheck, FaTimes, FaSpinner, FaCommentDots } from 'react-icons/fa';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   getTripsByStatus as getTrips,
@@ -33,6 +33,7 @@ import { STRINGS } from '../utils/constants';
 import { formatDate } from '../utils/dateUtils';
 import Button from '../components/Button';
 import Routing from '../components/Routing';
+import Chat from '../components/Chat';
 
 // Fix for default marker icons
 const defaultIcon = new L.Icon({
@@ -176,6 +177,7 @@ function Driver() {
   const pendingCenter = useRef(null);
   const [passengerLocation, setPassengerLocation] = useState(null);
   const [error, setError] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
 
 
@@ -536,16 +538,14 @@ function Driver() {
         notes: ''
       });
 
-      // 3. Actualizar el estado de la solicitud a 'accepted' en una sola operación
-      // Solo incluir campos permitidos por las reglas de seguridad
+      // 3. Actualizar el estado de la solicitud a 'accepted' y vincular el ID del viaje
       await updateDoc(requestRef, {
         status: 'accepted',
         driverId: currentUser.uid,
         driverName: currentUser.displayName || 'Conductor',
         updatedAt: serverTimestamp(),
-        acceptedAt: serverTimestamp()
-        // Nota: No podemos incluir tripId ni driverPhotoURL aquí ya que no están en la lista de campos permitidos
-        // en las reglas de seguridad. Si necesitas estos campos, deberás actualizar las reglas de seguridad.
+        acceptedAt: serverTimestamp(),
+        tripId: tripRef.id // Vincular el ID del nuevo viaje a la solicitud original
       });
 
       // 4. Actualizar el estado local
@@ -730,8 +730,19 @@ function Driver() {
     <div className="min-h-screen bg-light pt-16">
       {/* Título principal - Visible en todas las pantallas */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
-        <h1 className="text-2xl font-bold text-dark">{STRINGS.PANEL_DEL_CONDUCTOR}</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-dark">{STRINGS.PANEL_DEL_CONDUCTOR}</h1>
+          {acceptedTrip && (
+            <button onClick={() => setIsChatOpen(true)} className="p-2 rounded-full hover:bg-gray-200 transition-colors">
+              <FaCommentDots className="text-primary text-2xl" />
+            </button>
+          )}
+        </div>
       </div>
+      
+      {isChatOpen && acceptedTrip && (
+        <Chat tripId={acceptedTrip.id} onClose={() => setIsChatOpen(false)} />
+      )}
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
         {locationError && (
