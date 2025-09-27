@@ -18,7 +18,8 @@ const Routing = ({ origin, destination }) => {
       createMarker: () => null,
       lineOptions: {
         styles: [{ color: '#6FA1EC', opacity: 1, weight: 5 }]
-      }
+      },
+      fitSelectedRoutes: false // Disable automatic map fitting to the route
     }).addTo(map);
 
     setRoutingControl(control);
@@ -34,16 +35,22 @@ const Routing = ({ origin, destination }) => {
   useEffect(() => {
     // This effect runs when origin or destination changes
     if (routingControl) {
-      if (origin && destination) {
-        // Set waypoints if we have both
-        routingControl.setWaypoints([
-          L.latLng(origin.lat, origin.lng),
-          L.latLng(destination.lat, destination.lng)
-        ]);
-      } else {
-        // Otherwise, clear the waypoints
-        routingControl.setWaypoints([]);
-      }
+      const handler = setTimeout(() => {
+        if (origin && destination) {
+          // Set waypoints if we have both
+          routingControl.setWaypoints([
+            L.latLng(origin.lat, origin.lng),
+            L.latLng(destination.lat, destination.lng)
+          ]);
+        } else {
+          // Otherwise, clear the waypoints
+          routingControl.setWaypoints([]);
+        }
+      }, 500); // Debounce for 500ms
+
+      return () => {
+        clearTimeout(handler);
+      };
     }
   }, [routingControl, origin, destination]);
 

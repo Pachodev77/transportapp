@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Polyline, useMap } from 'react-leaflet';
 import { FaSearch, FaMapMarkerAlt, FaCar, FaSpinner, FaStar, FaClock, FaCommentDots } from 'react-icons/fa';
@@ -27,6 +27,7 @@ import Button from '../components/Button';
 import AddressInput from '../components/AddressInput';
 import Routing from '../components/Routing';
 import Chat from '../components/Chat';
+import FitBoundsToMarkers from '../components/FitBoundsToMarkers';
 
 // Icons for map markers
 const defaultIcon = new L.Icon({
@@ -105,6 +106,60 @@ export default function Passenger() {
   const [hasActiveRequest, setHasActiveRequest] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [pointsToFit, setPointsToFit] = useState(null);
+
+  // Effect to update points to fit when a trip is active
+  useEffect(() => {
+    if (selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress')) {
+      const points = [];
+      
+      // 1. Passenger's current position
+      if (currentPosition) {
+        points.push({ lat: currentPosition[0], lng: currentPosition[1] });
+      }
+      
+      // 2. Driver's last known location
+      if (driverLocation) {
+        points.push({ lat: driverLocation.latitude, lng: driverLocation.longitude });
+      }
+      
+      // 3. Trip origin (Point A)
+      if (selectedTrip.origin?.coordinates) {
+        points.push({ lat: selectedTrip.origin.coordinates.latitude, lng: selectedTrip.origin.coordinates.longitude });
+      }
+      
+      // 4. Trip destination (Point B)
+      if (selectedTrip.destination?.coordinates) {
+        points.push({ lat: selectedTrip.destination.coordinates.latitude, lng: selectedTrip.destination.coordinates.longitude });
+      }
+      
+      setPointsToFit(points.filter(p => p.lat && p.lng)); // Filter out any invalid points
+    } else {
+      setPointsToFit(null);
+    }
+  }, [selectedTrip, currentPosition, driverLocation]);
+
+  const [mapViewMode, setMapViewMode] = useState('allPoints'); // 'allPoints' or 'currentLocation'
+
+  useEffect(() => {
+    let intervalId;
+    if (selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress')) {
+      // Start with 'allPoints' view
+      setMapViewMode('allPoints');
+      intervalId = setInterval(() => {
+        setMapViewMode(prevMode => (prevMode === 'allPoints' ? 'currentLocation' : 'allPoints'));
+      }, 10000); // Toggle every 10 seconds
+    } else {
+      // Clear interval and reset mode if no active trip
+      setMapViewMode('allPoints'); // Default view when no active trip
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [selectedTrip]);
 
   useEffect(() => {
     if (successMessage) {
@@ -933,7 +988,12 @@ export default function Passenger() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             />
-            <RecenterMap position={currentPosition} zoom={13} />
+            {mapViewMode === 'currentLocation' && currentPosition && (
+              <RecenterMap position={currentPosition} zoom={15} />
+            )}
+            {mapViewMode === 'allPoints' && pointsToFit && pointsToFit.length > 0 && (
+              <FitBoundsToMarkers points={pointsToFit} />
+            )}
             
             {/* Passenger Location Marker */}
             {currentPosition && (

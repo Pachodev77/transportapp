@@ -33,6 +33,7 @@ import { STRINGS } from '../utils/constants';
 import { formatDate } from '../utils/dateUtils';
 import Button from '../components/Button';
 import Routing from '../components/Routing';
+import FitBoundsToMarkers from '../components/FitBoundsToMarkers';
 import Chat from '../components/Chat';
 
 // Fix for default marker icons
@@ -178,6 +179,60 @@ function Driver() {
   const [passengerLocation, setPassengerLocation] = useState(null);
   const [error, setError] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [pointsToFit, setPointsToFit] = useState(null);
+
+  // Effect to update points to fit when a trip is active
+  useEffect(() => {
+    if (acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress')) {
+      const points = [];
+      
+      // 1. Driver's current position
+      if (currentPosition) {
+        points.push({ lat: currentPosition[0], lng: currentPosition[1] });
+      }
+      
+      // 2. Passenger's last known location
+      if (passengerLocation) {
+        points.push(processCoords(passengerLocation));
+      }
+      
+      // 3. Trip origin (Point A)
+      if (acceptedTrip.origin?.coordinates) {
+        points.push(processCoords(acceptedTrip.origin.coordinates));
+      }
+      
+      // 4. Trip destination (Point B)
+      if (acceptedTrip.destination?.coordinates) {
+        points.push(processCoords(acceptedTrip.destination.coordinates));
+      }
+      
+      setPointsToFit(points.filter(p => p));
+    } else {
+      setPointsToFit(null);
+    }
+  }, [acceptedTrip, currentPosition, passengerLocation, processCoords]);
+
+  const [mapViewMode, setMapViewMode] = useState('allPoints'); // 'allPoints' or 'currentLocation'
+
+  useEffect(() => {
+    let intervalId;
+    if (acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress')) {
+      // Start with 'allPoints' view
+      setMapViewMode('allPoints');
+      intervalId = setInterval(() => {
+        setMapViewMode(prevMode => (prevMode === 'allPoints' ? 'currentLocation' : 'allPoints'));
+      }, 10000); // Toggle every 10 seconds
+    } else {
+      // Clear interval and reset mode if no active trip
+      setMapViewMode('allPoints'); // Default view when no active trip
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [acceptedTrip]);
 
 
 
@@ -378,34 +433,7 @@ function Driver() {
     }
   };
 
-  // Effect to handle map centering when acceptedTrip changes
-  useEffect(() => {
-    if (!acceptedTrip?.origin?.coordinates) return;
 
-    const coords = processCoords(acceptedTrip.origin.coordinates);
-
-    if (!coords) {
-      console.error('Invalid coordinates in acceptedTrip:', acceptedTrip.origin.coordinates);
-      return;
-    }
-
-    const { lat, lng } = coords;
-    if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
-      console.error('Invalid coordinates in acceptedTrip:', { lat, lng });
-      return;
-    }
-    
-    // Try to center immediately
-    const success = centerMapOnLocation(lat, lng);
-    
-    // If failed, try again after a short delay
-    if (!success) {
-      const timer = setTimeout(() => {
-        centerMapOnLocation(lat, lng);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [acceptedTrip, processCoords]);
 
 
 
@@ -707,13 +735,6 @@ function Driver() {
       const { lat, lng, zoom } = pendingCenter.current;
       centerMapOnLocation(lat, lng, zoom);
       pendingCenter.current = null;
-    }
-    // Otherwise, if we have an accepted trip, center on it
-    else if (acceptedTrip?.origin) {
-      const { lat, lng } = acceptedTrip.origin;
-      if (typeof lat === 'number' && typeof lng === 'number') {
-        centerMapOnLocation(lat, lng);
-      }
     }
     
     // Add a one-time moveend listener to log when the map has finished moving
@@ -1158,11 +1179,16 @@ function Driver() {
               }}
               key={`map-${currentPosition ? 'with-position' : 'no-position'}-${window.innerWidth}`}
             >
-              <RecenterMap position={currentPosition} zoom={13} />
+              {mapViewMode === 'currentLocation' && currentPosition && (
+                <RecenterMap position={currentPosition} zoom={15} />
+              )}
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
+              {mapViewMode === 'allPoints' && pointsToFit && pointsToFit.length > 0 && (
+                <FitBoundsToMarkers points={pointsToFit} />
+              )}
               {currentPosition && (
                 <Marker 
                   position={currentPosition} 
