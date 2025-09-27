@@ -102,6 +102,16 @@ export default function Passenger() {
   const [destinationQuery, setDestinationQuery] = useState('');
   const [suggestedPrice, setSuggestedPrice] = useState('');
   const [hasActiveRequest, setHasActiveRequest] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage('');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   useEffect(() => {
     setHasActiveRequest(myRideRequests.some(
@@ -181,6 +191,7 @@ export default function Passenger() {
           name: STRINGS.ORIGEN,
           address: address || STRINGS.UBICACION_SELECCIONADA
         });
+        setOriginQuery(address || STRINGS.UBICACION_SELECCIONADA); // Update query
       } else if (!destination) {
         setDestination({ 
           lat: latlng.lat,
@@ -188,6 +199,7 @@ export default function Passenger() {
           name: STRINGS.DESTINO,
           address: address || STRINGS.UBICACION_SELECCIONADA
         });
+        setDestinationQuery(address || STRINGS.UBICACION_SELECCIONADA); // Update query
       }
     } catch (error) {
       console.error('Error getting address:', error);
@@ -326,7 +338,7 @@ export default function Passenger() {
       setOrigin(null);
       setDestination(null);
       
-      alert('¡Tu solicitud de viaje ha sido publicada! Un conductor la aceptará pronto.');
+      setSuccessMessage('¡Tu solicitud de viaje ha sido publicada! Un conductor la aceptará pronto.');
       
     } catch (error) {
       console.error(STRINGS.ERROR_SOLICITAR_VIAJE, error);
@@ -498,7 +510,7 @@ export default function Passenger() {
         });
       });
 
-      alert('¡Viaje reservado con éxito!');
+      setSuccessMessage('¡Viaje reservado con éxito!');
 
     } catch (error) {
       console.error(STRINGS.ERROR_RESERVAR_VIAJE, error);
@@ -544,7 +556,7 @@ export default function Passenger() {
         }
       });
 
-      alert('¡Reserva cancelada con éxito!');
+      setSuccessMessage('¡Reserva cancelada con éxito!');
 
     } catch (error) {
       console.error(STRINGS.ERROR_CANCELAR_RESERVA, error);
@@ -577,6 +589,12 @@ export default function Passenger() {
           ))}
         </div>
         
+        {successMessage && (
+          <div className="mb-4 p-3 bg-success text-white rounded-lg flex justify-between items-center">
+            <span>{successMessage}</span>
+            <button onClick={() => setSuccessMessage('')} className="text-xl font-bold leading-none p-1">&times;</button>
+          </div>
+        )}
         {error && (
           <div className="mb-4 p-3 bg-danger text-white rounded-lg">
             {error}

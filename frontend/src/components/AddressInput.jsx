@@ -1,12 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FaMapMarkerAlt } from 'react-icons/fa';
 
 const AddressInput = ({ label, onSelect, icon, value, onChange, onUseCurrentLocation }) => {
+  const [internalQuery, setInternalQuery] = useState(value); // Internal state for typing
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const isTypingRef = useRef(false); // Track if user is actively typing
+
+  // Sync external value with internal query
+  useEffect(() => {
+    if (!isTypingRef.current) { // Only update internalQuery if not actively typing
+      setInternalQuery(value);
+    }
+  }, [value]);
 
   useEffect(() => {
-    if (value.length < 3) {
+    if (internalQuery.length < 3) {
       setResults([]);
       return;
     }
@@ -15,7 +24,7 @@ const AddressInput = ({ label, onSelect, icon, value, onChange, onUseCurrentLoca
       setLoading(true);
       try {
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${value}&format=json&addressdetails=1`
+          `https://nominatim.openstreetmap.org/search?q=${internalQuery}&format=json&addressdetails=1`
         );
         const data = await response.json();
         setResults(data);
@@ -31,11 +40,18 @@ const AddressInput = ({ label, onSelect, icon, value, onChange, onUseCurrentLoca
     }, 500);
 
     return () => clearTimeout(debounce);
-  }, [value]);
+  }, [internalQuery]); // Depend on internalQuery
+
+  const handleInputChange = (e) => {
+    isTypingRef.current = true; // User is typing
+    setInternalQuery(e.target.value);
+    onChange(e.target.value); // Propagate change to parent
+  };
 
   const handleSelect = (result) => {
-    onChange(result.display_name);
-    setResults([]);
+    isTypingRef.current = false; // User selected, no longer typing
+    setInternalQuery(result.display_name); // Update internal query
+    setResults([]); // Clear results
     onSelect({
       lat: parseFloat(result.lat),
       lng: parseFloat(result.lon),
@@ -51,8 +67,9 @@ const AddressInput = ({ label, onSelect, icon, value, onChange, onUseCurrentLoca
           {icon}
           <input
             type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
+            value={internalQuery} // Use internalQuery for input value
+            onChange={handleInputChange} // Use new handler
+            onBlur={() => isTypingRef.current = false} // Reset typing state on blur
             className="w-full bg-transparent focus:outline-none ml-2"
             placeholder="Escribe una dirección..."
           />
@@ -66,7 +83,7 @@ const AddressInput = ({ label, onSelect, icon, value, onChange, onUseCurrentLoca
             </button>
           )}
         </div>
-        {results.length > 0 && (
+        {results.length > 0 && isTypingRef.current && ( // Only show if results and typing
           <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-y-auto">
             {results.map((result) => (
               <li
