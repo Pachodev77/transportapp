@@ -106,135 +106,6 @@ function RecenterMap({ position, zoom }) {
 function Driver() {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('available');
-  const [currentPosition, setCurrentPosition] = useState(null);
-  const [locationError, setLocationError] = useState(null);
-
-  useEffect(() => {
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setCurrentPosition([latitude, longitude]);
-        if (locationError) setLocationError(null); // Clear error on success
-        if (currentUser) {
-          const locationRef = doc(db, 'locations', currentUser.uid);
-          setDoc(locationRef, { 
-            location: new GeoPoint(latitude, longitude),
-            updatedAt: serverTimestamp(),
-          });
-        }
-      },
-      (error) => {
-        setLocationError(`Location access denied (Code: ${error.code}). Please ensure location services are enabled for your browser and this site.`);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0,
-      }
-    );
-
-    return () => {
-      navigator.geolocation.clearWatch(watchId);
-    };
-  }, [currentUser]);
-  
-  const TripTabs = () => (
-    <div className="flex border-b border-gray-200 mb-4 space-x-4">
-      <Button
-        className={`py-2 px-4 font-medium ${!showHistory ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
-        onClick={() => setShowHistory(false)}
-      >
-        {STRINGS.VIAJES_ACTIVOS}
-      </Button>
-      <Button
-        className={`py-2 px-4 font-medium ${showHistory ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
-        onClick={() => setShowHistory(true)}
-      >
-        {STRINGS.HISTORIAL}
-      </Button>
-    </div>
-  );
-  const [availableTrips, setAvailableTrips] = useState([]);
-  const [myTrips, setMyTrips] = useState([]);
-  const [tripHistory, setTripHistory] = useState([]);
-  const [showHistory, setShowHistory] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [origin, setOrigin] = useState(null);
-  const [destination, setDestination] = useState(null);
-  const [tripDetails, setTripDetails] = useState({
-    departureTime: '',
-    availableSeats: 1,
-    price: 0,
-    carModel: '',
-    carPlate: '',
-    estimatedDuration: ''
-  });
-  
-  const [map, setMap] = useState(null);
-  const [acceptedTrip, setAcceptedTrip] = useState(null);
-  const mapRef = useRef();
-  const mapInitialized = useRef(false);
-  const pendingCenter = useRef(null);
-  const [passengerLocation, setPassengerLocation] = useState(null);
-  const [error, setError] = useState(null);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [pointsToFit, setPointsToFit] = useState(null);
-
-  // Effect to update points to fit when a trip is active
-  useEffect(() => {
-    if (acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress')) {
-      const points = [];
-      
-      // 1. Driver's current position
-      if (currentPosition) {
-        points.push({ lat: currentPosition[0], lng: currentPosition[1] });
-      }
-      
-      // 2. Passenger's last known location
-      if (passengerLocation) {
-        points.push(processCoords(passengerLocation));
-      }
-      
-      // 3. Trip origin (Point A)
-      if (acceptedTrip.origin?.coordinates) {
-        points.push(processCoords(acceptedTrip.origin.coordinates));
-      }
-      
-      // 4. Trip destination (Point B)
-      if (acceptedTrip.destination?.coordinates) {
-        points.push(processCoords(acceptedTrip.destination.coordinates));
-      }
-      
-      setPointsToFit(points.filter(p => p));
-    } else {
-      setPointsToFit(null);
-    }
-  }, [acceptedTrip, currentPosition, passengerLocation, processCoords]);
-
-  const [mapViewMode, setMapViewMode] = useState('allPoints'); // 'allPoints' or 'currentLocation'
-
-  useEffect(() => {
-    let intervalId;
-    if (acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress')) {
-      // Start with 'allPoints' view
-      setMapViewMode('allPoints');
-      intervalId = setInterval(() => {
-        setMapViewMode(prevMode => (prevMode === 'allPoints' ? 'currentLocation' : 'allPoints'));
-      }, 10000); // Toggle every 10 seconds
-    } else {
-      // Clear interval and reset mode if no active trip
-      setMapViewMode('allPoints'); // Default view when no active trip
-    }
-
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
-  }, [acceptedTrip]);
-
-
 
   // Función para procesar coordenadas (mover fuera del efecto para mejor rendimiento)
   const processCoords = useCallback((coords) => {
@@ -278,6 +149,81 @@ function Driver() {
     console.warn('Formato de coordenadas no reconocido:', coords);
     return null;
   }, []);
+
+  const [activeTab, setActiveTab] = useState('available');
+  const [currentPosition, setCurrentPosition] = useState(null);
+  const [locationError, setLocationError] = useState(null);
+
+  useEffect(() => {
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setCurrentPosition([latitude, longitude]);
+        if (locationError) setLocationError(null); // Clear error on success
+        if (currentUser) {
+          const locationRef = doc(db, 'locations', currentUser.uid);
+          setDoc(locationRef, { 
+            location: new GeoPoint(latitude, longitude),
+            updatedAt: serverTimestamp(),
+          });
+        }
+      },
+      (error) => {
+        setLocationError(`Location access denied (Code: ${error.code}). Please ensure location services are enabled for your browser and this site.`);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0,
+      }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [currentUser]);
+  
+  const [pointsToFit, setPointsToFit] = useState(null);
+  const [mapViewMode, setMapViewMode] = useState('allPoints'); // 'allPoints' or 'currentLocation'
+  const [acceptedTrip, setAcceptedTrip] = useState(null);
+  const mapRef = useRef();
+  const mapInitialized = useRef(false);
+  const pendingCenter = useRef(null);
+  const [passengerLocation, setPassengerLocation] = useState(null);
+  const [error, setError] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+
+  const TripTabs = () => (
+    <div className="flex border-b border-gray-200 mb-4 space-x-4">
+      <Button
+        className={`py-2 px-4 font-medium ${!showHistory ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
+        onClick={() => setShowHistory(false)}
+      >
+        {STRINGS.VIAJES_ACTIVOS}
+      </Button>
+      <Button
+        className={`py-2 px-4 font-medium ${showHistory ? 'text-primary border-b-2 border-primary' : 'text-secondary'}`}
+        onClick={() => setShowHistory(true)}
+      >
+        {STRINGS.HISTORIAL}
+      </Button>
+    </div>
+  );
+  const [availableTrips, setAvailableTrips] = useState([]);
+  const [myTrips, setMyTrips] = useState([]);
+  const [tripHistory, setTripHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [origin, setOrigin] = useState(null);
+  const [destination, setDestination] = useState(null);
+  const [tripDetails, setTripDetails] = useState({
+    departureTime: '',
+    availableSeats: 1,
+    price: 0,
+    carModel: '',
+    carPlate: '',
+    estimatedDuration: ''
+  });
 
   useEffect(() => {
     if (!currentUser) {
