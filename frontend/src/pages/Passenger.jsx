@@ -414,7 +414,6 @@ export default function Passenger() {
     
     const unsubscribeRideRequests = onSnapshot(rideRequestsQuery, (snapshot) => {
       const requests = [];
-      let activeTrip = null;
       snapshot.forEach((doc) => {
         const data = doc.data();
         // Process the request object to ensure data consistency
@@ -425,12 +424,11 @@ export default function Passenger() {
             updatedAt: data.updatedAt?.toDate(),
         };
         requests.push(request);
-        // Find the active trip to track
-        if (request.status === 'accepted' || request.status === 'in_progress') {
-          activeTrip = request;
-        }
       });
       setMyRideRequests(requests);
+
+      // The most recent active request (pending, accepted, or in_progress) is the first one.
+      const activeTrip = requests.length > 0 ? requests[0] : null;
 
       if (activeTrip) {
         setSelectedTrip(activeTrip);
