@@ -71,6 +71,25 @@ const destinationIcon = createMarkerIcon(createLetterContent('B'), '#e74c3c');
 const driverIcon = createMarkerIcon(createIconContent('fa-solid fa-car'), '#2ecc71');
 const passengerIcon = createMarkerIcon(createIconContent('fa-solid fa-person'), '#f1c40f');
 
+function TripTabs({ showHistory, setShowHistory }) {
+  return (
+    <div className="flex border-b mb-4">
+      <button
+        className={`py-2 px-4 text-sm font-medium ${!showHistory ? 'border-b-2 border-primary text-primary' : 'text-secondary'}`}
+        onClick={() => setShowHistory(false)}
+      >
+        Viajes Activos
+      </button>
+      <button
+        className={`py-2 px-4 text-sm font-medium ${showHistory ? 'border-b-2 border-primary text-primary' : 'text-secondary'}`}
+        onClick={() => setShowHistory(true)}
+      >
+        Historial
+      </button>
+    </div>
+  );
+}
+
 function LocationSelector({ onSelect }) {
   const map = useMap();
   
@@ -95,8 +114,14 @@ function RecenterMap({ position, zoom }) {
   const map = useMap();
 
   useEffect(() => {
+    console.log('DEBUG: RecenterMap useEffect triggered.');
+    console.log('DEBUG: RecenterMap position:', position);
+    console.log('DEBUG: RecenterMap zoom:', zoom);
     if (position && position[0] !== 0 && position[1] !== 0) {
       map.flyTo(position, zoom);
+      console.log('DEBUG: map.flyTo called in RecenterMap.');
+    } else {
+      console.log('DEBUG: RecenterMap: Invalid position, not flying.');
     }
   }, [position, zoom, map]);
 
@@ -186,7 +211,61 @@ function Driver() {
   const [pointsToFit, setPointsToFit] = useState(null);
   const [mapViewMode, setMapViewMode] = useState('allPoints'); // 'allPoints' or 'currentLocation'
   const intervalRef = useRef(null); // Use a ref to store the interval ID
+  const isTripActiveRef = useRef(false); // New ref to track if trip was active in previous render
   const [acceptedTrip, setAcceptedTrip] = useState(null);
+
+  useEffect(() => {
+    console.log('DEBUG: mapViewMode useEffect triggered. acceptedTrip status:', acceptedTrip?.status);
+    const currentTripActive = acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress');
+
+    // If trip just became active
+    if (currentTripActive && !isTripActiveRef.current) {
+      console.log('DEBUG: Trip just became active. Setting initial mode to allPoints and starting interval.');
+      setMapViewMode('allPoints'); // Explicitly set initial mode for active trip
+      
+      // Clear any existing interval before setting a new one
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+
+      intervalRef.current = setInterval(() => {
+        setMapViewMode(prevMode => {
+          const newMode = (prevMode === 'allPoints' ? 'currentLocation' : 'allPoints');
+          console.log(`DEBUG: Toggling mapViewMode from ${prevMode} to ${newMode}`);
+          return newMode;
+        });
+      }, 10000); // Toggle every 10 seconds
+    }
+    // If trip just became inactive
+    else if (!currentTripActive && isTripActiveRef.current) {
+      console.log('DEBUG: Trip just became inactive. Clearing interval and resetting mode.');
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setMapViewMode('allPoints'); // Default view when no active trip
+    }
+    // If trip is active and was active before (acceptedTrip reference changed but status is same)
+    else if (currentTripActive && isTripActiveRef.current) {
+      console.log('DEBUG: Trip remains active. Interval should continue running.');
+      // Do nothing, let the existing interval continue
+    }
+    // If trip is inactive and was inactive before
+    else if (!currentTripActive && !isTripActiveRef.current) {
+      console.log('DEBUG: Trip remains inactive. Mode is allPoints.');
+      // Do nothing, mode is already 'allPoints'
+    }
+
+    isTripActiveRef.current = currentTripActive; // Update ref for next render
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+        console.log('DEBUG: Cleanup: Cleared interval on unmount/re-run.');
+      }
+    };
+  }, [acceptedTrip]);
   const [map, setMap] = useState(null);
   const mapRef = useRef();
   const mapInitialized = useRef(false);
@@ -846,7 +925,7 @@ function Driver() {
               {/* My Trips Tab */}
               {activeTab === 'my-trips' && (
                 <div className="space-y-4">
-                  <TripTabs />
+                  <TripTabs showHistory={showHistory} setShowHistory={setShowHistory} />
                   
                   {!showHistory ? (
                     // Active trips
@@ -1152,9 +1231,12 @@ function Driver() {
               }}
               key={`map-${currentPosition ? 'with-position' : 'no-position'}-${window.innerWidth}`}
             >
-              {mapViewMode === 'currentLocation' && currentPosition && (
-                <RecenterMap position={currentPosition} zoom={15} />
-              )}
+              {mapViewMode === 'currentLocation' && currentPosition && (() => {
+                console.log('DEBUG: MapContainer rendering RecenterMap.');
+                console.log('DEBUG: mapViewMode:', mapViewMode);
+                console.log('DEBUG: currentPosition:', currentPosition);
+                return <RecenterMap position={currentPosition} zoom={15} />;
+              })()}
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
