@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { motion, useAnimation } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FaBars, FaUser, FaSignOutAlt, FaCar, FaTruck } from 'react-icons/fa';
+import { FaBars, FaUser, FaSignOutAlt, FaCarSide, FaTruck } from 'react-icons/fa';
 import { FaMotorcycle } from 'react-icons/fa';
 import { FaMotorcycle as FaMoto } from 'react-icons/fa6';
 
@@ -9,6 +10,74 @@ export default function Navbar() {
   const { currentUser, logout } = useAuth();
   const [isOpen, setIsOpen] = React.useState(false);
   const navigate = useNavigate();
+  const carControls = useAnimation();
+  const motoControls = useAnimation();
+  const truckControls = useAnimation();
+
+  useEffect(() => {
+    const sequence = async () => {
+      // Initially hide all icons
+      carControls.set({ opacity: 0 });
+      motoControls.set({ opacity: 0 });
+      truckControls.set({ opacity: 0 });
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      while (true) {
+        // --- Car Animation ---
+        carControls.set({ x: -50, opacity: 1 }); // Start off-screen left
+        await carControls.start({
+            x: 0, // Move to original position
+            transition: { duration: 0.5, ease: 'easeOut' }
+        });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await carControls.start({
+            x: 120,
+            opacity: 0,
+            transition: {
+                x: { duration: 0.8, ease: 'linear' },
+                opacity: { duration: 0.2, delay: 0.6, ease: 'easeIn' }
+            }
+        });
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        // --- Motorcycle Animation ---
+        motoControls.set({ x: -50, opacity: 1 });
+        await motoControls.start({
+            x: 0,
+            transition: { duration: 0.5, ease: 'easeOut' }
+        });
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await motoControls.start({
+            x: 120,
+            opacity: 0,
+            transition: {
+                x: { duration: 0.8, ease: 'linear' },
+                opacity: { duration: 0.2, delay: 0.6, ease: 'easeIn' }
+            }
+        });
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        // --- Truck Animation ---
+        truckControls.set({ x: -50, opacity: 1 });
+        await truckControls.start({
+            x: 0,
+            transition: { duration: 0.5, ease: 'easeOut' }
+        });
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await truckControls.start({
+            x: 120,
+            opacity: 0,
+            transition: {
+                x: { duration: 0.8, ease: 'linear' },
+                opacity: { duration: 0.2, delay: 0.6, ease: 'easeIn' }
+            }
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    };
+    sequence();
+  }, [carControls, motoControls, truckControls]);
 
   const handleLogout = async () => {
     try {
@@ -25,9 +94,25 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0 flex items-center">
-              <FaCar className="h-6 w-6 text-blue-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">TransportApp</span>
-              <FaMoto className="ml-2 h-6 w-6 text-blue-600" />
+              <div className="relative flex items-center" style={{ minWidth: '220px' }}> {/* Container to keep layout stable */}
+                {/* Animated Car/Moto Container */}
+                <div className="absolute left-0 top-0">
+                  <motion.div animate={carControls} style={{ zIndex: 1 }}>
+                    <FaCarSide className="h-6 w-6 text-blue-600" />
+                  </motion.div>
+                  <motion.div animate={motoControls} className="absolute top-0 left-0" style={{ zIndex: 1 }}>
+                    <FaMoto className="h-6 w-6 text-blue-600" />
+                  </motion.div>
+                  <motion.div animate={truckControls} className="absolute top-0 left-0" style={{ zIndex: 1 }}>
+                    <FaTruck className="h-6 w-6 text-blue-600" />
+                  </motion.div>
+                </div>
+
+                {/* Title - higher z-index and padding to avoid overlap */}
+                <span className="ml-6 text-xl font-bold text-gray-900 relative bg-white px-2" style={{ zIndex: 2 }}>
+                  TransportApp
+                </span>
+              </div>
             </Link>
             <div className="hidden md:ml-6 md:flex md:space-x-8">
               <Link
