@@ -25,12 +25,9 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0 flex items-center">
-              <div className="flex items-center space-x-1">
-                <FaCar className="h-6 w-6 text-blue-600" />
-                <FaMoto className="h-6 w-6 text-blue-600" />
-              </div>
+              <FaCar className="h-6 w-6 text-blue-600" />
               <span className="ml-2 text-xl font-bold text-gray-900">TransportApp</span>
-              <FaTruck className="ml-2 h-6 w-6 text-blue-600" />
+              <FaMoto className="ml-2 h-6 w-6 text-blue-600" />
             </Link>
             <div className="hidden md:ml-6 md:flex md:space-x-8">
               <Link
