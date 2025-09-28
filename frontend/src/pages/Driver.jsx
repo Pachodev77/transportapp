@@ -48,7 +48,7 @@ const defaultIcon = new L.Icon({
 });
 
 // Custom icons for map markers
-const createMarkerIcon = (content, color) => {
+const createMarkerIcon = (content, color, className = '') => {
   const svg = `
     <svg width="30" height="42" viewBox="0 0 30 42" xmlns="http://www.w3.org/2000/svg">
       <path d="M15 0C6.716 0 0 6.716 0 15C0 23.284 15 42 15 42S30 23.284 30 15C30 6.716 23.284 0 15 0Z" fill="${color}"/>
@@ -57,7 +57,7 @@ const createMarkerIcon = (content, color) => {
   `;
   return new L.DivIcon({
     html: svg,
-    className: '',
+    className: `leaflet-div-icon ${className}`.trim(),
     iconSize: [30, 42],
     iconAnchor: [15, 42]
   });
@@ -69,6 +69,7 @@ const createIconContent = (iconClass) => `<foreignObject x="0" y="0" width="30" 
 const originIcon = createMarkerIcon(createLetterContent('A'), '#3498db');
 const destinationIcon = createMarkerIcon(createLetterContent('B'), '#e74c3c');
 const driverIcon = createMarkerIcon(createIconContent('fa-solid fa-car'), '#2ecc71');
+const flashingDriverIcon = createMarkerIcon(createIconContent('fa-solid fa-car'), '#2ecc71', 'flashing-marker');
 const passengerIcon = createMarkerIcon(createIconContent('fa-solid fa-person'), '#f1c40f');
 
 function TripTabs({ showHistory, setShowHistory }) {
@@ -1251,7 +1252,7 @@ function Driver() {
               {currentPosition && (
                 <Marker 
                   position={currentPosition} 
-                  icon={driverIcon}
+                  icon={acceptedTrip ? flashingDriverIcon : driverIcon}
                 >
                   <Popup>{STRINGS.TU_UBICACION}</Popup>
                 </Marker>

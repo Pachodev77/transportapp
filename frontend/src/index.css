@@ -7,3 +7,19 @@
 
 html, body, #root { height: 100%; }
 body { @apply bg-gray-50 text-gray-800; }
+
+/* Custom styles for DivIcon to remove default background and border */
+.leaflet-div-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+@keyframes flash {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0; transform: scale(1.2); }
+}
+
+.flashing-marker svg {
+  animation: flash 2s ease-in-out infinite;
+  transform-origin: 50% 50%;
+}
