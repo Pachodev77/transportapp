@@ -970,12 +970,19 @@ export default function Passenger() {
       </div>
 
       {/* Mapa - En móviles: arriba del contenido, en desktop: a la derecha */}
-      <div className="w-full lg:w-2/3 order-1 lg:order-2 bg-white rounded-xl shadow-md overflow-hidden" style={{ height: 'calc(100vh - 4rem)' }}>
+      <div className="w-full lg:w-2/3 order-1 lg:order-2 bg-white rounded-xl shadow-md overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 4rem)' }}>
         {/* Título - Solo visible en móviles */}
-        <div className="lg:hidden bg-white p-4 border-b flex items-center justify-between">
+        <div className="lg:hidden bg-white p-4 border-b flex items-center justify-between relative z-10">
           <h1 className="text-xl font-bold text-dark">{STRINGS.SOLICITAR_VIAJE}</h1>
           {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && (
-            <button onClick={() => setIsChatOpen(true)} className="p-2 rounded-full hover:bg-gray-200 transition-colors">
+            <button 
+              onClick={() => setIsChatOpen(true)} 
+              className="p-2 rounded-full hover:bg-gray-200 transition-colors relative z-20"
+              style={{
+                position: 'relative',
+                zIndex: 1000 // Higher z-index to ensure it stays above the map
+              }}
+            >
               <FaCommentDots className="text-primary text-2xl" />
             </button>
           )}
@@ -988,7 +995,9 @@ export default function Passenger() {
             height: '100%', 
             width: '100%',
             position: 'relative',
-            zIndex: 1
+            zIndex: 5,
+            flex: '1 1 auto',
+            minHeight: 0 // Ensures the map container can shrink below its content size
           }}
           zoomControl={true}
         >
