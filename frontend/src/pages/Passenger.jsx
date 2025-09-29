@@ -155,7 +155,7 @@ export default function Passenger() {
       setMapViewMode('allPoints'); // Start with all points when trip becomes active
       intervalRef.current = setInterval(() => {
         setMapViewMode(prevMode => (prevMode === 'allPoints' ? 'currentLocation' : 'allPoints'));
-      }, 10000); // Toggle every 10 seconds
+      }, 18000); // Toggle every 18 seconds
     } else {
       // If no active trip, default to 'currentLocation'
       setMapViewMode('currentLocation');
