@@ -1228,6 +1228,35 @@ function Driver() {
                   </div>
                 </form>
               )}
+              
+              {/* Alert for active trip */}
+              {acceptedTrip && (
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded shadow-md mt-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <FaCar className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-blue-800">
+                        Viaje en curso
+                      </p>
+                      <div className="mt-1 text-sm text-blue-700">
+                        <p>Recogiendo a: {acceptedTrip.passengerName || 'Pasajero'}</p>
+                        <p className="mt-1">
+                          <FaMapMarkerAlt className="inline mr-1 text-red-500" />
+                          {acceptedTrip.origin?.address || 'Dirección de recogida'}
+                        </p>
+                        {acceptedTrip.destination?.address && (
+                          <p className="mt-1">
+                            <FaMapMarkerAlt className="inline mr-1 text-green-500" />
+                            {acceptedTrip.destination.address}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           
