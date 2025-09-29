@@ -1230,31 +1230,10 @@ function Driver() {
               )}
               
               {/* Alert for active trip */}
-              {acceptedTrip && (
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded shadow-md mt-4">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <FaCar className="h-5 w-5 text-blue-400" />
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-blue-800">
-                        Viaje en curso
-                      </p>
-                      <div className="mt-1 text-sm text-blue-700">
-                        <p>Recogiendo a: {acceptedTrip.passengerName || 'Pasajero'}</p>
-                        <p className="mt-1">
-                          <FaMapMarkerAlt className="inline mr-1 text-red-500" />
-                          {acceptedTrip.origin?.address || 'Dirección de recogida'}
-                        </p>
-                        {acceptedTrip.destination?.address && (
-                          <p className="mt-1">
-                            <FaMapMarkerAlt className="inline mr-1 text-green-500" />
-                            {acceptedTrip.destination.address}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+              {acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress') && (
+                <div className="mb-4 p-4 bg-success text-white rounded-lg text-center shadow-lg animate-pulse">
+                  <p className="font-bold text-lg">¡El pasajero te está esperando!</p>
+                  {acceptedTrip.passengerName && <p><strong>{acceptedTrip.passengerName}</strong> está listo para el viaje.</p>}
                 </div>
               )}
             </div>
