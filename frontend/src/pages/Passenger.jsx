@@ -637,7 +637,7 @@ export default function Passenger() {
 
       {/* Contenido principal - En móviles: abajo del mapa, en desktop: al lado del mapa */}
       <div className="w-full lg:w-1/3 bg-white p-6 overflow-y-auto order-2 lg:order-1">
-                <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-dark hidden lg:block">{STRINGS.SOLICITAR_VIAJE}</h1>
           {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && (
             <button onClick={() => setIsChatOpen(true)} className="p-2 rounded-full hover:bg-gray-200 transition-colors lg:block hidden">
@@ -645,6 +645,14 @@ export default function Passenger() {
             </button>
           )}
         </div>
+        
+        {/* Alert for active trip - between map and tabs */}
+        {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && selectedTrip.passengerId === currentUser?.uid && (
+          <div className="mb-6 p-4 bg-success text-white rounded-lg text-center shadow-lg animate-pulse">
+            <p className="font-bold text-lg">¡Tu conductor está en camino!</p>
+            {selectedTrip.driverName && <p><strong>{selectedTrip.driverName}</strong> llegará pronto.</p>}
+          </div>
+        )}
         
         {/* Tabs */}
         <div className="flex border-b mb-4 space-x-2 overflow-x-auto">
@@ -681,14 +689,6 @@ export default function Passenger() {
           </div>
         )}
 
-        {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && selectedTrip.passengerId === currentUser?.uid && (
-          <div className="mb-4 p-4 bg-success text-white rounded-lg text-center shadow-lg animate-pulse">
-            <p className="font-bold text-lg">¡Tu conductor está en camino!</p>
-            {selectedTrip.driverName && <p><strong>{selectedTrip.driverName}</strong> llegará pronto.</p>}
-          </div>
-        )}
-        
-        
         {activeTab === 'my-requests' ? (
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-dark">{STRINGS.MIS_SOLICITUDES_DE_VIAJE}</h2>

@@ -860,6 +860,14 @@ function Driver() {
           </div>
         )}
         
+        {/* Active trip alert - between map and tabs */}
+        {acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress') && (
+          <div className="mb-6 p-4 bg-success text-white rounded-lg text-center shadow-lg animate-pulse">
+            <p className="font-bold text-lg">¡El pasajero te está esperando!</p>
+            {acceptedTrip.passengerName && <p><strong>{acceptedTrip.passengerName}</strong> está listo para el viaje.</p>}
+          </div>
+        )}
+        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Sidebar izquierda - Contenido principal */}
           <div className="lg:col-span-1 space-y-6 order-2 lg:order-1">
@@ -1229,13 +1237,7 @@ function Driver() {
                 </form>
               )}
               
-              {/* Alert for active trip */}
-              {acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress') && (
-                <div className="mb-4 p-4 bg-success text-white rounded-lg text-center shadow-lg animate-pulse">
-                  <p className="font-bold text-lg">¡El pasajero te está esperando!</p>
-                  {acceptedTrip.passengerName && <p><strong>{acceptedTrip.passengerName}</strong> está listo para el viaje.</p>}
-                </div>
-              )}
+              {/* Alert for active trip will be placed between map and tabs */}
             </div>
           </div>
           
