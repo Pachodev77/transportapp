@@ -27,15 +27,15 @@ export default function Navbar() {
         carControls.set({ x: -50, opacity: 1 }); // Start off-screen left
         await carControls.start({
             x: 0, // Move to original position
-            transition: { duration: 0.5, ease: 'easeOut' }
+            transition: { duration: 0.8, ease: 'easeOut' } // Slower slide in
         });
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 4000)); // Show car for 4 seconds
         await carControls.start({
-            x: 120,
+            x: 18, // Reduced from 20px to 18px
             opacity: 0,
             transition: {
-                x: { duration: 0.8, ease: 'linear' },
-                opacity: { duration: 0.2, delay: 0.6, ease: 'easeIn' }
+                x: { duration: 1.2, ease: 'easeInOut' },
+                opacity: { duration: 0.4, delay: 0.8, ease: 'easeIn' }
             }
         });
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -44,15 +44,15 @@ export default function Navbar() {
         motoControls.set({ x: -50, opacity: 1 });
         await motoControls.start({
             x: 0,
-            transition: { duration: 0.5, ease: 'easeOut' }
+            transition: { duration: 0.8, ease: 'easeOut' } // Slower slide in
         });
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 4000)); // Show motorcycle for 4 seconds
         await motoControls.start({
-            x: 120,
+            x: 18, // Reduced from 20px to 18px
             opacity: 0,
             transition: {
-                x: { duration: 0.8, ease: 'linear' },
-                opacity: { duration: 0.2, delay: 0.6, ease: 'easeIn' }
+                x: { duration: 1.2, ease: 'easeInOut' },
+                opacity: { duration: 0.4, delay: 0.8, ease: 'easeIn' }
             }
         });
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -61,19 +61,19 @@ export default function Navbar() {
         truckControls.set({ x: -50, opacity: 1 });
         await truckControls.start({
             x: 0,
-            transition: { duration: 0.5, ease: 'easeOut' }
+            transition: { duration: 0.8, ease: 'easeOut' } // Slower slide in
         });
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 4000)); // Show truck for 4 seconds
         await truckControls.start({
-            x: 120,
+            x: 18, // Reduced from 20px to 18px
             opacity: 0,
             transition: {
-                x: { duration: 0.8, ease: 'linear' },
-                opacity: { duration: 0.2, delay: 0.6, ease: 'easeIn' }
+                x: { duration: 1.2, ease: 'easeInOut' },
+                opacity: { duration: 0.4, delay: 0.8, ease: 'easeIn' }
             }
         });
 
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     };
     sequence();
@@ -108,8 +108,8 @@ export default function Navbar() {
                   </motion.div>
                 </div>
 
-                {/* Title - higher z-index and padding to avoid overlap */}
-                <span className="ml-6 text-xl font-bold text-gray-900 relative bg-white px-2" style={{ zIndex: 2 }}>
+                {/* Title with transparent background */}
+                <span className="ml-8 text-xl font-bold text-gray-900 relative" style={{ zIndex: 2 }}>
                   TransportApp
                 </span>
               </div>

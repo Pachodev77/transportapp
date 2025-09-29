@@ -179,6 +179,7 @@ function Driver() {
   const [activeTab, setActiveTab] = useState('available');
   const [currentPosition, setCurrentPosition] = useState(null);
   const [locationError, setLocationError] = useState(null);
+  const [showPickupAlert, setShowPickupAlert] = useState(false);
 
   useEffect(() => {
     const watchId = navigator.geolocation.watchPosition(
@@ -570,6 +571,11 @@ function Driver() {
       navigate('/login', { state: { from: 'driver' } });
       return;
     }
+    
+    // Show pickup alert
+    setShowPickupAlert(true);
+    // Hide alert after 10 seconds
+    setTimeout(() => setShowPickupAlert(false), 10000);
 
     setLoading(true);
     setError('');
@@ -809,6 +815,27 @@ function Driver() {
 
   return (
     <div className="min-h-screen bg-light pt-16">
+      {/* Alert for pickup */}
+      {showPickupAlert && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded shadow-lg flex items-center">
+            <div className="flex-shrink-0">
+              <FaCar className="h-5 w-5 text-yellow-500" />
+            </div>
+            <div className="ml-3">
+              <p className="font-bold">¡Atención!</p>
+              <p>Dirígete a la dirección de recogida</p>
+            </div>
+            <button 
+              onClick={() => setShowPickupAlert(false)}
+              className="ml-4 text-yellow-700 hover:text-yellow-900"
+            >
+              <FaTimes />
+            </button>
+          </div>
+        </div>
+      )}
+      
       {/* Título principal - Visible en todas las pantallas */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
         <div className="flex items-center justify-between">
