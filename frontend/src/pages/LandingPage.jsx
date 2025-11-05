@@ -9,6 +9,16 @@ function LandingPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   
+  // Función para obtener la URL de la imagen
+  const getImageUrl = (imageName) => {
+    // En desarrollo, usa la ruta relativa
+    if (process.env.NODE_ENV === 'development') {
+      return imageName;
+    }
+    // En producción, usa la ruta absoluta desde la raíz
+    return `${window.location.origin}${imageName.startsWith('/') ? '' : '/'}${imageName}`;
+  };
+  
   // Estilos en línea para el carrusel
   const carouselStyle = {
     position: 'absolute',
@@ -64,47 +74,47 @@ function LandingPage() {
   const heroImages = [
     { 
       id: 1,
-      url: '/pic 1.jpg',
+      url: getImageUrl('/pic 1.jpg'),
       alt: 'Imagen 1 del carrusel'
     },
     { 
       id: 2,
-      url: '/pic 2.jpg',
+      url: getImageUrl('/pic 2.jpg'),
       alt: 'Imagen 2 del carrusel'
     },
     { 
       id: 3,
-      url: '/pic 3.jpg',
+      url: getImageUrl('/pic 3.jpg'),
       alt: 'Imagen 3 del carrusel'
     },
     { 
       id: 4,
-      url: '/pic 4.jpg',
+      url: getImageUrl('/pic 4.jpg'),
       alt: 'Imagen 4 del carrusel'
     },
     { 
       id: 5,
-      url: '/pic 5.jpg',
+      url: getImageUrl('/pic 5.jpg'),
       alt: 'Imagen 5 del carrusel'
     },
     { 
       id: 6,
-      url: '/pic 6.jpg',
+      url: getImageUrl('/pic 6.jpg'),
       alt: 'Imagen 6 del carrusel'
     },
     { 
       id: 7,
-      url: '/pic 7.jpg',
+      url: getImageUrl('/pic 7.jpg'),
       alt: 'Imagen 7 del carrusel'
     },
     { 
       id: 8,
-      url: '/pic 8.jpg',
+      url: getImageUrl('/pic 8.jpg'),
       alt: 'Imagen 8 del carrusel'
     },
     { 
       id: 9,
-      url: '/pic 9.jpg',
+      url: getImageUrl('/pic 9.jpg'),
       alt: 'Imagen 9 del carrusel'
     }
   ];
