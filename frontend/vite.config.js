@@ -5,15 +5,23 @@ import { resolve } from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/',
+  base: './', // Usar ruta relativa
   plugins: [
     react(),
   ],
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+      'public': resolve(__dirname, 'public')
+    }
+  },
   build: {
     outDir: 'dist',
     sourcemap: true,
+    assetsInlineLimit: 0, // Asegura que las imágenes se copien como archivos
     rollupOptions: {
       output: {
+        assetFileNames: 'assets/[name]-[hash][extname]',
         manualChunks: {
           'firebase': ['firebase/app', 'firebase/firestore', 'firebase/auth'],
           'leaflet': ['leaflet', 'react-leaflet'],

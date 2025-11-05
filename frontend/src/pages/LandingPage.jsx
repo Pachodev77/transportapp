@@ -5,19 +5,20 @@ import { useAuth } from '../contexts/AuthContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
+// Importar imágenes
+import pic1 from '../../public/pic 1.jpg';
+import pic2 from '../../public/pic 2.jpg';
+import pic3 from '../../public/pic 3.jpg';
+import pic4 from '../../public/pic 4.jpg';
+import pic5 from '../../public/pic 5.jpg';
+import pic6 from '../../public/pic 6.jpg';
+import pic7 from '../../public/pic 7.jpg';
+import pic8 from '../../public/pic 8.jpg';
+import pic9 from '../../public/pic 9.jpg';
+
 function LandingPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  
-  // Función para obtener la URL de la imagen
-  const getImageUrl = (imageName) => {
-    // En desarrollo, usa la ruta relativa
-    if (process.env.NODE_ENV === 'development') {
-      return imageName;
-    }
-    // En producción, usa la ruta absoluta desde la raíz
-    return `${window.location.origin}${imageName.startsWith('/') ? '' : '/'}${imageName}`;
-  };
   
   // Estilos en línea para el carrusel
   const carouselStyle = {
@@ -74,47 +75,47 @@ function LandingPage() {
   const heroImages = [
     { 
       id: 1,
-      url: getImageUrl('/pic 1.jpg'),
+      url: pic1,
       alt: 'Imagen 1 del carrusel'
     },
     { 
       id: 2,
-      url: getImageUrl('/pic 2.jpg'),
+      url: pic2,
       alt: 'Imagen 2 del carrusel'
     },
     { 
       id: 3,
-      url: getImageUrl('/pic 3.jpg'),
+      url: pic3,
       alt: 'Imagen 3 del carrusel'
     },
     { 
       id: 4,
-      url: getImageUrl('/pic 4.jpg'),
+      url: pic4,
       alt: 'Imagen 4 del carrusel'
     },
     { 
       id: 5,
-      url: getImageUrl('/pic 5.jpg'),
+      url: pic5,
       alt: 'Imagen 5 del carrusel'
     },
     { 
       id: 6,
-      url: getImageUrl('/pic 6.jpg'),
+      url: pic6,
       alt: 'Imagen 6 del carrusel'
     },
     { 
       id: 7,
-      url: getImageUrl('/pic 7.jpg'),
+      url: pic7,
       alt: 'Imagen 7 del carrusel'
     },
     { 
       id: 8,
-      url: getImageUrl('/pic 8.jpg'),
+      url: pic8,
       alt: 'Imagen 8 del carrusel'
     },
     { 
       id: 9,
-      url: getImageUrl('/pic 9.jpg'),
+      url: pic9,
       alt: 'Imagen 9 del carrusel'
     }
   ];
