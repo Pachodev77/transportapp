@@ -54,10 +54,23 @@ service cloud.firestore {
                    request.resource.data.destination is map;
       
       // Allow updates to status by driver or passenger, or admin
-      allow update: if isAuthenticated() && 
-                   (isOwner(resource.data.driverId) || 
-                    isOwner(resource.data.passengerId) ||
-                    isRole('admin'));
+      allow update: if isAuthenticated() && (
+        // Driver can update trip status and location
+        (request.auth.uid == resource.data.driverId &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'driverLocation', 'updatedAt'])) ||
+        
+        // Passenger can rate the trip
+        (request.auth.uid == resource.data.passengerId &&
+         (resource.data.status == 'completed' || resource.data.status == 'cancelled') &&
+         (!resource.data.rating || resource.data.rating == 0) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'comment', 'ratedAt', 'status', 'updatedAt']) &&
+         request.resource.data.rating >= 1 &&
+         request.resource.data.rating <= 5 &&
+         (request.resource.data.status == 'completed' || request.resource.data.status == 'cancelled')) ||
+         
+        // Admin can update anything
+        isRole('admin')
+      );
       
       // Allow delete only by the driver or admin
       allow delete: if isAuthenticated() && 
@@ -75,12 +88,21 @@ service cloud.firestore {
       // Allow create if authenticated and the passenger is the one creating it
       allow create: if isAuthenticated() && request.resource.data.passengerId == request.auth.uid;
       
-      // Allow update by driver, passenger, or admin
-      allow update: if isAuthenticated() &&
-                   (isOwner(resource.data.driverId) || 
-                    isOwner(resource.data.passengerId) ||
-                    isRole('admin')) &&
-                   request.resource.data.keys().hasOnly(['status', 'updatedAt']);
+      // Allow update if you're the driver or passenger of the trip
+      allow update: if isAuthenticated() && (
+        // Driver can update booking status
+        (request.auth.uid == resource.data.driverId &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+        
+        // Passenger can update their booking
+        (request.auth.uid == resource.data.passengerId &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'rating', 'comment', 'ratedAt', 'updatedAt']) &&
+         (!resource.data.rating || resource.data.rating == 0) &&
+         (resource.data.status == 'completed' || resource.data.status == 'cancelled')) ||
+         
+        // Admin can update anything
+        isRole('admin')
+      );
     }
     
     // Ratings collection rules

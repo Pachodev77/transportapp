@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import RatingModal from '../components/RatingModal';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Polyline, useMap } from 'react-leaflet';
-import { FaSearch, FaMapMarkerAlt, FaCar, FaSpinner, FaStar, FaClock, FaCommentDots } from 'react-icons/fa';
+import { FaSearch, FaMapMarkerAlt, FaCar, FaSpinner, FaStar, FaClock, FaCommentDots, FaStarHalfAlt } from 'react-icons/fa';
 import { 
   collection, 
   query, 
@@ -108,6 +109,70 @@ export default function Passenger() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [pointsToFit, setPointsToFit] = useState(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [tripToRate, setTripToRate] = useState(null);
+
+  // Handle rating a trip
+  const handleRateTrip = async ({ tripId, rating, comment }) => {
+    try {
+      setLoading(true);
+      
+      // Update the trip with the rating
+      const tripRef = doc(db, 'trips', tripId);
+      await updateDoc(tripRef, {
+        rating,
+        comment: comment || '',
+        ratedAt: serverTimestamp(),
+        status: 'completed'
+      });
+
+      // Update the driver's rating in the users collection
+      if (selectedTrip?.driverId) {
+        const driverRef = doc(db, 'users', selectedTrip.driverId);
+        await runTransaction(db, async (transaction) => {
+          const driverDoc = await transaction.get(driverRef);
+          if (driverDoc.exists()) {
+            const driverData = driverDoc.data();
+            const newRatingCount = (driverData.ratingCount || 0) + 1;
+            const newRating = ((driverData.rating || 0) * (newRatingCount - 1) + rating) / newRatingCount;
+            
+            transaction.update(driverRef, {
+              rating: parseFloat(newRating.toFixed(1)),
+              ratingCount: newRatingCount
+            });
+          }
+        });
+      }
+
+      // Update local state
+      setMyBookings(prev => prev.map(booking => 
+        booking.id === tripId 
+          ? { ...booking, rating, comment, status: 'completed' } 
+          : booking
+      ));
+
+      setSuccessMessage('¡Gracias por calificar tu viaje!');
+    } catch (error) {
+      console.error('Error rating trip:', error);
+      setError('Error al calificar el viaje. Por favor, inténtalo de nuevo.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Show rating modal for completed trips
+  useEffect(() => {
+    const completedTrip = myBookings.find(
+      trip => (trip.status === 'completed' || trip.status === 'cancelled') && 
+             !trip.rating && 
+             trip.passengerId === currentUser?.uid
+    );
+    
+    if (completedTrip && !showRatingModal) {
+      setTripToRate(completedTrip);
+      setShowRatingModal(true);
+    }
+  }, [myBookings, currentUser, showRatingModal]);
 
   // Effect to update points to fit when a trip is active
   useEffect(() => {
@@ -1087,6 +1152,14 @@ export default function Passenger() {
           </MapContainer>
         
       </div>
+      
+      {/* Rating Modal */}
+      <RatingModal
+        isOpen={showRatingModal}
+        onClose={() => setShowRatingModal(false)}
+        onSubmit={handleRateTrip}
+        tripId={tripToRate?.id}
+      />
     </div>
   );
 }

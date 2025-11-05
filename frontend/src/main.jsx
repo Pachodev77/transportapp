@@ -25,6 +25,8 @@ const Login = React.lazy(() => import('./pages/Login'));
 const LandingPage = React.lazy(() => import('./pages/LandingPage'));
 const Passenger = React.lazy(() => import('./pages/Passenger'));
 const Driver = React.lazy(() => import('./pages/Driver'));
+const Profile = React.lazy(() => import('./pages/Profile'));
+const EditProfile = React.lazy(() => import('./pages/EditProfile'));
 
 // Loading component
 const Loading = () => (
@@ -103,16 +105,17 @@ function App() {
     <React.Suspense fallback={<Loading />}>
       <AuthProvider>
         <BrowserRouter>
+          <ScrollToTop />
           <Routes>
-            <Route path="/login" element={
-              <AuthCheck>
-                <Login />
-              </AuthCheck>
-            } />
             <Route path="/" element={
               <Layout>
                 <LandingPage />
               </Layout>
+            } />
+            <Route path="/login" element={
+              <AuthCheck>
+                <Login />
+              </AuthCheck>
             } />
             <Route path="/passenger/*" element={
               <ProtectedRoute>
@@ -131,6 +134,20 @@ function App() {
             <Route path="/app" element={
               <ProtectedRoute>
                 <RoleBasedRedirect />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Profile />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/profile/edit" element={
+              <ProtectedRoute>
+                <Layout>
+                  <EditProfile />
+                </Layout>
               </ProtectedRoute>
             } />
             <Route path="*" element={
