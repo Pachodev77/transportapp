@@ -123,7 +123,7 @@ export default function Passenger() {
         rating,
         comment: comment || '',
         ratedAt: serverTimestamp(),
-        status: 'completed'
+        updatedAt: serverTimestamp()
       });
 
       // Update the driver's rating in the users collection

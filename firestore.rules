@@ -63,10 +63,10 @@ service cloud.firestore {
         (request.auth.uid == resource.data.passengerId &&
          (resource.data.status == 'completed' || resource.data.status == 'cancelled') &&
          (!resource.data.rating || resource.data.rating == 0) &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'comment', 'ratedAt', 'status', 'updatedAt']) &&
-         request.resource.data.rating >= 1 &&
-         request.resource.data.rating <= 5 &&
-         (request.resource.data.status == 'completed' || request.resource.data.status == 'cancelled')) ||
+         request.resource.data.diff(resource.data).affectedKeys().hasAll(['rating', 'updatedAt']) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasAny(['rating', 'comment', 'ratedAt', 'updatedAt']) &&
+         (request.resource.data.rating == null || (request.resource.data.rating >= 1 && request.resource.data.rating <= 5)) &&
+         (request.resource.data.status == null || request.resource.data.status == resource.data.status)) ||
          
         // Admin can update anything
         isRole('admin')
