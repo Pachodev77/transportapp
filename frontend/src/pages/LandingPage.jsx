@@ -9,32 +9,103 @@ function LandingPage() {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   
+  // Estilos en línea para el carrusel
+  const carouselStyle = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    objectPosition: 'center',
+    transition: 'opacity 0.5s ease-in-out',
+  };
+
+  // Estilos para el contenedor de la imagen
+  const heroSectionStyle = {
+    position: 'relative',
+    height: '100vh',
+    minHeight: '700px',
+    width: '100%',
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+  };
+
+  // Estilo para el overlay oscuro sobre el carrusel
+  const overlayStyle = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 1,
+  };
+
+  // Estilo para el contenido sobre el carrusel
+  const contentStyle = {
+    position: 'relative',
+    zIndex: 2,
+    color: 'white',
+    maxWidth: '1200px',
+    margin: '0 auto',
+    padding: '2rem',
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center',
+    height: '100%',
+  };
+
   // Array de imágenes para el carrusel
   const heroImages = [
     { 
       id: 1,
-      url: 'https://images.unsplash.com/photo-1493238792000-8113da705763?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
-      alt: 'Personas en un vehículo'
+      url: '/pic 1.jpg',
+      alt: 'Imagen 1 del carrusel'
     },
     { 
       id: 2,
-      url: 'https://images.unsplash.com/photo-1502877338535-766e1452684a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
-      alt: 'Auto en carretera al atardecer'
+      url: '/pic 2.jpg',
+      alt: 'Imagen 2 del carrusel'
     },
     { 
       id: 3,
-      url: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
-      alt: 'Auto deportivo en carretera'
+      url: '/pic 3.jpg',
+      alt: 'Imagen 3 del carrusel'
     },
     { 
       id: 4,
-      url: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
-      alt: 'Personas felices en un auto familiar'
+      url: '/pic 4.jpg',
+      alt: 'Imagen 4 del carrusel'
     },
     { 
       id: 5,
-      url: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80',
-      alt: 'Persona en motocicleta en la ciudad'
+      url: '/pic 5.jpg',
+      alt: 'Imagen 5 del carrusel'
+    },
+    { 
+      id: 6,
+      url: '/pic 6.jpg',
+      alt: 'Imagen 6 del carrusel'
+    },
+    { 
+      id: 7,
+      url: '/pic 7.jpg',
+      alt: 'Imagen 7 del carrusel'
+    },
+    { 
+      id: 8,
+      url: '/pic 8.jpg',
+      alt: 'Imagen 8 del carrusel'
+    },
+    { 
+      id: 9,
+      url: '/pic 9.jpg',
+      alt: 'Imagen 9 del carrusel'
     }
   ];
   
@@ -180,106 +251,88 @@ function LandingPage() {
   ];
 
   return (
-    <div className="bg-white overflow-hidden pt-16">
+    <div className="bg-white">
       {/* Navbar is already included in the Layout component */}
-      {/* Hero Section */}
-      <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 overflow-hidden">
-        <div className="w-full mx-auto">
-          <div className="relative z-10 pb-8 bg-transparent sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32">
-            <main className="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
-              <div className="sm:text-center lg:text-left">
-                <h1 className="text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl">
-                  <span className="block">Viaja de forma</span>
-                  <span className="block text-blue-200">segura y económica</span>
-                </h1>
-                <p className="mt-3 text-base text-blue-100 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
-                  Conectamos conductores con pasajeros que van en la misma dirección. Ahorra dinero, reduce la huella de carbono y viaja cómodamente.
-                </p>
-                <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
-                  <div className="rounded-md shadow">
-                    <button
-                      onClick={() => navigate(currentUser ? '/passenger' : '/login', { state: { role: 'passenger' } })}
-                      className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 md:py-4 md:text-lg md:px-10"
-                    >
-                      Soy pasajero
-                    </button>
-                  </div>
-                  <div className="mt-3 sm:mt-0 sm:ml-3">
-                    <button
-                      onClick={async () => {
-                        if (currentUser) {
-                          if (!currentUser.uid) {
-                            alert('User ID not found. Please log in again.');
-                            console.error('currentUser.uid is missing.');
-                            return;
-                          }
-                          // If user is logged in, update their role to driver
-                          const success = await updateUserRole('driver');
-                          if (success) {
-                            navigate('/driver');
-                          } else {
-                            alert('Failed to update your role to driver. Please try again.');
-                            console.error('Failed to update user role');
-                          }
-                        } else {
-                          // If not logged in, pass the role to the login page
-                          navigate('/login', { 
-                            state: { 
-                              role: 'driver',
-                              from: '/driver' 
-                            } 
-                          });
-                        }
-                      }}
-                      className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 md:py-4 md:text-lg md:px-10"
-                    >
-                      Soy conductor
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </main>
-          </div>
+      
+      {/* Hero Section con Carrusel de Fondo */}
+      <section style={heroSectionStyle}>
+        {/* Carrusel de Fondo */}
+        <div className="absolute inset-0 w-full h-full">
+          {heroImages.map((image, index) => (
+            <div 
+              key={image.id}
+              className={`absolute inset-0 transition-opacity duration-1000 ${
+                index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <img
+                src={image.url}
+                alt={image.alt}
+                style={carouselStyle}
+                onError={() => !failedImages.includes(image.id) && 
+                  setFailedImages(prev => [...prev, image.id])}
+              />
+            </div>
+          ))}
         </div>
-        <div className="relative h-64 sm:h-72 md:h-96 lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2 lg:h-full overflow-hidden">
-          <div className="absolute inset-0 w-full h-full">
-            {heroImages.map((image, index) => {
-              const hasError = failedImages.includes(image.id);
+        
+        {/* Overlay oscuro para mejorar la legibilidad */}
+        <div style={overlayStyle}></div>
+        
+        {/* Contenido sobre el carrusel */}
+        <div style={contentStyle}>
+          <div className="w-full px-4 sm:px-6 lg:px-8">
+            <div className="w-full max-w-3xl mx-auto">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-white">
+                <span className="block">Viaja de forma</span>
+                <span className="text-blue-300">segura y económica</span>
+              </h1>
               
-              return (
-                <div 
-                  key={image.id}
-                  className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${
-                    index === currentImageIndex ? 'opacity-100' : 'opacity-0'
-                  }`}
-                  style={{
-                    width: '100%',
-                    minHeight: '100%',
-                    backgroundColor: '#f0f0f0'
-                  }}
+              <p className="text-lg md:text-xl text-gray-200 mb-10 max-w-2xl mx-auto">
+                Conectamos conductores con pasajeros que van en la misma dirección. Ahorra dinero, reduce la huella de carbono y viaja cómodamente.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button
+                  onClick={() => navigate(currentUser ? '/passenger' : '/login', { state: { role: 'passenger' } })}
+                  className="px-8 py-4 bg-white text-blue-700 font-semibold rounded-lg hover:bg-blue-50 transition-colors duration-200 shadow-lg"
                 >
-                  {!hasError ? (
-                    <img
-                      src={image.url}
-                      alt={image.alt}
-                      className="w-full h-full object-cover min-h-[256px] sm:min-h-[288px] md:min-h-[384px] lg:min-h-full"
-                      onError={(e) => {
-                        console.error(`Error al cargar la imagen ${image.id}: ${image.url}`);
-                        setFailedImages(prev => [...prev, image.id]);
-                      }}
-                      loading="eager"
-                    />
-                  ) : (
-                    <div className="text-6xl font-bold text-gray-500">
-                      {image.id}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                  Soy pasajero
+                </button>
+                
+                <button
+                  onClick={async () => {
+                    if (currentUser) {
+                      if (!currentUser.uid) {
+                        alert('User ID not found. Please log in again.');
+                        console.error('currentUser.uid is missing.');
+                        return;
+                      }
+                      const success = await updateUserRole('driver');
+                      if (success) {
+                        navigate('/driver');
+                      } else {
+                        alert('Failed to update your role to driver. Please try again.');
+                        console.error('Failed to update user role');
+                      }
+                    } else {
+                      navigate('/login', { 
+                        state: { 
+                          role: 'driver',
+                          from: '/driver' 
+                        } 
+                      });
+                    }
+                  }}
+                  className="px-8 py-4 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-lg border-2 border-white"
+                >
+                  Soy conductor
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Features Carousel */}
       <div className="py-12 bg-white">
