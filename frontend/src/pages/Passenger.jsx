@@ -114,23 +114,56 @@ export default function Passenger() {
 
   // Handle rating a trip
   const handleRateTrip = async ({ tripId, rating, comment }) => {
+    if (!currentUser) {
+      setError('Debes iniciar sesión para calificar un viaje');
+      return;
+    }
+
     try {
       setLoading(true);
       
-      // Update the trip with the rating
+      // Obtener la referencia del viaje
       const tripRef = doc(db, 'trips', tripId);
-      await updateDoc(tripRef, {
-        rating,
-        comment: comment || '',
-        ratedAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
+      
+      // Usar transacción para asegurar consistencia
+      await runTransaction(db, async (transaction) => {
+        // Obtener los datos actuales del viaje
+        const tripDoc = await transaction.get(tripRef);
+        if (!tripDoc.exists()) {
+          throw new Error('El viaje no existe');
+        }
+        
+        const tripData = tripDoc.data();
+        
+        // Verificar que el usuario actual sea el pasajero
+        if (tripData.passengerId !== currentUser.uid) {
+          throw new Error('No tienes permiso para calificar este viaje');
+        }
+        
+        // Verificar que el viaje esté completado o cancelado
+        if (tripData.status !== 'completed' && tripData.status !== 'cancelled') {
+          throw new Error('Solo puedes calificar viajes completados o cancelados');
+        }
+        
+        // Verificar que no se haya calificado ya
+        if (tripData.rating) {
+          throw new Error('Este viaje ya fue calificado');
+        }
+        
+        // Actualizar el viaje con la calificación
+        transaction.update(tripRef, {
+          rating,
+          comment: comment || '',
+          ratedAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          ratedBy: [...(tripData.ratedBy || []), currentUser.uid]
+        });
 
-      // Update the driver's rating in the users collection
-      if (selectedTrip?.driverId) {
-        const driverRef = doc(db, 'users', selectedTrip.driverId);
-        await runTransaction(db, async (transaction) => {
+        // Actualizar la calificación del conductor
+        if (tripData.driverId) {
+          const driverRef = doc(db, 'users', tripData.driverId);
           const driverDoc = await transaction.get(driverRef);
+          
           if (driverDoc.exists()) {
             const driverData = driverDoc.data();
             const newRatingCount = (driverData.ratingCount || 0) + 1;
@@ -138,11 +171,12 @@ export default function Passenger() {
             
             transaction.update(driverRef, {
               rating: parseFloat(newRating.toFixed(1)),
-              ratingCount: newRatingCount
+              ratingCount: newRatingCount,
+              updatedAt: serverTimestamp()
             });
           }
-        });
-      }
+        }
+      });
 
       // Update local state
       setMyBookings(prev => prev.map(booking => 
@@ -162,11 +196,17 @@ export default function Passenger() {
 
   // Show rating modal for completed trips
   useEffect(() => {
-    const completedTrip = myBookings.find(
-      trip => (trip.status === 'completed' || trip.status === 'cancelled') && 
-             !trip.rating && 
-             trip.passengerId === currentUser?.uid
-    );
+    if (!currentUser) return;
+    
+    // Buscar viajes completados sin calificar donde el usuario actual sea el pasajero
+    const completedTrip = myBookings.find(trip => {
+      const isCompletedOrCancelled = trip.status === 'completed' || trip.status === 'cancelled';
+      const isNotRated = !trip.rating;
+      const isPassenger = trip.passengerId === currentUser.uid;
+      const isNotRatedByThisUser = !trip.ratedBy || !trip.ratedBy.includes(currentUser.uid);
+      
+      return isCompletedOrCancelled && isNotRated && isPassenger && isNotRatedByThisUser;
+    });
     
     if (completedTrip && !showRatingModal) {
       setTripToRate(completedTrip);
