@@ -15,68 +15,100 @@ export default function Navbar() {
   const truckControls = useAnimation();
 
   useEffect(() => {
+    let isMounted = true;
+    let animationTimeout;
+    let animationFrame;
+
     const sequence = async () => {
-      // Initially hide all icons
-      carControls.set({ opacity: 0 });
-      motoControls.set({ opacity: 0 });
-      truckControls.set({ opacity: 0 });
-      await new Promise(resolve => setTimeout(resolve, 500));
+      if (!isMounted) return;
+      
+      try {
+        // Initially hide all icons
+        await Promise.all([
+          carControls.start({ opacity: 0 }),
+          motoControls.start({ opacity: 0 }),
+          truckControls.start({ opacity: 0 })
+        ]);
 
-      while (true) {
-        // --- Car Animation ---
-        carControls.set({ x: -50, opacity: 1 }); // Start off-screen left
-        await carControls.start({
-            x: 0, // Move to original position
-            transition: { duration: 0.8, ease: 'easeOut' } // Slower slide in
-        });
-        await new Promise(resolve => setTimeout(resolve, 4000)); // Show car for 4 seconds
-        await carControls.start({
-            x: 18, // Reduced from 20px to 18px
-            opacity: 0,
-            transition: {
-                x: { duration: 1.2, ease: 'easeInOut' },
-                opacity: { duration: 0.4, delay: 0.8, ease: 'easeIn' }
-            }
-        });
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        // --- Motorcycle Animation ---
-        motoControls.set({ x: -50, opacity: 1 });
-        await motoControls.start({
+        const animateVehicle = async (controls, delay = 0) => {
+          if (!isMounted) return;
+          
+          // Reset position off-screen
+          await controls.start({ x: -50, opacity: 1 });
+          
+          // Slide in
+          await controls.start({
             x: 0,
-            transition: { duration: 0.8, ease: 'easeOut' } // Slower slide in
-        });
-        await new Promise(resolve => setTimeout(resolve, 4000)); // Show motorcycle for 4 seconds
-        await motoControls.start({
-            x: 18, // Reduced from 20px to 18px
+            transition: { duration: 0.8, ease: 'easeOut' }
+          });
+          
+          // Wait before sliding out
+          await new Promise(resolve => {
+            if (!isMounted) return;
+            animationTimeout = setTimeout(resolve, 4000);
+          });
+          
+          if (!isMounted) return;
+          
+          // Slide out
+          await controls.start({
+            x: 18,
             opacity: 0,
             transition: {
-                x: { duration: 1.2, ease: 'easeInOut' },
-                opacity: { duration: 0.4, delay: 0.8, ease: 'easeIn' }
+              x: { duration: 1.2, ease: 'easeInOut' },
+              opacity: { duration: 0.4, delay: 0.8, ease: 'easeIn' }
             }
-        });
-        await new Promise(resolve => setTimeout(resolve, 200));
+          });
+          
+          // Small delay between animations
+          await new Promise(resolve => {
+            if (!isMounted) return;
+            animationTimeout = setTimeout(resolve, 200);
+          });
+        };
 
-        // --- Truck Animation ---
-        truckControls.set({ x: -50, opacity: 1 });
-        await truckControls.start({
-            x: 0,
-            transition: { duration: 0.8, ease: 'easeOut' } // Slower slide in
-        });
-        await new Promise(resolve => setTimeout(resolve, 4000)); // Show truck for 4 seconds
-        await truckControls.start({
-            x: 18, // Reduced from 20px to 18px
-            opacity: 0,
-            transition: {
-                x: { duration: 1.2, ease: 'easeInOut' },
-                opacity: { duration: 0.4, delay: 0.8, ease: 'easeIn' }
+        // Run the animation sequence in a loop
+        const runAnimationLoop = async () => {
+          if (!isMounted) return;
+          
+          try {
+            await animateVehicle(carControls);
+            if (!isMounted) return;
+            await animateVehicle(motoControls);
+            if (!isMounted) return;
+            await animateVehicle(truckControls);
+            
+            // Schedule next iteration
+            if (isMounted) {
+              animationFrame = requestAnimationFrame(runAnimationLoop);
             }
-        });
+          } catch (error) {
+            console.error('Animation error:', error);
+          }
+        };
 
-        await new Promise(resolve => setTimeout(resolve, 200));
+        runAnimationLoop();
+      } catch (error) {
+        console.error('Error in animation sequence:', error);
       }
     };
+
+    // Start the animation sequence
     sequence();
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      if (animationTimeout) clearTimeout(animationTimeout);
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      
+      // Reset all animations
+      carControls.stop();
+      motoControls.stop();
+      truckControls.stop();
+    };
   }, [carControls, motoControls, truckControls]);
 
   const handleLogout = async () => {
