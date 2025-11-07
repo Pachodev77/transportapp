@@ -10,22 +10,26 @@ import {
   createTrip, 
   subscribeToTripUpdates,
   subscribeToTrips,
-  db,
-  runTransaction
+  db
 } from '../firebase/config';
 import { 
-  onSnapshot, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  serverTimestamp, 
-  GeoPoint, 
   collection, 
   query, 
   where, 
+  getDocs, 
+  onSnapshot, 
+  doc, 
+  updateDoc, 
+  getDoc, 
+  setDoc, 
+  serverTimestamp, 
+  GeoPoint, 
+  increment, 
+  runTransaction, 
   orderBy,
-  addDoc,
-  updateDoc
+  arrayUnion,
+  arrayRemove,
+  limit
 } from 'firebase/firestore';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -778,6 +782,24 @@ function Driver() {
           // Asegurarse de que el campo ratedBy exista como array
           ratedBy: []
         });
+
+        // Actualizar la solicitud de viaje correspondiente
+        const rideRequestsQuery = query(
+          collection(db, 'rideRequests'),
+          where('tripId', '==', tripId),
+          where('status', 'in', ['accepted', 'in_progress']),
+          limit(1)
+        );
+        
+        const rideRequestsSnapshot = await getDocs(rideRequestsQuery);
+        if (!rideRequestsSnapshot.empty) {
+          const rideRequestDoc = rideRequestsSnapshot.docs[0];
+          transaction.update(rideRequestDoc.ref, {
+            status: 'completed',
+            completedAt: now,
+            updatedAt: now
+          });
+        }
 
         // Crear una entrada en el historial del conductor
         const driverHistoryRef = doc(collection(db, 'users', currentUser.uid, 'tripHistory'), tripId);

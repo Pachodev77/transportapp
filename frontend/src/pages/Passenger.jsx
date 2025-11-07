@@ -196,7 +196,7 @@ export default function Passenger() {
 
   // Show rating modal for completed trips
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || showRatingModal) return;
     
     // Buscar viajes completados sin calificar donde el usuario actual sea el pasajero
     const completedTrip = myBookings.find(trip => {
@@ -206,18 +206,13 @@ export default function Passenger() {
       const isPassenger = trip.passengerId === currentUser.uid && trip.driverId !== currentUser.uid;
       // Verificar que el viaje no tenga calificación o que el usuario no haya calificado aún
       const isNotRated = !trip.rating || (trip.ratedBy && !trip.ratedBy.includes(currentUser.uid));
-      // Verificar que el viaje esté marcado como canRate o tenga completedAt reciente (últimas 24h)
-      const canRate = trip.canRate || 
-                    (trip.completedAt && 
-                     (typeof trip.completedAt === 'object' 
-                      ? new Date(trip.completedAt.seconds * 1000) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-                      : new Date(trip.completedAt) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-                     ));
+      // Verificar que el viaje esté marcado como canRate
+      const canRate = trip.canRate === true;
       
       return isCompleted && isPassenger && isNotRated && canRate;
     });
     
-    if (completedTrip && !showRatingModal) {
+    if (completedTrip) {
       console.log('Mostrando modal de calificación para el viaje:', completedTrip.id);
       
       // Mostrar el modal después de un pequeño retraso para asegurar que la UI esté lista
@@ -227,7 +222,7 @@ export default function Passenger() {
           setTripToRate(completedTrip);
           setShowRatingModal(true);
           
-          // Marcar que ya se mostró el modal para este viaje
+          // Actualizar el estado local para marcar que ya mostramos el modal
           setMyBookings(prev => 
             prev.map(trip => 
               trip.id === completedTrip.id 
@@ -235,6 +230,15 @@ export default function Passenger() {
                 : trip
             )
           );
+          
+          // Actualizar en Firestore que ya mostramos el modal
+          const tripRef = doc(db, 'rideRequests', completedTrip.id);
+          updateDoc(tripRef, {
+            canRate: false,
+            updatedAt: serverTimestamp()
+          }).catch(error => {
+            console.error('Error al actualizar el estado canRate:', error);
+          });
         }
       }, 1000);
       
@@ -568,7 +572,7 @@ export default function Passenger() {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Fetch user's ride requests
+  // Fetch user's ride requests and bookings
   useEffect(() => {
     if (!currentUser) return;
 
@@ -582,6 +586,7 @@ export default function Passenger() {
       const snapshot = await getDocs(rideRequestsQuery);
       const requests = [];
       let activeTrip = null;
+      let completedTrip = null;
       
       snapshot.forEach((doc) => {
         const data = doc.data();
@@ -594,9 +599,12 @@ export default function Passenger() {
         requests.push(request);
         
         // Solo considerar como viaje activo si está en estos estados
-        if ((!activeTrip || activeTrip.status === 'completed') && 
-            (request.status === 'accepted' || request.status === 'in_progress')) {
+        if (request.status === 'accepted' || request.status === 'in_progress') {
           activeTrip = request;
+        } 
+        // Si encontramos un viaje completado que aún no ha sido calificado
+        else if (request.status === 'completed' && !completedTrip) {
+          completedTrip = request;
         }
       });
       
@@ -607,12 +615,23 @@ export default function Passenger() {
       
       setMyRideRequests(activeRequests);
       
-      // Solo establecer el viaje seleccionado si es un viaje activo
-      if (activeTrip && (activeTrip.status === 'accepted' || activeTrip.status === 'in_progress')) {
-        setSelectedTrip(activeTrip);
-      } else {
-        setSelectedTrip(null);
+      // Si hay un viaje completado que necesita calificación, actualizamos el estado local
+      if (completedTrip) {
+        setMyBookings(prev => {
+          const exists = prev.some(booking => booking.id === completedTrip.id);
+          if (!exists) {
+            return [...prev, { ...completedTrip, canRate: true }];
+          }
+          return prev.map(booking => 
+            booking.id === completedTrip.id 
+              ? { ...booking, status: 'completed', canRate: true }
+              : booking
+          );
+        });
       }
+      
+      // Solo establecer el viaje seleccionado si es un viaje activo
+      setSelectedTrip(activeTrip || null);
     };
 
     getInitialRideRequests();
@@ -626,6 +645,7 @@ export default function Passenger() {
     const unsubscribeRideRequests = onSnapshot(rideRequestsQuery, (snapshot) => {
       const requests = [];
       let activeTrip = null;
+      let completedTrip = null;
       
       snapshot.forEach((doc) => {
         const data = doc.data();
@@ -638,9 +658,12 @@ export default function Passenger() {
         requests.push(request);
         
         // Solo considerar como viaje activo si está en estos estados
-        if ((!activeTrip || activeTrip.status === 'completed') && 
-            (request.status === 'accepted' || request.status === 'in_progress')) {
+        if (request.status === 'accepted' || request.status === 'in_progress') {
           activeTrip = request;
+        }
+        // Si encontramos un viaje completado que aún no ha sido calificado
+        else if (request.status === 'completed' && !completedTrip) {
+          completedTrip = request;
         }
       });
       
@@ -651,12 +674,23 @@ export default function Passenger() {
       
       setMyRideRequests(activeRequests);
       
-      // Solo establecer el viaje seleccionado si es un viaje activo
-      if (activeTrip && (activeTrip.status === 'accepted' || activeTrip.status === 'in_progress')) {
-        setSelectedTrip(activeTrip);
-      } else {
-        setSelectedTrip(null);
+      // Si hay un viaje completado que necesita calificación, actualizamos el estado local
+      if (completedTrip) {
+        setMyBookings(prev => {
+          const exists = prev.some(booking => booking.id === completedTrip.id);
+          if (!exists) {
+            return [...prev, { ...completedTrip, canRate: true }];
+          }
+          return prev.map(booking => 
+            booking.id === completedTrip.id 
+              ? { ...booking, status: 'completed', canRate: true }
+              : booking
+          );
+        });
       }
+      
+      // Solo establecer el viaje seleccionado si es un viaje activo
+      setSelectedTrip(activeTrip || null);
     }, (error) => {
       console.error('Error al cargar solicitudes de viaje:', error);
       setError('Error al cargar las solicitudes de viaje');
