@@ -767,13 +767,62 @@ function Driver() {
           throw new Error('El viaje ya no existe.');
         }
 
+        const tripData = tripDoc.data();
+        const now = serverTimestamp();
+
+        // Actualizar el viaje como completado
         transaction.update(tripRef, {
           status: 'completed',
-          completedAt: serverTimestamp(),
+          completedAt: now,
+          updatedAt: now,
+          // Asegurarse de que el campo ratedBy exista como array
+          ratedBy: []
+        });
+
+        // Crear una entrada en el historial del conductor
+        const driverHistoryRef = doc(collection(db, 'users', currentUser.uid, 'tripHistory'), tripId);
+        transaction.set(driverHistoryRef, {
+          ...tripData,
+          status: 'completed',
+          completedAt: now,
+          updatedAt: now,
+          historyEntry: true
+        });
+
+        // Crear una entrada en el historial del pasajero
+        const passengerHistoryRef = doc(collection(db, 'users', tripData.passengerId, 'tripHistory'), tripId);
+        transaction.set(passengerHistoryRef, {
+          ...tripData,
+          status: 'completed',
+          completedAt: now,
+          updatedAt: now,
+          historyEntry: true,
+          canRate: true // Marcar que el pasajero puede calificar
+        });
+
+        // Actualizar el contador de viajes del conductor
+        const driverRef = doc(db, 'users', currentUser.uid);
+        transaction.update(driverRef, {
+          completedTrips: increment(1),
+          updatedAt: now
         });
       });
 
-      alert('¡Viaje completado con éxito!');
+      // Actualizar el estado local
+      setMyTrips(prevTrips => 
+        prevTrips.map(trip => 
+          trip.id === tripId 
+            ? { ...trip, status: 'completed', completedAt: new Date() } 
+            : trip
+        )
+      );
+
+      // Si es el viaje actualmente aceptado, limpiarlo
+      if (acceptedTrip?.id === tripId) {
+        setAcceptedTrip(null);
+      }
+
+      alert('¡Viaje completado con éxito! El pasajero podrá calificar el servicio.');
 
     } catch (error) {
       console.error('Error completing trip:', error);

@@ -5,13 +5,18 @@ import { resolve } from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: './', // Usar ruta relativa
+  base: '/', // Usar ruta raíz para el enrutamiento del cliente
   plugins: [
     react(),
   ],
+  server: {
+    historyApiFallback: true, // Importante para el enrutamiento del lado del cliente
+    port: 5173,
+    open: true
+  },
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
       'public': resolve(__dirname, 'public')
     }
   },
@@ -30,12 +35,11 @@ export default defineConfig({
       },
     },
   },
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
-  },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', 'firebase/app', 'firebase/firestore', 'firebase/auth', 'leaflet', 'react-leaflet']
+    include: ['react', 'react-dom', 'react-router-dom', 'firebase/app', 'firebase/firestore', 'firebase/auth', 'leaflet', 'react-leaflet'],
+    exclude: ['js-big-decimal']
+  },
+  define: {
+    'process.env': {}
   }
 });

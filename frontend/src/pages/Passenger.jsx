@@ -200,17 +200,45 @@ export default function Passenger() {
     
     // Buscar viajes completados sin calificar donde el usuario actual sea el pasajero
     const completedTrip = myBookings.find(trip => {
-      const isCompletedOrCancelled = trip.status === 'completed' || trip.status === 'cancelled';
-      const isNotRated = !trip.rating;
-      const isPassenger = trip.passengerId === currentUser.uid;
-      const isNotRatedByThisUser = !trip.ratedBy || !trip.ratedBy.includes(currentUser.uid);
+      // Verificar que el viaje esté completado
+      const isCompleted = trip.status === 'completed';
+      // Verificar que el usuario actual sea el pasajero y NO el conductor
+      const isPassenger = trip.passengerId === currentUser.uid && trip.driverId !== currentUser.uid;
+      // Verificar que el viaje no tenga calificación o que el usuario no haya calificado aún
+      const isNotRated = !trip.rating || (trip.ratedBy && !trip.ratedBy.includes(currentUser.uid));
+      // Verificar que el viaje esté marcado como canRate o tenga completedAt reciente (últimas 24h)
+      const canRate = trip.canRate || 
+                    (trip.completedAt && 
+                     (typeof trip.completedAt === 'object' 
+                      ? new Date(trip.completedAt.seconds * 1000) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+                      : new Date(trip.completedAt) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+                     ));
       
-      return isCompletedOrCancelled && isNotRated && isPassenger && isNotRatedByThisUser;
+      return isCompleted && isPassenger && isNotRated && canRate;
     });
     
     if (completedTrip && !showRatingModal) {
-      setTripToRate(completedTrip);
-      setShowRatingModal(true);
+      console.log('Mostrando modal de calificación para el viaje:', completedTrip.id);
+      
+      // Mostrar el modal después de un pequeño retraso para asegurar que la UI esté lista
+      const timer = setTimeout(() => {
+        // Verificar nuevamente que el usuario sea el pasajero antes de mostrar el modal
+        if (completedTrip.passengerId === currentUser.uid && completedTrip.driverId !== currentUser.uid) {
+          setTripToRate(completedTrip);
+          setShowRatingModal(true);
+          
+          // Marcar que ya se mostró el modal para este viaje
+          setMyBookings(prev => 
+            prev.map(trip => 
+              trip.id === completedTrip.id 
+                ? { ...trip, canRate: false } // Evitar que se muestre de nuevo
+                : trip
+            )
+          );
+        }
+      }, 1000);
+      
+      return () => clearTimeout(timer);
     }
   }, [myBookings, currentUser, showRatingModal]);
 
@@ -548,28 +576,42 @@ export default function Passenger() {
       const rideRequestsQuery = query(
         collection(db, 'rideRequests'),
         where('passengerId', '==', currentUser.uid),
-        where('status', 'in', ['pending', 'accepted', 'in_progress']),
         orderBy('createdAt', 'desc')
       );
+      
       const snapshot = await getDocs(rideRequestsQuery);
       const requests = [];
       let activeTrip = null;
+      
       snapshot.forEach((doc) => {
         const data = doc.data();
         const request = {
-            id: doc.id,
-            ...data,
-            createdAt: data.createdAt?.toDate(),
-            updatedAt: data.updatedAt?.toDate(),
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate(),
+          updatedAt: data.updatedAt?.toDate(),
         };
         requests.push(request);
-        if (request.status === 'accepted' || request.status === 'in_progress') {
+        
+        // Solo considerar como viaje activo si está en estos estados
+        if ((!activeTrip || activeTrip.status === 'completed') && 
+            (request.status === 'accepted' || request.status === 'in_progress')) {
           activeTrip = request;
         }
       });
-      setMyRideRequests(requests);
-      if (activeTrip) {
+      
+      // Filtrar solicitudes para mostrar solo las activas en myRideRequests
+      const activeRequests = requests.filter(req => 
+        ['pending', 'accepted', 'in_progress'].includes(req.status)
+      );
+      
+      setMyRideRequests(activeRequests);
+      
+      // Solo establecer el viaje seleccionado si es un viaje activo
+      if (activeTrip && (activeTrip.status === 'accepted' || activeTrip.status === 'in_progress')) {
         setSelectedTrip(activeTrip);
+      } else {
+        setSelectedTrip(null);
       }
     };
 
@@ -578,32 +620,41 @@ export default function Passenger() {
     const rideRequestsQuery = query(
       collection(db, 'rideRequests'),
       where('passengerId', '==', currentUser.uid),
-      where('status', 'in', ['pending', 'accepted', 'in_progress']),
       orderBy('createdAt', 'desc')
     );
     
     const unsubscribeRideRequests = onSnapshot(rideRequestsQuery, (snapshot) => {
       const requests = [];
+      let activeTrip = null;
+      
       snapshot.forEach((doc) => {
         const data = doc.data();
-        // Process the request object to ensure data consistency
         const request = {
-            id: doc.id,
-            ...data,
-            createdAt: data.createdAt?.toDate(),
-            updatedAt: data.updatedAt?.toDate(),
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate(),
+          updatedAt: data.updatedAt?.toDate(),
         };
         requests.push(request);
+        
+        // Solo considerar como viaje activo si está en estos estados
+        if ((!activeTrip || activeTrip.status === 'completed') && 
+            (request.status === 'accepted' || request.status === 'in_progress')) {
+          activeTrip = request;
+        }
       });
-      setMyRideRequests(requests);
-
-      // The most recent active request (pending, accepted, or in_progress) is the first one.
-      const activeTrip = requests.length > 0 ? requests[0] : null;
-
-      if (activeTrip) {
+      
+      // Filtrar solicitudes para mostrar solo las activas en myRideRequests
+      const activeRequests = requests.filter(req => 
+        ['pending', 'accepted', 'in_progress'].includes(req.status)
+      );
+      
+      setMyRideRequests(activeRequests);
+      
+      // Solo establecer el viaje seleccionado si es un viaje activo
+      if (activeTrip && (activeTrip.status === 'accepted' || activeTrip.status === 'in_progress')) {
         setSelectedTrip(activeTrip);
       } else {
-        // If no trip is active, clear the selected trip
         setSelectedTrip(null);
       }
     }, (error) => {
