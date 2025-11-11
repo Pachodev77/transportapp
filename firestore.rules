@@ -28,10 +28,36 @@ service cloud.firestore {
 
     // Users collection rules
     match /users/{userId} {
-      allow read: if isOwner(userId);
-      allow list: if isAuthenticated();
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-      allow update: if isOwner(userId);
+      allow read: if isAuthenticated() && (isOwner(userId) || isRole('admin'));
+      
+      allow update: if isAuthenticated() && (
+        isOwner(userId) || 
+        isRole('admin') ||
+        // Allow system to update certain fields
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fcmToken', 'updatedAt']) ||
+         // Allow incrementing completedTrips counter
+         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completedTrips', 'updatedAt']) &&
+          request.resource.data.completedTrips == resource.data.completedTrips + 1) ||
+         // Allow setting completedTrips if it's a new field
+         (!('completedTrips' in resource.data) && 
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completedTrips', 'updatedAt'])))
+      );
+      
+      allow create: if isAuthenticated() && 
+                   (!exists(/databases/$(database)/documents/users/$(userId)) || 
+                    isRole('admin'));
+      
+      allow delete: if isRole('admin');
+      
+      // Subcolección de historial de viajes
+      match /tripHistory/{tripId} {
+        allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+        allow create: if isAuthenticated() && 
+                     (request.auth.uid == userId || isAdmin() || 
+                      (request.auth.uid == request.resource.data.driverId && 
+                       request.resource.data.historyEntry == true));
+        allow update: if false; // No permitir actualizaciones directas
+      }
     }
 
     // Trips collection rules
@@ -55,13 +81,28 @@ service cloud.firestore {
       
       // Allow updates to status by driver or passenger, or admin
       allow update: if isAuthenticated() && (
+        // Driver can complete the trip (from in_progress or accepted to completed)
+        (request.auth.uid == resource.data.driverId &&
+         resource.data.status in ['in_progress', 'accepted'] &&
+         request.resource.data.status == 'completed' &&
+         // Allow all fields that might be updated during completion
+         (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+           'status', 'endTime', 'updatedAt', 'completedAt', 'driverLocation', 
+           'driverId', 'passengerId', 'currentLocation', 'route', 'paymentStatus'
+         ]) || 
+         // Or allow only status and IDs if using updateMask
+         (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+           'status', 'driverId', 'passengerId'
+         ])))
+        ) ||
+        
         // Driver can update trip status and location
         (request.auth.uid == resource.data.driverId &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'driverLocation', 'updatedAt'])) ||
+         request.resource.data.diff(resource.data).hasOnly(['status', 'driverLocation', 'updatedAt'])) ||
         
         // Passenger can rate the trip
         (request.auth.uid == resource.data.passengerId &&
-         (resource.data.status == 'completed' || resource.data.status == 'cancelled') &&
+         resource.data.status in ['completed', 'cancelled'] &&
          (!resource.data.rating || resource.data.rating == 0) &&
          request.resource.data.diff(resource.data).affectedKeys().hasAll(['rating', 'updatedAt']) &&
          request.resource.data.diff(resource.data).affectedKeys().hasAny(['rating', 'comment', 'ratedAt', 'updatedAt']) &&
@@ -150,12 +191,36 @@ service cloud.firestore {
       // 1. User is authenticated
       // 2. AND (user is the passenger OR user is a driver OR user is admin)
       // 3. AND only specific fields can be updated
-      allow update: if isAuthenticated() && 
-                   (request.auth.uid == resource.data.passengerId || 
-                    isDriver() || 
-                    isAdmin()) &&
-                   (request.resource.data.diff(resource.data).affectedKeys()
-                    .hasOnly(['status', 'driverId', 'driverName', 'updatedAt', 'tripId', 'driverPhotoURL', 'acceptedAt']));
+      allow update: if isAuthenticated() && (
+        // Passenger can cancel their own request (from any state to cancelled)
+        (request.auth.uid == resource.data.passengerId &&
+         request.resource.data.status == 'cancelled' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledAt', 'updatedAt', 'cancelledBy'])) ||
+        
+        // Driver can accept/cancel requests or mark as completed
+        (isDriver() && (
+          // Driver can accept a pending request
+          (resource.data.status == 'pending' && 
+           request.resource.data.status == 'accepted' &&
+           request.resource.data.driverId == request.auth.uid &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'driverId', 'driverName', 'updatedAt', 'tripId', 'driverPhotoURL', 'acceptedAt'])) ||
+          
+          // Driver can mark an accepted request as in_progress or completed
+          (resource.data.status == 'accepted' &&
+           request.resource.data.status in ['in_progress', 'completed'] &&
+           request.resource.data.driverId == request.auth.uid &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'completedAt'])) ||
+          
+          // Driver can cancel an accepted or in_progress request
+          (resource.data.status in ['accepted', 'in_progress'] &&
+           request.resource.data.status == 'cancelled' &&
+           request.resource.data.driverId == request.auth.uid &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'cancelledAt', 'cancelledBy']))
+        )) ||
+         
+        // Admin can update anything
+        isAdmin()
+      );
       
       // Allow delete if:
       // 1. User is authenticated

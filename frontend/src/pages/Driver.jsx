@@ -29,7 +29,8 @@ import {
   orderBy,
   arrayUnion,
   arrayRemove,
-  limit
+  limit,
+  addDoc
 } from 'firebase/firestore';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -380,8 +381,21 @@ function Driver() {
             }
           });
           
-          console.log('🚀 Viajes disponibles para mostrar:', trips);
-          setAvailableTrips(trips);
+          // Eliminar duplicados por ID antes de actualizar el estado
+          const uniqueTrips = [];
+          const seenIds = new Set();
+          
+          trips.forEach(trip => {
+            if (!seenIds.has(trip.id)) {
+              seenIds.add(trip.id);
+              uniqueTrips.push(trip);
+            } else {
+              console.warn(`⚠️ Se encontró un viaje duplicado con ID: ${trip.id}`);
+            }
+          });
+          
+          console.log('🚀 Viajes disponibles para mostrar (sin duplicados):', uniqueTrips);
+          setAvailableTrips(uniqueTrips);
         },
         (error) => {
           console.error('❌ Error en la consulta de viajes:', error);
@@ -752,7 +766,7 @@ function Driver() {
 
   const handleCompleteTrip = async (tripId) => {
     if (!tripId) {
-      console.error('No trip ID provided for completion');
+      console.error('No se proporcionó un ID de viaje para completar');
       alert('No se pudo identificar el viaje a completar');
       return;
     }
@@ -762,125 +776,156 @@ function Driver() {
     }
 
     setLoading(true);
+    console.log('Iniciando proceso de finalización de viaje...');
+    
     try {
+      const now = serverTimestamp();
+      const tripRef = doc(db, 'trips', tripId);
+      
+      console.log('Iniciando transacción...');
+      
       await runTransaction(db, async (transaction) => {
-        const tripRef = doc(db, 'trips', tripId);
+        console.log('Transacción iniciada');
+        
+        // 1. Obtener datos del viaje
+        console.log('Obteniendo datos del viaje...');
         const tripDoc = await transaction.get(tripRef);
-
+        
         if (!tripDoc.exists()) {
           throw new Error('El viaje ya no existe.');
         }
 
         const tripData = tripDoc.data();
-        const now = serverTimestamp();
-
-        // Actualizar el viaje como completado
-        transaction.update(tripRef, {
-          status: 'completed',
-          completedAt: now,
-          updatedAt: now,
-          // Asegurarse de que el campo ratedBy exista como array
-          ratedBy: []
-        });
-
-        // Actualizar la solicitud de viaje correspondiente
-        const rideRequestsQuery = query(
-          collection(db, 'rideRequests'),
-          where('tripId', '==', tripId),
-          where('status', 'in', ['accepted', 'in_progress']),
-          limit(1)
-        );
         
-        const rideRequestsSnapshot = await getDocs(rideRequestsQuery);
-        if (!rideRequestsSnapshot.empty) {
-          const rideRequestDoc = rideRequestsSnapshot.docs[0];
-          transaction.update(rideRequestDoc.ref, {
+        // 2. Verificar que el conductor sea el correcto
+        if (tripData.driverId !== currentUser.uid) {
+          throw new Error('No tienes permiso para completar este viaje');
+        }
+        
+        // 3. Verificar que el viaje esté en un estado que pueda ser completado
+        if (!['in_progress', 'accepted'].includes(tripData.status)) {
+          throw new Error(`No se puede completar un viaje con estado: ${tripData.status}. El viaje debe estar en progreso o aceptado.`);
+        }
+
+        console.log('Datos del viaje:', { 
+          id: tripDoc.id, 
+          estado: tripData.status,
+          conductorId: tripData.driverId,
+          pasajeroId: tripData.passengerId,
+          rideRequestId: tripData.rideRequestId 
+        });
+        
+        // 4. Actualizar estado del viaje a completado
+        console.log('Actualizando estado del viaje a completado...');
+        
+        // Crear objeto con los datos de actualización
+        const tripUpdate = {
+          status: 'completed',
+          endTime: now,
+          updatedAt: now,
+          completedAt: now,
+          // Incluir todos los campos necesarios para las reglas de seguridad
+          driverId: tripData.driverId,
+          passengerId: tripData.passengerId
+        };
+        
+        // Aplicar la actualización
+        transaction.update(tripRef, tripUpdate);
+        
+        console.log('Actualizando viaje a completado');
+        console.log('Estado del viaje actualizado a completado', tripUpdate);
+
+        // 5. Actualizar la solicitud de viaje asociada si existe
+        if (tripData.rideRequestId) {
+          console.log('Actualizando estado de la solicitud de viaje...');
+          const rideRequestRef = doc(db, 'rideRequests', tripData.rideRequestId);
+          transaction.update(rideRequestRef, {
             status: 'completed',
             completedAt: now,
             updatedAt: now
           });
+          console.log('Solicitud de viaje actualizada a completada');
+        } else {
+          console.log('No se encontró rideRequestId, omitiendo actualización de solicitud');
         }
 
-        // Crear una entrada en el historial del conductor
+        // 6. Crear entrada en el historial del conductor
+        console.log('Creando entrada en el historial del conductor...');
         const driverHistoryRef = doc(collection(db, 'users', currentUser.uid, 'tripHistory'), tripId);
         transaction.set(driverHistoryRef, {
           ...tripData,
           status: 'completed',
           completedAt: now,
+          endTime: now,
           updatedAt: now,
           historyEntry: true
         });
+        console.log('Entrada en el historial del conductor creada');
 
-        // Crear una entrada en el historial del pasajero
+        // 7. Crear entrada en el historial del pasajero
+        console.log('Creando entrada en el historial del pasajero...');
         const passengerHistoryRef = doc(collection(db, 'users', tripData.passengerId, 'tripHistory'), tripId);
         transaction.set(passengerHistoryRef, {
           ...tripData,
           status: 'completed',
           completedAt: now,
+          endTime: now,
           updatedAt: now,
           historyEntry: true,
           canRate: true // Marcar que el pasajero puede calificar
         });
+        console.log('Entrada en el historial del pasajero creada');
 
-        // Actualizar el contador de viajes del conductor
+        // 8. Actualizar contador de viajes completados del conductor
+        console.log('Actualizando contador de viajes completados...');
         const driverRef = doc(db, 'users', currentUser.uid);
         transaction.update(driverRef, {
           completedTrips: increment(1),
           updatedAt: now
         });
+        console.log('Contador de viajes completados actualizado');
       });
 
-      // Actualizar el estado local
-      setMyTrips(prevTrips => 
-        prevTrips.map(trip => 
+      console.log('Transacción completada exitosamente');
+      
+      // Actualizar estado local
+      setMyTrips(prevTrips => {
+        const updatedTrips = prevTrips.map(trip => 
           trip.id === tripId 
-            ? { ...trip, status: 'completed', completedAt: new Date() } 
+            ? { 
+                ...trip, 
+                status: 'completed', 
+                completedAt: new Date(),
+                endTime: new Date()
+              } 
             : trip
-        )
-      );
+        );
+        console.log('Estado local actualizado');
+        return updatedTrips;
+      });
 
-      // Si es el viaje actualmente aceptado, limpiarlo
+      // Limpiar viaje aceptado si es el actual
       if (acceptedTrip?.id === tripId) {
         setAcceptedTrip(null);
+        console.log('Viaje aceptado eliminado del estado');
       }
 
       alert('¡Viaje completado con éxito! El pasajero podrá calificar el servicio.');
-
+      
     } catch (error) {
-      console.error('Error completing trip:', error);
-      alert(error.message || 'Error al completar el viaje. Por favor, inténtalo de nuevo.');
+      console.error('Error al completar el viaje:', {
+        mensaje: error.message,
+        código: error.code,
+        stack: error.stack,
+        nombre: error.name
+      });
+      alert(`Error al completar el viaje: ${error.message}`);
     } finally {
+      console.log('Proceso de finalización de viaje finalizado');
       setLoading(false);
     }
-  };
-
-  const handleMapLoad = (mapInstance) => {
-    console.log('Map instance loaded');
-    mapRef.current = mapInstance;
-    setMap(mapInstance);
-    mapInitialized.current = true;
     
-    // If we have a pending center from before the map was ready, apply it now
-    if (pendingCenter.current) {
-      const { lat, lng, zoom } = pendingCenter.current;
-      centerMapOnLocation(lat, lng, zoom);
-      pendingCenter.current = null;
-    }
-    
-    // Add a one-time moveend listener to log when the map has finished moving
-    const handleMoveEnd = () => {
-      if (mapRef.current) {
-        const center = mapRef.current.getCenter();
-        
-      }
-    };
-    
-    mapInstance.on('moveend', handleMoveEnd);
-    
-    // Cleanup
-    return () => {
-      mapInstance.off('moveend', handleMoveEnd);
-    };
+    // Código de finalización de la función
   };
 
 

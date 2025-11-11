@@ -443,30 +443,36 @@ export default function Passenger() {
 
   const canCancelActiveRequest = () => {
     if (!selectedTrip) return false;
-
-    if (selectedTrip.status === 'pending') {
-      return true; // Can cancel pending requests at any time
+    
+    // Si el viaje no está en un estado cancelable, retornar false
+    if (!['pending', 'accepted', 'in_progress'].includes(selectedTrip.status)) {
+      return false;
     }
 
-    if (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') {
-      if (!selectedTrip.acceptedAt) return false; // Should not happen if accepted
-
-      const acceptedTime = selectedTrip.acceptedAt.toDate(); // Convert Firestore timestamp to Date object
+    // Asegurarse de que acceptedAt sea un objeto Date
+    try {
+      const acceptedTime = selectedTrip.acceptedAt?.toDate ? 
+        selectedTrip.acceptedAt.toDate() : 
+        (selectedTrip.acceptedAt ? new Date(selectedTrip.acceptedAt) : new Date());
+      
       const thirtySecondsAgo = new Date(Date.now() - 30 * 1000);
-
+      
+      // Solo permitir cancelar si han pasado menos de 30 segundos desde que fue aceptado
       return acceptedTime > thirtySecondsAgo;
+    } catch (error) {
+      console.error('Error al verificar el tiempo de cancelación:', error);
+      return false;
     }
-
-    return false;
   };
 
+  // Handle canceling the active request
   const handleCancelActiveRequest = () => {
     if (selectedTrip) {
       handleCancelRequest(selectedTrip.id);
     }
   };
 
-  // Handle canceling a ride request
+  // Handle canceling a ride request by ID
   const handleCancelRequest = async (requestId) => {
     if (!window.confirm(STRINGS.CONFIRMAR_CANCELAR_SOLICITUD)) {
       return;
@@ -475,13 +481,77 @@ export default function Passenger() {
     try {
       setLoading(true);
       const requestRef = doc(db, 'rideRequests', requestId);
-      await updateDoc(requestRef, {
-        status: 'cancelled',
-        updatedAt: new Date().toISOString()
+      
+      // Usar transacción para garantizar consistencia
+      await runTransaction(db, async (transaction) => {
+        // 1. Obtener la solicitud actual
+        const requestDoc = await transaction.get(requestRef);
+        if (!requestDoc.exists()) {
+          throw new Error('La solicitud de viaje ya no existe');
+        }
+        
+        const requestData = requestDoc.data();
+        
+        // 2. Verificar que el usuario sea el pasajero
+        if (requestData.passengerId !== currentUser.uid) {
+          throw new Error('No tienes permiso para cancelar esta solicitud');
+        }
+        
+        // 3. Verificar que la solicitud no esté ya cancelada o completada
+        if (['cancelled', 'completed'].includes(requestData.status)) {
+          throw new Error('No se puede cancelar una solicitud que ya está ' + requestData.status);
+        }
+        
+        const now = serverTimestamp();
+        
+        // 4. Actualizar la solicitud
+        transaction.update(requestRef, {
+          status: 'cancelled',
+          cancelledAt: now,
+          updatedAt: now,
+          cancelledBy: 'passenger'
+        });
+        
+        // 5. Si hay un viaje asociado, actualizarlo también
+        if (requestData.tripId) {
+          const tripRef = doc(db, 'trips', requestData.tripId);
+          const tripDoc = await transaction.get(tripRef);
+          
+          if (tripDoc.exists()) {
+            transaction.update(tripRef, {
+              status: 'cancelled',
+              cancelledAt: now,
+              updatedAt: now,
+              cancelledBy: 'passenger'
+            });
+          }
+        }
       });
+      
+      // Actualizar estado local
+      setMyRideRequests(prev => 
+        prev.map(req => 
+          req.id === requestId 
+            ? { 
+                ...req, 
+                status: 'cancelled', 
+                updatedAt: new Date(),
+                cancelledAt: new Date()
+              } 
+            : req
+        )
+      );
+      
+      // Limpiar el viaje seleccionado si es el que se está cancelando
+      if (selectedTrip?.id === requestId) {
+        setSelectedTrip(null);
+      }
+      
+      alert('Solicitud cancelada correctamente');
+      
     } catch (error) {
-      console.error('Error canceling ride request:', error);
-      setError(STRINGS.ERROR_CANCELAR_SOLICITUD);
+      console.error('Error al cancelar la solicitud:', error);
+      setError(error.message || STRINGS.ERROR_CANCELAR_SOLICITUD);
     } finally {
       setLoading(false);
     }
@@ -590,11 +660,20 @@ export default function Passenger() {
       
       snapshot.forEach((doc) => {
         const data = doc.data();
+        // Función segura para convertir timestamps
+        const safeToDate = (timestamp) => {
+          if (!timestamp) return null;
+          return timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+        };
+        
         const request = {
           id: doc.id,
           ...data,
-          createdAt: data.createdAt?.toDate(),
-          updatedAt: data.updatedAt?.toDate(),
+          createdAt: safeToDate(data.createdAt),
+          updatedAt: safeToDate(data.updatedAt),
+          acceptedAt: safeToDate(data.acceptedAt),
+          completedAt: safeToDate(data.completedAt),
+          cancelledAt: safeToDate(data.cancelledAt)
         };
         requests.push(request);
         
@@ -649,11 +728,20 @@ export default function Passenger() {
       
       snapshot.forEach((doc) => {
         const data = doc.data();
+        // Función segura para convertir timestamps
+        const safeToDate = (timestamp) => {
+          if (!timestamp) return null;
+          return timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+        };
+        
         const request = {
           id: doc.id,
           ...data,
-          createdAt: data.createdAt?.toDate(),
-          updatedAt: data.updatedAt?.toDate(),
+          createdAt: safeToDate(data.createdAt),
+          updatedAt: safeToDate(data.updatedAt),
+          acceptedAt: safeToDate(data.acceptedAt),
+          completedAt: safeToDate(data.completedAt),
+          cancelledAt: safeToDate(data.cancelledAt)
         };
         requests.push(request);
         
