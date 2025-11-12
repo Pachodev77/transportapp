@@ -4,22 +4,25 @@ import RatingModal from '../components/RatingModal';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Polyline, useMap } from 'react-leaflet';
 import { FaSearch, FaMapMarkerAlt, FaCar, FaSpinner, FaStar, FaClock, FaCommentDots, FaStarHalfAlt } from 'react-icons/fa';
 import { 
+  doc, 
+  getDoc, 
+  updateDoc, 
   collection, 
   query, 
   where, 
+  onSnapshot, 
+  serverTimestamp, 
+  setDoc, 
+  getDocs, 
+  writeBatch, 
+  limit, 
   addDoc, 
-  onSnapshot,
-  serverTimestamp,
-  orderBy,
-  updateDoc,
-  doc,
-  setDoc,
-  GeoPoint,
+  orderBy, 
+  GeoPoint, 
   increment,
-  getDocs,
-  getDoc
+  runTransaction
 } from 'firebase/firestore';
-import { db, runTransaction } from '../firebase/config';
+import { db } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -116,14 +119,15 @@ export default function Passenger() {
   // Handle rating a trip
   const handleRateTrip = async (ratingData) => {
     // Handle both object and individual parameters for backward compatibility
-    const { tripId, rating, comment = '' } = typeof ratingData === 'object' ? ratingData : { 
-      tripId: arguments[0], 
-      rating: arguments[1], 
-      comment: arguments[2] || '' 
+    const { tripId, rideRequestId, rating, comment = '' } = typeof ratingData === 'object' ? ratingData : { 
+      tripId: arguments[0],
+      rideRequestId: arguments[1],
+      rating: arguments[2], 
+      comment: arguments[3] || '' 
     };
     
-    if (!tripId || rating === undefined) {
-      console.error('Missing required parameters for rating:', { tripId, rating });
+    if ((!tripId && !rideRequestId) || rating === undefined) {
+      console.error('Missing required parameters for rating:', { tripId, rideRequestId, rating });
       setError('Faltan parámetros necesarios para calificar el viaje');
       return;
     }
@@ -136,15 +140,71 @@ export default function Passenger() {
     setError(null);
     
     try {
-      const rideRequestRef = doc(db, 'rideRequests', tripId);
+      // First, try to find the ride request using the provided ID or by tripId
+      let rideRequestRef;
+      let rideRequestDoc;
+      let rideRequestData = null;
       
-      // Primero obtener el documento actual para verificar su estado
-      const rideRequestDoc = await getDoc(rideRequestRef);
-      if (!rideRequestDoc.exists()) {
-        throw new Error('La solicitud de viaje no existe');
+      // Try to find by rideRequestId first if provided
+      if (rideRequestId) {
+        rideRequestRef = doc(db, 'rideRequests', rideRequestId);
+        rideRequestDoc = await getDoc(rideRequestRef);
+        if (rideRequestDoc.exists()) {
+          rideRequestData = { id: rideRequestDoc.id, ...rideRequestDoc.data() };
+        }
       }
       
-      const rideRequestData = rideRequestDoc.data();
+      // If not found by rideRequestId, try to find by tripId
+      if (!rideRequestData && tripId) {
+        const rideRequestsQuery = query(
+          collection(db, 'rideRequests'),
+          where('tripId', '==', tripId),
+          limit(1)
+        );
+        
+        const querySnapshot = await getDocs(rideRequestsQuery);
+        if (!querySnapshot.empty) {
+          rideRequestDoc = querySnapshot.docs[0];
+          rideRequestRef = doc(db, 'rideRequests', rideRequestDoc.id);
+          rideRequestData = { id: rideRequestDoc.id, ...rideRequestDoc.data() };
+        }
+      }
+      
+      // If still not found, try to get the trip and create a ride request if needed
+      if (!rideRequestData && tripId) {
+        const tripRef = doc(db, 'trips', tripId);
+        const tripDoc = await getDoc(tripRef);
+        
+        if (tripDoc.exists()) {
+          const tripData = tripDoc.data();
+          
+          // Create a new ride request based on trip data
+          const newRideRequest = {
+            tripId: tripId,
+            passengerId: tripData.passengerId,
+            driverId: tripData.driverId,
+            status: 'completed',
+            origin: tripData.origin,
+            destination: tripData.destination,
+            price: tripData.price || 0,
+            distance: tripData.distance || 0,
+            duration: tripData.duration || 0,
+            paymentMethod: tripData.paymentMethod || 'cash',
+            createdAt: tripData.createdAt || serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            canRate: true
+          };
+          
+          // Add the new ride request to Firestore
+          const docRef = await addDoc(collection(db, 'rideRequests'), newRideRequest);
+          rideRequestRef = doc(db, 'rideRequests', docRef.id);
+          rideRequestData = { id: docRef.id, ...newRideRequest };
+        }
+      }
+      
+      if (!rideRequestData) {
+        throw new Error('No se pudo encontrar o crear la solicitud de viaje');
+      }
       
       // Verificar que el usuario sea el pasajero
       if (rideRequestData.passengerId !== currentUser.uid) {
@@ -162,7 +222,7 @@ export default function Passenger() {
         throw new Error('Este viaje ya fue calificado');
       }
       
-      // Crear el objeto de actualización
+      // Crear el objeto de actualización con solo the fields we want to update
       const updateData = {
         rating: Number(rating),
         comment: String(comment || ''),
@@ -241,47 +301,99 @@ export default function Passenger() {
   useEffect(() => {
     if (!currentUser || showRatingModal) return;
     
-    // Buscar viajes completados sin calificar donde el usuario actual sea el pasajero
+    // Find completed trips that need rating
     const completedTrip = myBookings.find(trip => {
-      // Verificar que el viaje esté completado
       const isCompleted = trip.status === 'completed';
-      // Verificar que el usuario actual sea el pasajero y NO el conductor
       const isPassenger = trip.passengerId === currentUser.uid && trip.driverId !== currentUser.uid;
-      // Verificar que el viaje no tenga calificación o que el usuario no haya calificado aún
       const isNotRated = !trip.rating || (trip.ratedBy && !trip.ratedBy.includes(currentUser.uid));
-      // Verificar que el viaje esté marcado como canRate
       const canRate = trip.canRate === true;
       
       return isCompleted && isPassenger && isNotRated && canRate;
     });
     
     if (completedTrip) {
-      console.log('Mostrando modal de calificación para el viaje:', completedTrip.id);
+      console.log('Preparando para mostrar modal de calificación para el viaje:', completedTrip.id);
       
-      // Mostrar el modal después de un pequeño retraso para asegurar que la UI esté lista
-      const timer = setTimeout(() => {
-        // Verificar nuevamente que el usuario sea el pasajero antes de mostrar el modal
+      const timer = setTimeout(async () => {
         if (completedTrip.passengerId === currentUser.uid && completedTrip.driverId !== currentUser.uid) {
-          setTripToRate(completedTrip);
-          setShowRatingModal(true);
+          const rideRequestId = completedTrip.rideRequestId || completedTrip.id;
+          const rideRequestRef = doc(db, 'rideRequests', rideRequestId);
           
-          // Actualizar el estado local para marcar que ya mostramos el modal
-          setMyBookings(prev => 
-            prev.map(trip => 
-              trip.id === completedTrip.id 
-                ? { ...trip, canRate: false } // Evitar que se muestre de nuevo
-                : trip
-            )
-          );
-          
-          // Actualizar en Firestore que ya mostramos el modal
-          const tripRef = doc(db, 'rideRequests', completedTrip.id);
-          updateDoc(tripRef, {
-            canRate: false,
-            updatedAt: serverTimestamp()
-          }).catch(error => {
-            console.error('Error al actualizar el estado canRate:', error);
-          });
+          try {
+            // Check if document exists first
+            const rideRequestDoc = await getDoc(rideRequestRef);
+            
+            // If document doesn't exist, create it with minimal required fields
+            if (!rideRequestDoc.exists()) {
+              console.log('Documento de solicitud de viaje no encontrado, creando uno nuevo');
+              await setDoc(rideRequestRef, {
+                id: rideRequestId,
+                tripId: completedTrip.id,
+                passengerId: currentUser.uid,
+                driverId: completedTrip.driverId,
+                status: 'completed',
+                canRate: true,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+                paymentMethod: 'cash',
+                // Include any other minimal required fields
+                ...(completedTrip.origin && { origin: completedTrip.origin }),
+                ...(completedTrip.destination && { destination: completedTrip.destination }),
+                ...(completedTrip.price !== undefined && { price: completedTrip.price }),
+                ...(completedTrip.distance !== undefined && { distance: completedTrip.distance }),
+                ...(completedTrip.duration !== undefined && { duration: completedTrip.duration })
+              });
+              console.log('Nuevo documento de solicitud de viaje creado');
+            } else {
+              // Document exists, just update canRate
+              await updateDoc(rideRequestRef, {
+                canRate: true,
+                updatedAt: serverTimestamp()
+              });
+            }
+            
+            // Update local state to show the modal
+            const tripToRateWithIds = {
+              ...completedTrip,
+              rideRequestId: rideRequestId
+            };
+            
+            setTripToRate(tripToRateWithIds);
+            setShowRatingModal(true);
+            
+            // Update local state to prevent showing the modal again
+            setMyBookings(prev => 
+              prev.map(trip => 
+                trip.id === completedTrip.id 
+                  ? { ...trip, canRate: false }
+                  : trip
+              )
+            );
+            
+          } catch (error) {
+            console.error('Error al preparar la calificación del viaje:', error);
+            // Even if there's an error, we can still try to show the modal
+            try {
+              const tripToRateWithIds = {
+                ...completedTrip,
+                rideRequestId: rideRequestId
+              };
+              
+              setTripToRate(tripToRateWithIds);
+              setShowRatingModal(true);
+              
+              // Update local state to prevent showing the modal again
+              setMyBookings(prev => 
+                prev.map(trip => 
+                  trip.id === completedTrip.id 
+                    ? { ...trip, canRate: false }
+                    : trip
+                )
+              );
+            } catch (uiError) {
+              console.error('Error al mostrar el modal de calificación:', uiError);
+            }
+          }
         }
       }, 1000);
       
@@ -1561,7 +1673,14 @@ export default function Passenger() {
       <RatingModal
         isOpen={showRatingModal}
         onClose={() => setShowRatingModal(false)}
-        onSubmit={handleRateTrip}
+        onSubmit={(ratingData) => {
+          // Pasar tanto el tripId como el rideRequestId al manejador
+          handleRateTrip({
+            ...ratingData,
+            tripId: tripToRate?.id,
+            rideRequestId: tripToRate?.rideRequestId
+          });
+        }}
         tripId={tripToRate?.id}
       />
     </div>

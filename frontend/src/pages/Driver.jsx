@@ -28,6 +28,7 @@ import {
   runTransaction, 
   orderBy,
   arrayUnion,
+  writeBatch,
   arrayRemove,
   limit,
   addDoc
@@ -304,6 +305,9 @@ function Driver() {
     
     console.log('🔍 Buscando solicitudes de viaje pendientes...');
     
+    // Flag to prevent state updates after unmount
+    let isMounted = true;
+    
     try {
       const q = query(
         collection(db, 'rideRequests'),
@@ -311,15 +315,11 @@ function Driver() {
         orderBy('createdAt', 'desc')
       );
       
-      console.log('🔧 Consulta Firestore creada:', {
-        collection: 'rideRequests',
-        filters: ['status == pending'],
-        orderBy: 'createdAt desc'
-      });
-      
       const unsubscribe = onSnapshot(
         q, 
         (querySnapshot) => {
+          if (!isMounted) return;
+          
           console.log(`✅ Se encontraron ${querySnapshot.size} solicitudes de viaje`);
           
           if (querySnapshot.empty) {
@@ -328,12 +328,19 @@ function Driver() {
             return;
           }
           
-          const trips = [];
+          // Usar un Map para evitar duplicados por ID
+          const tripsMap = new Map();
           
           querySnapshot.forEach((doc) => {
             try {
               const data = doc.data();
               console.log('📝 Procesando viaje ID:', doc.id, 'Datos:', data);
+              
+              // Si ya procesamos este viaje, lo saltamos
+              if (tripsMap.has(doc.id)) {
+                console.warn(`⚠️ Intento de agregar viaje duplicado con ID: ${doc.id}`);
+                return;
+              }
               
               // Procesar coordenadas
               const originCoords = processCoords(data.origin?.coordinates);
@@ -359,57 +366,57 @@ function Driver() {
                 passengerName: data.passengerName || 'Pasajero desconocido',
                 status: data.status || 'pending',
                 createdAt: data.createdAt?.toDate() || new Date(),
-                estimatedPrice: data.estimatedPrice || 0
+                estimatedPrice: data.estimatedPrice || 0,
+                // Añadir timestamp único para forzar la actualización del componente
+                _updatedAt: Date.now()
               };
               
               console.log('📍 Viaje procesado:', {
                 id: tripData.id,
-                origin: {
-                  address: tripData.origin.address,
-                  coordinates: tripData.origin.coordinates
-                },
-                destination: {
-                  address: tripData.destination.address,
-                  coordinates: tripData.destination.coordinates
-                },
-                passenger: tripData.passengerName
+                origin: tripData.origin.address,
+                destination: tripData.destination.address,
+                passenger: tripData.passengerName,
+                updatedAt: tripData._updatedAt
               });
               
-              trips.push(tripData);
+              // Agregar al mapa usando el ID como clave
+              tripsMap.set(doc.id, tripData);
             } catch (error) {
               console.error('❌ Error al procesar el viaje:', doc.id, error);
             }
           });
           
-          // Eliminar duplicados por ID antes de actualizar el estado
-          const uniqueTrips = [];
-          const seenIds = new Set();
+          // Convertir el mapa de vuelta a un array
+          const uniqueTrips = Array.from(tripsMap.values());
           
-          trips.forEach(trip => {
-            if (!seenIds.has(trip.id)) {
-              seenIds.add(trip.id);
-              uniqueTrips.push(trip);
-            } else {
-              console.warn(`⚠️ Se encontró un viaje duplicado con ID: ${trip.id}`);
+          console.log('🚀 Viajes disponibles para mostrar:', uniqueTrips.length, 'viajes');
+          
+          // Actualizar el estado solo si hay cambios
+          setAvailableTrips(prevTrips => {
+            // Comprobar si los viajes son diferentes
+            if (JSON.stringify(prevTrips) !== JSON.stringify(uniqueTrips)) {
+              return uniqueTrips;
             }
+            return prevTrips;
           });
-          
-          console.log('🚀 Viajes disponibles para mostrar (sin duplicados):', uniqueTrips);
-          setAvailableTrips(uniqueTrips);
         },
         (error) => {
+          if (!isMounted) return;
           console.error('❌ Error en la consulta de viajes:', error);
-          setLocationError('Error al cargar las solicitudes de viaje: ' + error.message);
+          setAvailableTrips([]);
         }
       );
       
       return () => {
-        console.log('👋 Desuscribiendo del listener de viajes');
+        console.log('🧹 Limpiando suscripción a viajes pendientes');
+        isMounted = false;
         unsubscribe();
       };
     } catch (error) {
-      console.error('🔥 Error al configurar la consulta de viajes:', error);
-      setLocationError('Error al configurar la consulta: ' + error.message);
+      console.error('❌ Error al configurar la consulta de viajes:', error);
+      if (isMounted) {
+        setAvailableTrips([]);
+      }
     }
   }, [currentUser, processCoords]);
 
@@ -609,7 +616,23 @@ function Driver() {
 
       const requestData = requestDoc.data();
       
-      // 2. Crear un nuevo viaje en la colección 'trips'
+      // 2. Verificar si ya existe un viaje para esta solicitud
+      const existingTripQuery = query(
+        collection(db, 'trips'),
+        where('passengerId', '==', requestData.passengerId),
+        where('status', 'in', ['accepted', 'in_progress']),
+        limit(1)
+      );
+      
+      const existingTripSnapshot = await getDocs(existingTripQuery);
+      
+      if (!existingTripSnapshot.empty) {
+        // Ya existe un viaje activo para este pasajero
+        const existingTrip = existingTripSnapshot.docs[0].data();
+        throw new Error(`El pasajero ya tiene un viaje activo con el conductor: ${existingTrip.driverName || 'otro conductor'}`);
+      }
+      
+      // 3. Crear un nuevo viaje en la colección 'trips'
       const tripRef = await addDoc(collection(db, 'trips'), {
         status: 'accepted',
         driverId: currentUser.uid,
@@ -625,32 +648,27 @@ function Driver() {
         estimatedPrice: requestData.estimatedPrice || 0,
         estimatedDistance: requestData.estimatedDistance || 0,
         estimatedDuration: requestData.estimatedDuration || 0,
-        // Agregar información del vehículo si está disponible
         carModel: tripDetails.carModel || '',
         carPlate: tripDetails.carPlate || '',
-        // Inicializar el estado del viaje
         currentLocation: null,
         startTime: null,
         endTime: null,
         route: [],
-        // Información de pago
         paymentStatus: 'pending',
-        paymentMethod: 'cash', // Por defecto, se puede cambiar
-        // Calificación
+        paymentMethod: 'cash',
         driverRating: null,
         passengerRating: null,
-        // Notas adicionales
         notes: ''
       });
 
-      // 3. Create the chat room for this trip
+      // 4. Create the chat room for this trip
       const chatRef = doc(db, 'chats', tripRef.id);
       await setDoc(chatRef, {
         participant_uids: [currentUser.uid, requestData.passengerId],
         createdAt: serverTimestamp(),
       });
 
-      // 4. Actualizar el estado de la solicitud a 'accepted' y vincular el ID del viaje
+      // 5. Actualizar el estado de la solicitud a 'accepted' y vincular el ID del viaje
       await updateDoc(requestRef, {
         status: 'accepted',
         driverId: currentUser.uid,
@@ -660,7 +678,7 @@ function Driver() {
         tripId: tripRef.id // Vincular el ID del nuevo viaje a la solicitud original
       });
 
-      // 4. Actualizar el estado local
+      // 6. Actualizar el estado local
       const tripDoc = await getDoc(tripRef);
       if (tripDoc.exists()) {
         const data = tripDoc.data();
@@ -677,10 +695,7 @@ function Driver() {
         setAcceptedTrip(tripData);
         setActiveTab('my-trips');
         
-        // 5. Opcional: Notificar al pasajero (puedes implementar esto con Firebase Cloud Messaging)
-        // await notifyPassenger(tripData.passengerId, 'Tu viaje ha sido aceptado');
-        
-        // Mostrar mensaje de éxito
+        // 7. Mostrar mensaje de éxito
         alert(`¡Viaje aceptado! Estás en camino a recoger a ${tripData.passengerName || 'el pasajero'}.`);
       }
 
@@ -832,11 +847,12 @@ function Driver() {
       // Actualizar el estado local del viaje
       setAcceptedTrip(prev => prev ? { ...prev, status: 'completed', completedAt: now } : null);
 
-      // 2. Find and update the associated ride request
-      const updateRideRequest = async (rideRequestId) => {
-        if (!rideRequestId) {
-          console.log('No rideRequestId provided, searching for matching ride request...');
-          // Try to find the ride request by trip ID
+      // 2. Update the ride request to mark it as completed
+      const updateRideRequest = async () => {
+        try {
+          console.log('Starting to update ride request...');
+          
+          // First, try to find the ride request by tripId
           const rideRequestsQuery = query(
             collection(db, 'rideRequests'),
             where('tripId', '==', tripDoc.id),
@@ -844,49 +860,61 @@ function Driver() {
           );
           
           const querySnapshot = await getDocs(rideRequestsQuery);
-          if (!querySnapshot.empty) {
-            rideRequestId = querySnapshot.docs[0].id;
-            console.log('Found matching ride request:', rideRequestId);
-          } else {
-            console.log('No matching ride request found for this trip');
-            return; // No ride request found
-          }
-        }
-        
-        console.log('Updating ride request status to completed...');
-        const rideRequestRef = doc(db, 'rideRequests', rideRequestId);
-        
-        try {
-          // Get the current ride request
-          const rideRequestDoc = await getDoc(rideRequestRef);
+          let rideRequestRef = null;
+          let rideRequestData = null;
           
-          if (rideRequestDoc.exists()) {
-            const rideRequestData = rideRequestDoc.data();
-            console.log('Current ride request data:', rideRequestData);
+          if (!querySnapshot.empty) {
+            // Found by tripId
+            rideRequestRef = doc(db, 'rideRequests', querySnapshot.docs[0].id);
+            const rideRequestDoc = await getDoc(rideRequestRef);
+            if (rideRequestDoc.exists()) {
+              rideRequestData = rideRequestDoc.data();
+              console.log('Found ride request by tripId:', rideRequestRef.id);
+            }
+          }
+          
+          // If not found by tripId, try to find an active request for this passenger
+          if (!rideRequestRef) {
+            console.log('No ride request found by tripId, checking for active requests...');
+            const activeRequestsQuery = query(
+              collection(db, 'rideRequests'),
+              where('passengerId', '==', tripData.passengerId),
+              where('status', 'in', ['pending', 'accepted', 'in_progress']),
+              orderBy('createdAt', 'desc'),
+              limit(1)
+            );
             
-            // Create an object with the fields to update
+            const activeRequestSnapshot = await getDocs(activeRequestsQuery);
+            
+            if (!activeRequestSnapshot.empty) {
+              rideRequestRef = doc(db, 'rideRequests', activeRequestSnapshot.docs[0].id);
+              const rideRequestDoc = await getDoc(rideRequestRef);
+              if (rideRequestDoc.exists()) {
+                rideRequestData = rideRequestDoc.data();
+                console.log('Found active ride request for passenger:', rideRequestRef.id);
+              }
+            }
+          }
+          
+          // If we found a ride request, update it
+          if (rideRequestRef && rideRequestData) {
             const updateData = {
               status: 'completed',
-              completedAt: now,
+              completedAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
-              // Include fields required by security rules
+              canRate: true,
+              // Include all required fields to satisfy security rules
               driverId: rideRequestData.driverId || currentUser.uid,
-              passengerId: rideRequestData.passengerId,
+              passengerId: rideRequestData.passengerId || tripData.passengerId,
               tripId: tripDoc.id,
-              // Include additional fields that might be needed for the rules
-              origin: rideRequestData.origin,
-              destination: rideRequestData.destination,
+              origin: rideRequestData.origin || tripData.origin,
+              destination: rideRequestData.destination || tripData.destination,
               price: rideRequestData.price || 0,
               distance: rideRequestData.distance || 0,
               duration: rideRequestData.duration || 0,
               paymentMethod: rideRequestData.paymentMethod || 'cash',
-              // Mark that the passenger can rate
-              canRate: true,
-              // Include the previous status for security rules
               previousStatus: rideRequestData.status || 'in_progress',
-              // Ensure all required fields are present
               createdAt: rideRequestData.createdAt || now,
-              // Add any other required fields
               driverLocation: rideRequestData.driverLocation || null,
               endTime: now
             };
@@ -959,25 +987,17 @@ function Driver() {
         }
       };
       
-      // Try to update the ride request if we have an ID or can find one
-      await updateRideRequest(tripData.rideRequestId);
-      if (!tripData.rideRequestId) {
-        console.log('No rideRequestId provided, searching for matching ride request...');
-        // Try to find the ride request by trip ID
-        const rideRequestsQuery = query(
-          collection(db, 'rideRequests'),
-          where('tripId', '==', tripDoc.id),
-          limit(1)
-        );
-        
-        const querySnapshot = await getDocs(rideRequestsQuery);
-        if (!querySnapshot.empty) {
-          const rideRequestId = querySnapshot.docs[0].id;
-          console.log('Found matching ride request:', rideRequestId);
-          await updateRideRequest(rideRequestId);
+      // Update the ride request
+      console.log('Attempting to update ride request...');
+      try {
+        const rideRequestUpdated = await updateRideRequest();
+        if (rideRequestUpdated) {
+          console.log('Ride request update completed successfully');
         } else {
-          console.log('No matching ride request found for this trip');
+          console.log('No ride request was updated');
         }
+      } catch (error) {
+        console.error('Error in ride request update:', error);
       }
 
       // 3. Crear entrada en el historial del conductor
@@ -1596,11 +1616,24 @@ function Driver() {
               
               {/* Mostrar marcadores de viajes disponibles */}
               {availableTrips && availableTrips.length > 0 ? (
-                // Use a Set to filter out duplicate trips by ID
-                Array.from(new Map(availableTrips.map(trip => [trip.id, trip])).values())
-                .map((trip, index) => {
+                // Use a Map to filter out duplicate trips by ID and create a unique key for each marker
+                Array.from(availableTrips.reduce((map, trip) => {
+                  // Create a unique key using trip ID and timestamp to ensure uniqueness
+                  const timestamp = trip.createdAt ? 
+                    (typeof trip.createdAt.toMillis === 'function' ? 
+                      trip.createdAt.toMillis() : 
+                      trip.createdAt.getTime()) : 
+                    Date.now();
+                  const uniqueKey = `${trip.id}-${timestamp}`;
+                  if (!map.has(trip.id)) {
+                    map.set(trip.id, { ...trip, _uniqueKey: uniqueKey });
+                  }
+                  return map;
+                }, new Map()).values())
+                .map((trip) => {
                   try {
-                    const tripKey = trip.id || `trip-${index}-${Date.now()}`;
+                    // Use the unique key we created
+                    const tripKey = trip._uniqueKey;
                     console.log(`Procesando marcadores para viaje ${tripKey}:`, trip);
                     
                     // Verificar que las coordenadas sean válidas
