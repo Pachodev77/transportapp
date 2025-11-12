@@ -16,7 +16,8 @@ import {
   setDoc,
   GeoPoint,
   increment,
-  getDocs
+  getDocs,
+  getDoc
 } from 'firebase/firestore';
 import { db, runTransaction } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
@@ -113,82 +114,124 @@ export default function Passenger() {
   const [tripToRate, setTripToRate] = useState(null);
 
   // Handle rating a trip
-  const handleRateTrip = async ({ tripId, rating, comment }) => {
-    if (!currentUser) {
-      setError('Debes iniciar sesión para calificar un viaje');
+  const handleRateTrip = async (ratingData) => {
+    // Handle both object and individual parameters for backward compatibility
+    const { tripId, rating, comment = '' } = typeof ratingData === 'object' ? ratingData : { 
+      tripId: arguments[0], 
+      rating: arguments[1], 
+      comment: arguments[2] || '' 
+    };
+    
+    if (!tripId || rating === undefined) {
+      console.error('Missing required parameters for rating:', { tripId, rating });
+      setError('Faltan parámetros necesarios para calificar el viaje');
+      return;
+    }
+    if (!currentUser || !currentUser.uid) {
+      setError('No hay un usuario autenticado');
       return;
     }
 
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
+      const rideRequestRef = doc(db, 'rideRequests', tripId);
       
-      // Obtener la referencia del viaje
-      const tripRef = doc(db, 'trips', tripId);
+      // Primero obtener el documento actual para verificar su estado
+      const rideRequestDoc = await getDoc(rideRequestRef);
+      if (!rideRequestDoc.exists()) {
+        throw new Error('La solicitud de viaje no existe');
+      }
       
-      // Usar transacción para asegurar consistencia
-      await runTransaction(db, async (transaction) => {
-        // Obtener los datos actuales del viaje
-        const tripDoc = await transaction.get(tripRef);
-        if (!tripDoc.exists()) {
-          throw new Error('El viaje no existe');
-        }
-        
-        const tripData = tripDoc.data();
-        
-        // Verificar que el usuario actual sea el pasajero
-        if (tripData.passengerId !== currentUser.uid) {
-          throw new Error('No tienes permiso para calificar este viaje');
-        }
-        
-        // Verificar que el viaje esté completado o cancelado
-        if (tripData.status !== 'completed' && tripData.status !== 'cancelled') {
-          throw new Error('Solo puedes calificar viajes completados o cancelados');
-        }
-        
-        // Verificar que no se haya calificado ya
-        if (tripData.rating) {
-          throw new Error('Este viaje ya fue calificado');
-        }
-        
-        // Actualizar el viaje con la calificación
-        transaction.update(tripRef, {
-          rating,
-          comment: comment || '',
+      const rideRequestData = rideRequestDoc.data();
+      
+      // Verificar que el usuario sea el pasajero
+      if (rideRequestData.passengerId !== currentUser.uid) {
+        throw new Error('No tienes permiso para calificar este viaje');
+      }
+      
+      // Verificar que el viaje esté completado
+      if (rideRequestData.status !== 'completed') {
+        throw new Error('Solo puedes calificar viajes completados');
+      }
+      
+      // Verificar que no haya sido calificado ya por este usuario
+      const ratedBy = Array.isArray(rideRequestData.ratedBy) ? rideRequestData.ratedBy : [];
+      if (ratedBy.includes(currentUser.uid)) {
+        throw new Error('Este viaje ya fue calificado');
+      }
+      
+      // Crear el objeto de actualización
+      const updateData = {
+        rating: Number(rating),
+        comment: String(comment || ''),
+        ratedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        ratedBy: [...ratedBy, currentUser.uid],
+        canRate: false
+      };
+      
+      // Actualizar el documento
+      await updateDoc(rideRequestRef, updateData);
+      
+      // Actualizar el documento de viaje correspondiente si existe
+      if (rideRequestData.tripId) {
+        const tripRef = doc(db, 'trips', rideRequestData.tripId);
+        await updateDoc(tripRef, {
+          rating: Number(rating),
+          comment: String(comment || ''),
           ratedAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-          ratedBy: [...(tripData.ratedBy || []), currentUser.uid]
+          ratedBy: [...ratedBy, currentUser.uid]
         });
-
-        // Actualizar la calificación del conductor
-        if (tripData.driverId) {
-          const driverRef = doc(db, 'users', tripData.driverId);
-          const driverDoc = await transaction.get(driverRef);
+      }
+      
+      // Actualizar la calificación del conductor
+      if (rideRequestData.driverId) {
+        const driverRef = doc(db, 'users', rideRequestData.driverId);
+        const driverDoc = await getDoc(driverRef);
+        
+        if (driverDoc.exists()) {
+          const driverData = driverDoc.data();
+          const currentRating = Number(driverData.rating) || 0;
+          const currentRatingCount = Number(driverData.ratingCount) || 0;
+          const newRatingCount = currentRatingCount + 1;
+          const newRating = (currentRating * currentRatingCount + Number(rating)) / newRatingCount;
           
-          if (driverDoc.exists()) {
-            const driverData = driverDoc.data();
-            const newRatingCount = (driverData.ratingCount || 0) + 1;
-            const newRating = ((driverData.rating || 0) * (newRatingCount - 1) + rating) / newRatingCount;
-            
-            transaction.update(driverRef, {
-              rating: parseFloat(newRating.toFixed(1)),
-              ratingCount: newRatingCount,
-              updatedAt: serverTimestamp()
-            });
-          }
+          await updateDoc(driverRef, {
+            rating: parseFloat(newRating.toFixed(1)),
+            ratingCount: newRatingCount,
+            updatedAt: serverTimestamp()
+          });
         }
-      });
+      }
 
-      // Update local state
+      // Actualizar el estado local
       setMyBookings(prev => prev.map(booking => 
         booking.id === tripId 
-          ? { ...booking, rating, comment, status: 'completed' } 
+          ? { 
+              ...booking, 
+              rating: Number(rating), 
+              comment: String(comment || ''), 
+              status: 'completed',
+              ratedBy: [...(Array.isArray(booking.ratedBy) ? booking.ratedBy : []), currentUser.uid],
+              canRate: false
+            } 
           : booking
       ));
 
       setSuccessMessage('¡Gracias por calificar tu viaje!');
+      
+      // Cerrar el modal después de 2 segundos
+      setTimeout(() => {
+        setShowRatingModal(false);
+        setTripToRate(null);
+      }, 2000);
+      
     } catch (error) {
-      console.error('Error rating trip:', error);
-      setError('Error al calificar el viaje. Por favor, inténtalo de nuevo.');
+      console.error('Error al calificar el viaje:', error);
+      setError(`Error: ${error.message || 'No se pudo completar la calificación. Por favor, inténtalo de nuevo.'}`);
     } finally {
       setLoading(false);
     }
@@ -621,17 +664,25 @@ export default function Passenger() {
     }
   };
 
-  // Fetch available trips
+  // Fetch available trips and active trips for the passenger
   useEffect(() => {
     if (!currentUser) return;
     
-    const tripsQuery = query(
+    // Query for available trips
+    const availableTripsQuery = query(
       collection(db, 'trips'),
       where('status', '==', 'available'),
       orderBy('departureTime', 'asc')
     );
     
-    const unsubscribe = onSnapshot(tripsQuery, (snapshot) => {
+    // Query for active trips where the current user is the passenger
+    const activeTripsQuery = query(
+      collection(db, 'trips'),
+      where('passengerId', '==', currentUser.uid),
+      where('status', 'in', ['accepted', 'in_progress', 'completed'])
+    );
+    
+    const unsubscribeAvailable = onSnapshot(availableTripsQuery, (snapshot) => {
       const trips = [];
       snapshot.forEach((doc) => {
         trips.push({ id: doc.id, ...doc.data() });
@@ -639,7 +690,49 @@ export default function Passenger() {
       setAvailableTrips(trips);
     });
     
-    return () => unsubscribe();
+    const unsubscribeActive = onSnapshot(activeTripsQuery, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'modified' || change.type === 'added') {
+          const trip = { id: change.doc.id, ...change.doc.data() };
+          
+          // If trip is completed, update the UI accordingly
+          if (trip.status === 'completed') {
+            setMyBookings(prev => {
+              const existingIndex = prev.findIndex(b => b.id === trip.id);
+              
+              if (existingIndex >= 0) {
+                const updatedBookings = [...prev];
+                updatedBookings[existingIndex] = { 
+                  ...trip, 
+                  canRate: true,
+                  status: 'completed' 
+                };
+                return updatedBookings;
+              } else {
+                return [...prev, { 
+                  ...trip, 
+                  canRate: true,
+                  status: 'completed' 
+                }];
+              }
+            });
+            
+            // Update selectedTrip if it's the current trip
+            setSelectedTrip(prev => {
+              if (prev && prev.id === trip.id) {
+                return { ...trip, status: 'completed' };
+              }
+              return prev;
+            });
+          }
+        }
+      });
+    });
+    
+    return () => {
+      unsubscribeAvailable();
+      unsubscribeActive();
+    };
   }, [currentUser]);
 
   // Fetch user's ride requests and bookings
@@ -722,10 +815,12 @@ export default function Passenger() {
     );
     
     const unsubscribeRideRequests = onSnapshot(rideRequestsQuery, (snapshot) => {
+      console.log('Actualización recibida en rideRequests');
       const requests = [];
       let activeTrip = null;
       let completedTrip = null;
       
+      // First pass: process all documents
       snapshot.forEach((doc) => {
         const data = doc.data();
         // Función segura para convertir timestamps
@@ -743,42 +838,138 @@ export default function Passenger() {
           completedAt: safeToDate(data.completedAt),
           cancelledAt: safeToDate(data.cancelledAt)
         };
-        requests.push(request);
         
-        // Solo considerar como viaje activo si está en estos estados
+        console.log('Procesando solicitud:', { id: request.id, status: request.status, completedAt: request.completedAt });
+        
+        // Consider active if in these states
         if (request.status === 'accepted' || request.status === 'in_progress') {
+          console.log('Encontrado viaje activo:', request.id);
           activeTrip = request;
+          // Add to active requests
+          requests.push(request);
         }
-        // Si encontramos un viaje completado que aún no ha sido calificado
-        else if (request.status === 'completed' && !completedTrip) {
-          completedTrip = request;
+        // If we find a completed trip
+        else if (request.status === 'completed') {
+          console.log('Encontrado viaje completado:', request.id);
+          // If no completed trip yet or this one is more recent
+          if (!completedTrip || (request.completedAt && (!completedTrip.completedAt || 
+              request.completedAt > completedTrip.completedAt))) {
+            completedTrip = request;
+          }
+          // Don't add to active requests
+        } else if (request.status === 'pending') {
+          // Add pending requests to active requests
+          requests.push(request);
         }
       });
       
-      // Filtrar solicitudes para mostrar solo las activas en myRideRequests
-      const activeRequests = requests.filter(req => 
-        ['pending', 'accepted', 'in_progress'].includes(req.status)
-      );
-      
-      setMyRideRequests(activeRequests);
-      
-      // Si hay un viaje completado que necesita calificación, actualizamos el estado local
-      if (completedTrip) {
-        setMyBookings(prev => {
-          const exists = prev.some(booking => booking.id === completedTrip.id);
-          if (!exists) {
-            return [...prev, { ...completedTrip, canRate: true }];
+      // Actualizar las solicitudes activas (solo pending, accepted, in_progress)
+      setMyRideRequests(prevRequests => {
+        // Filtrar para asegurarnos de que solo hay solicitudes activas
+        const filteredRequests = requests.filter(req => {
+          const isActive = ['pending', 'accepted', 'in_progress'].includes(req.status);
+          if (!isActive && req.status === 'completed') {
+            console.log(`Filtrando viaje completado: ${req.id}`, req);
           }
-          return prev.map(booking => 
-            booking.id === completedTrip.id 
-              ? { ...booking, status: 'completed', canRate: true }
-              : booking
+          return isActive;
+        });
+        
+        // Verificar si hay cambios antes de actualizar el estado
+        if (JSON.stringify(prevRequests) === JSON.stringify(filteredRequests)) {
+          return prevRequests;
+        }
+        
+        console.log('Actualizando solicitudes activas:', filteredRequests.map(r => ({ 
+          id: r.id, 
+          status: r.status,
+          completedAt: r.completedAt 
+        })));
+        
+        // Verificar si hay solicitudes que deberían estar completadas pero no lo están
+        const shouldBeCompleted = requests.filter(req => 
+          req.status !== 'completed' && req.completedAt
+        );
+        
+        if (shouldBeCompleted.length > 0) {
+          console.warn('Se encontraron solicitudes con completedAt pero sin estado completado:', 
+            shouldBeCompleted.map(r => ({ id: r.id, status: r.status, completedAt: r.completedAt }))
           );
+        }
+        
+        return filteredRequests;
+      });
+      
+      // Manejar viajes completados
+      if (completedTrip) {
+        console.log('Viaje completado detectado:', { 
+          id: completedTrip.id, 
+          status: completedTrip.status,
+          completedAt: completedTrip.completedAt 
+        });
+        
+        // Actualizar el estado de los viajes completados
+        setMyBookings(prev => {
+          const existingIndex = prev.findIndex(b => b.id === completedTrip.id);
+          
+          // Si el viaje ya existe en el historial, actualizarlo
+          if (existingIndex >= 0) {
+            // Solo actualizar si hay cambios para evitar renderizados innecesarios
+            const existingTrip = prev[existingIndex];
+            if (existingTrip.status !== 'completed' || 
+                (completedTrip.completedAt && existingTrip.completedAt?.getTime() !== completedTrip.completedAt.getTime())) {
+              
+              const updatedBookings = [...prev];
+              updatedBookings[existingIndex] = { 
+                ...completedTrip, 
+                canRate: true,
+                status: 'completed' 
+              };
+              console.log('Actualizando viaje existente en el historial:', updatedBookings[existingIndex]);
+              return updatedBookings;
+            }
+            return prev;
+          } 
+          // Si es un viaje nuevo, agregarlo al historial
+          else {
+            const newBooking = { 
+              ...completedTrip, 
+              canRate: true,
+              status: 'completed' 
+            };
+            console.log('Agregando nuevo viaje al historial:', newBooking);
+            return [...prev, newBooking];
+          }
+        });
+        
+        // Si hay un viaje activo que coincide con el completado, quitarlo de activos
+        if (activeTrip && activeTrip.id === completedTrip.id) {
+          console.log('Eliminando viaje completado de activos:', activeTrip.id);
+          setMyRideRequests(prev => 
+            prev.filter(req => req.id !== completedTrip.id)
+          );
+        }
+        
+        // Actualizar el viaje seleccionado
+        setSelectedTrip(prev => {
+          // Solo actualizar si hay un cambio real en el estado
+          if (!prev || prev.id !== completedTrip.id || prev.status !== 'completed') {
+            console.log('Actualizando viaje seleccionado a completado:', completedTrip.id);
+            return { ...completedTrip, status: 'completed' };
+          }
+          return prev;
         });
       }
       
-      // Solo establecer el viaje seleccionado si es un viaje activo
-      setSelectedTrip(activeTrip || null);
+      // Actualizar el viaje seleccionado si hay un viaje activo
+      if (activeTrip) {
+        setSelectedTrip(prev => {
+          // Solo actualizar si hay un cambio real en el estado
+          if (!prev || prev.id !== activeTrip.id || prev.status !== activeTrip.status) {
+            return { ...activeTrip };
+          }
+          return prev;
+        });
+      }
     }, (error) => {
       console.error('Error al cargar solicitudes de viaje:', error);
       setError('Error al cargar las solicitudes de viaje');

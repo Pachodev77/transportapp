@@ -55,6 +55,10 @@ service cloud.firestore {
         allow create: if isAuthenticated() && 
                      (request.auth.uid == userId || isAdmin() || 
                       (request.auth.uid == request.resource.data.driverId && 
+                       request.resource.data.historyEntry == true) ||
+                      // Allow driver to create history for passenger
+                      (request.auth.uid == request.resource.data.driverId &&
+                       userId == request.resource.data.passengerId &&
                        request.resource.data.historyEntry == true));
         allow update: if false; // No permitir actualizaciones directas
       }
@@ -93,7 +97,11 @@ service cloud.firestore {
          // Or allow only status and IDs if using updateMask
          (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
            'status', 'driverId', 'passengerId'
-         ])))
+         ]) && 'status' in request.resource.data)) &&
+         // Ensure required fields are present
+         'endTime' in request.resource.data &&
+         'completedAt' in request.resource.data &&
+         'updatedAt' in request.resource.data
         ) ||
         
         // Driver can update trip status and location
@@ -209,7 +217,8 @@ service cloud.firestore {
           (resource.data.status == 'accepted' &&
            request.resource.data.status in ['in_progress', 'completed'] &&
            request.resource.data.driverId == request.auth.uid &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'completedAt'])) ||
+           (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'completedAt']) ||
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'completedAt', 'driverId', 'passengerId', 'tripId']))) ||
           
           // Driver can cancel an accepted or in_progress request
           (resource.data.status in ['accepted', 'in_progress'] &&
@@ -237,6 +246,59 @@ service cloud.firestore {
     }
 
     // Chat collection rules
+    // Ride requests collection rules
+    match /rideRequests/{requestId} {
+      // Allow read if authenticated and you're the passenger, driver, or admin
+      allow read: if isAuthenticated() && (
+        resource.data.passengerId == request.auth.uid ||
+        resource.data.driverId == request.auth.uid ||
+        isRole('admin')
+      );
+      
+      // Allow updates to canRate and other fields
+      allow update: if isAuthenticated() && (
+        // Allow passenger to update canRate and rating fields
+        (request.auth.uid == resource.data.passengerId && (
+          // Allow updating canRate field at any time
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canRate', 'updatedAt']) ||
+          // Allow updating rating and comment for completed trips
+          (resource.data.status == 'completed' &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'comment', 'ratedBy', 'updatedAt', 'canRate', 'ratedAt'])
+          ) ||
+          // Explicitly allow updating canRate field by itself or with other fields
+          (request.resource.data.keys().hasAll(['canRate', 'updatedAt']) &&
+           request.resource.data.diff(resource.data).affectedKeys().hasAll(['canRate', 'updatedAt']))
+        )) ||
+        // Allow driver to update status
+        (request.auth.uid == resource.data.driverId && (
+          // Allow completing the trip from either 'accepted' or 'in_progress' status
+          (request.resource.data.status == 'completed' &&
+           (resource.data.status == 'in_progress' || resource.data.status == 'accepted') &&
+           // Allow these fields to be updated during completion
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'status', 'completedAt', 'updatedAt', 'endTime', 'driverLocation', 'canRate'
+           ]) &&
+           request.resource.data.completedAt != null
+          ) ||
+          // Allow updating driver location during trip
+          (resource.data.status == 'in_progress' &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['driverLocation', 'updatedAt'])) ||
+          // Allow updating from 'accepted' to 'in_progress'
+          (resource.data.status == 'accepted' &&
+           request.resource.data.status == 'in_progress' &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']))
+        )) ||
+        // Or if it's an admin making the update
+        isRole('admin')
+      );
+      
+      // Allow create if authenticated
+      allow create: if isAuthenticated();
+      
+      // Only allow admins to delete
+      allow delete: if isRole('admin');
+    }
+    
     match /chats/{tripId} {
       // Allow read on the chat document itself if you are a participant
       allow read: if isAuthenticated() && request.auth.uid in resource.data.participant_uids;
