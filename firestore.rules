@@ -259,15 +259,19 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         // Allow passenger to update canRate and rating fields
         (request.auth.uid == resource.data.passengerId && (
-          // Allow updating canRate field at any time
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canRate', 'updatedAt']) ||
+          // Allow updating canRate field at any time, even if other fields are present
+          (request.resource.data.diff(resource.data).affectedKeys().hasAny(['canRate']) && 
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canRate', 'updatedAt'])) ||
           // Allow updating rating and comment for completed trips
           (resource.data.status == 'completed' &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'comment', 'ratedBy', 'updatedAt', 'canRate', 'ratedAt'])
-          ) ||
-          // Explicitly allow updating canRate field by itself or with other fields
-          (request.resource.data.keys().hasAll(['canRate', 'updatedAt']) &&
-           request.resource.data.diff(resource.data).affectedKeys().hasAll(['canRate', 'updatedAt']))
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'comment', 'ratedBy', 'updatedAt', 'canRate', 'ratedAt']) &&
+           (request.resource.data.rating == null || (request.resource.data.rating is number &&
+           request.resource.data.rating >= 1 &&
+           request.resource.data.rating <= 5)) &&
+           (request.resource.data.comment == null || request.resource.data.comment is string) &&
+           (request.resource.data.ratedBy == null || request.resource.data.ratedBy is list) &&
+           (request.resource.data.ratedAt == null || request.resource.data.ratedAt is timestamp)
+          )
         )) ||
         // Allow driver to update status
         (request.auth.uid == resource.data.driverId && (
@@ -276,9 +280,12 @@ service cloud.firestore {
            (resource.data.status == 'in_progress' || resource.data.status == 'accepted') &&
            // Allow these fields to be updated during completion
            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-             'status', 'completedAt', 'updatedAt', 'endTime', 'driverLocation', 'canRate'
+             'status', 'completedAt', 'updatedAt', 'endTime', 'driverLocation', 'canRate', 'driverId', 'passengerId', 'tripId'
            ]) &&
-           request.resource.data.completedAt != null
+           request.resource.data.completedAt is timestamp &&
+           request.resource.data.updatedAt is timestamp &&
+           request.resource.data.status == 'completed' &&
+           request.resource.data.canRate == true
           ) ||
           // Allow updating driver location during trip
           (resource.data.status == 'in_progress' &&
@@ -288,9 +295,22 @@ service cloud.firestore {
            request.resource.data.status == 'in_progress' &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']))
         )) ||
+        // Allow system updates (like batch operations)
+        (request.auth == null && request.auth.token.firebase.sign_in_provider == 'anonymous') ||
         // Or if it's an admin making the update
         isRole('admin')
       );
+      
+      // Allow create if authenticated and it's a new ride request
+      allow create: if isAuthenticated() && 
+                   request.resource.data.passengerId == request.auth.uid &&
+                   request.resource.data.status in ['pending', 'searching'];
+                   
+      // Allow delete only for admins or the passenger who created it (if not accepted yet)
+      allow delete: if isRole('admin') || 
+                   (isAuthenticated() && 
+                    request.auth.uid == resource.data.passengerId && 
+                    resource.data.status in ['pending', 'searching']);
       
       // Allow create if authenticated
       allow create: if isAuthenticated();
