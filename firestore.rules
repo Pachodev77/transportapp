@@ -201,9 +201,16 @@ service cloud.firestore {
       // 3. AND only specific fields can be updated
       allow update: if isAuthenticated() && (
         // Passenger can cancel their own request (from any state to cancelled)
-        (request.auth.uid == resource.data.passengerId &&
-         request.resource.data.status == 'cancelled' &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledAt', 'updatedAt', 'cancelledBy'])) ||
+        (request.auth.uid == resource.data.passengerId && (
+          // Cancel request
+          (request.resource.data.status == 'cancelled' &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledAt', 'updatedAt', 'cancelledBy'])) ||
+          
+          // Update canRate field for completed trips
+          (resource.data.status == 'completed' &&
+           request.resource.data.status == 'completed' &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canRate', 'updatedAt']))
+        )) ||
         
         // Driver can accept/cancel requests or mark as completed
         (isDriver() && (
@@ -259,46 +266,48 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         // Allow passenger to update rating-related fields for completed trips
         (request.auth.uid == resource.data.passengerId && (
-          // Allow updating canRate field at any time
-          (request.resource.data.diff(resource.data).affectedKeys().hasAny(['canRate']) && 
-           (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canRate']) || 
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canRate', 'updatedAt']))) ||
-          
-          // Allow updating rating, comment, ratedBy, canRate, ratedAt for completed trips
-          (resource.data.status == 'completed' &&
-           // Only allow updating specific rating-related fields
-           request.resource.data.diff(resource.data).affectedKeys().hasAny([
-             'rating', 'comment', 'ratedBy', 'canRate', 'ratedAt', 'updatedAt'
+          // Simple rule for rating updates
+          (resource.data.status in ['completed', 'in_progress', 'rated'] &&
+           // Only allow specific fields to be updated
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'rating', 'comment', 'ratedBy', 'canRate', 'ratedAt', 'updatedAt', 'status'
            ]) &&
-           // Validate the fields being updated
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['rating']) || 
-            (request.resource.data.rating is number &&
-             request.resource.data.rating >= 1 &&
-             request.resource.data.rating <= 5)) &&
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['comment']) || 
-            request.resource.data.comment is string) &&
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['ratedBy']) || 
-            request.resource.data.ratedBy is list) &&
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['canRate']) || 
-            request.resource.data.canRate is bool) &&
-           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['ratedAt']) || 
-            request.resource.data.ratedAt is timestamp))
+           // Basic field validation
+           (request.resource.data.rating == null || (request.resource.data.rating >= 1 && request.resource.data.rating <= 5)) &&
+           (request.resource.data.comment == null || request.resource.data.comment is string) &&
+           (request.resource.data.ratedBy == null || request.resource.data.ratedBy is list) &&
+           (request.resource.data.canRate == null || request.resource.data.canRate is bool) &&
+           (request.resource.data.ratedAt == null || request.resource.data.ratedAt is timestamp) &&
+           (request.resource.data.updatedAt is timestamp) &&
+           (request.resource.data.status == null || request.resource.data.status in ['completed', 'rated']) &&
+           // Ensure IDs don't change
+           resource.data.passengerId == request.resource.data.passengerId &&
+           resource.data.driverId == request.resource.data.driverId
+          )
         )) ||
         // Allow driver to update status
         (request.auth.uid == resource.data.driverId && (
           // Allow completing the trip from either 'accepted' or 'in_progress' status
           (request.resource.data.status == 'completed' &&
-           (resource.data.status == 'in_progress' || resource.data.status == 'accepted' || resource.data.status == 'completed') &&
+           (resource.data.status == 'in_progress' || 
+            resource.data.status == 'accepted' || 
+            resource.data.status == 'completed' ||
+            resource.data.status == 'pending') &&
            // Allow these fields to be updated during completion
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+           (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
              'status', 'completedAt', 'updatedAt', 'endTime', 'driverLocation', 'canRate', 
              'driverId', 'passengerId', 'tripId', 'origin', 'destination', 'price', 'distance',
              'duration', 'paymentMethod', 'previousStatus', 'createdAt'
-           ]) &&
+           ]) || 
+           request.resource.data.diff(resource.data).affectedKeys().hasAll([
+             'status', 'completedAt', 'updatedAt', 'canRate', 'endTime'
+           ])) &&
            request.resource.data.completedAt is timestamp &&
            request.resource.data.updatedAt is timestamp &&
            request.resource.data.status == 'completed' &&
-           request.resource.data.canRate == true
+           request.resource.data.canRate == true &&
+           // Ensure the driver is the one who accepted the request
+           (resource.data.driverId == request.auth.uid || request.resource.data.driverId == request.auth.uid)
           ) ||
           // Allow updating driver location during trip
           (resource.data.status == 'in_progress' &&

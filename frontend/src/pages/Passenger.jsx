@@ -170,36 +170,43 @@ export default function Passenger() {
         }
       }
       
-      // If still not found, try to get the trip and create a ride request if needed
-      if (!rideRequestData && tripId) {
-        const tripRef = doc(db, 'trips', tripId);
-        const tripDoc = await getDoc(tripRef);
-        
-        if (tripDoc.exists()) {
-          const tripData = tripDoc.data();
+      // Check for existing active ride request with the same origin and destination
+      const activeRequestQuery = query(
+        collection(db, 'rideRequests'),
+        where('passengerId', '==', currentUser.uid),
+        where('origin.location', '==', new GeoPoint(origin.lat, origin.lng)),
+        where('destination.location', '==', new GeoPoint(destination.lat, destination.lng)),
+        where('status', 'in', ['pending', 'accepted', 'in_progress']),
+        limit(1)
+      );
+
+      const activeRequestSnapshot = await getDocs(activeRequestQuery);
+      
+      if (!activeRequestSnapshot.empty) {
+        const existingRequest = activeRequestSnapshot.docs[0];
+        if (existingRequest.exists() && 
+            existingRequest.data().status !== 'completed' && 
+            existingRequest.data().status !== 'cancelled') {
           
-          // Create a new ride request based on trip data
-          const newRideRequest = {
-            tripId: tripId,
-            passengerId: tripData.passengerId,
-            driverId: tripData.driverId,
-            status: 'completed',
-            origin: tripData.origin,
-            destination: tripData.destination,
-            price: tripData.price || 0,
-            distance: tripData.distance || 0,
-            duration: tripData.duration || 0,
-            paymentMethod: tripData.paymentMethod || 'cash',
-            createdAt: tripData.createdAt || serverTimestamp(),
+          // Update the existing request instead of creating a new one
+          await updateDoc(existingRequest.ref, {
+            status: 'pending',
             updatedAt: serverTimestamp(),
-            canRate: true
-          };
+            price: calculatePrice(origin, destination),
+            distance: calculateDistance(origin, destination),
+            duration: calculateDuration(origin, destination)
+          });
           
-          // Add the new ride request to Firestore
-          const docRef = await addDoc(collection(db, 'rideRequests'), newRideRequest);
-          rideRequestRef = doc(db, 'rideRequests', docRef.id);
-          rideRequestData = { id: docRef.id, ...newRideRequest };
+          alert('Solicitud de viaje actualizada. Esperando a que un conductor acepte tu viaje.');
+          setLoading(false);
+          return;
         }
+      }
+      
+      // If still not found, throw an error instead of creating a new one
+      if (!rideRequestData) {
+        console.error('No se encontró la solicitud de viaje para calificar');
+        throw new Error('No se pudo encontrar la información del viaje a calificar');
       }
       
       if (!rideRequestData) {
@@ -316,64 +323,47 @@ export default function Passenger() {
       
       const timer = setTimeout(async () => {
         if (completedTrip.passengerId === currentUser.uid && completedTrip.driverId !== currentUser.uid) {
-          const rideRequestId = completedTrip.rideRequestId || completedTrip.id;
-          const rideRequestRef = doc(db, 'rideRequests', rideRequestId);
+          // First, try to find the ride request by tripId if rideRequestId is not available
+          let rideRequestId = completedTrip.rideRequestId;
+          let rideRequestRef = null;
+          
+          if (!rideRequestId) {
+            console.log('No rideRequestId found, searching by tripId:', completedTrip.id);
+            const rideRequestsQuery = query(
+              collection(db, 'rideRequests'),
+              where('tripId', '==', completedTrip.id),
+              limit(1)
+            );
+            
+            const querySnapshot = await getDocs(rideRequestsQuery);
+            if (!querySnapshot.empty) {
+              rideRequestId = querySnapshot.docs[0].id;
+              console.log('Found ride request by tripId:', rideRequestId);
+            } else {
+              console.error('No se encontró ninguna solicitud de viaje para el tripId:', completedTrip.id);
+              return;
+            }
+          }
+          
+          rideRequestRef = doc(db, 'rideRequests', rideRequestId);
           
           try {
             // Check if document exists first
             const rideRequestDoc = await getDoc(rideRequestRef);
             
-            // If document doesn't exist, create it with minimal required fields
             if (!rideRequestDoc.exists()) {
-              console.log('Documento de solicitud de viaje no encontrado, creando uno nuevo');
-              await setDoc(rideRequestRef, {
-                id: rideRequestId,
-                tripId: completedTrip.id,
-                passengerId: currentUser.uid,
-                driverId: completedTrip.driverId,
-                status: 'completed',
-                canRate: true,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-                paymentMethod: 'cash',
-                // Include any other minimal required fields
-                ...(completedTrip.origin && { origin: completedTrip.origin }),
-                ...(completedTrip.destination && { destination: completedTrip.destination }),
-                ...(completedTrip.price !== undefined && { price: completedTrip.price }),
-                ...(completedTrip.distance !== undefined && { distance: completedTrip.distance }),
-                ...(completedTrip.duration !== undefined && { duration: completedTrip.duration })
-              });
-              console.log('Nuevo documento de solicitud de viaje creado');
-            } else {
-              // Document exists, just update canRate
+              console.error('No se encontró el documento de solicitud de viaje con ID:', rideRequestId);
+              return;
+            }
+            
+            // Document exists, update canRate
+            try {
               await updateDoc(rideRequestRef, {
                 canRate: true,
                 updatedAt: serverTimestamp()
               });
-            }
-            
-            // Update local state to show the modal
-            const tripToRateWithIds = {
-              ...completedTrip,
-              rideRequestId: rideRequestId
-            };
-            
-            setTripToRate(tripToRateWithIds);
-            setShowRatingModal(true);
-            
-            // Update local state to prevent showing the modal again
-            setMyBookings(prev => 
-              prev.map(trip => 
-                trip.id === completedTrip.id 
-                  ? { ...trip, canRate: false }
-                  : trip
-              )
-            );
-            
-          } catch (error) {
-            console.error('Error al preparar la calificación del viaje:', error);
-            // Even if there's an error, we can still try to show the modal
-            try {
+              
+              // Update local state to show the modal
               const tripToRateWithIds = {
                 ...completedTrip,
                 rideRequestId: rideRequestId
@@ -390,9 +380,33 @@ export default function Passenger() {
                     : trip
                 )
               );
-            } catch (uiError) {
-              console.error('Error al mostrar el modal de calificación:', uiError);
+              
+            } catch (error) {
+              console.error('Error al preparar la calificación del viaje:', error);
+              // Even if there's an error, we can still try to show the modal
+              try {
+                const tripToRateWithIds = {
+                  ...completedTrip,
+                  rideRequestId: rideRequestId
+                };
+                
+                setTripToRate(tripToRateWithIds);
+                setShowRatingModal(true);
+                
+                // Update local state to prevent showing the modal again
+                setMyBookings(prev => 
+                  prev.map(trip => 
+                    trip.id === completedTrip.id 
+                      ? { ...trip, canRate: false }
+                      : trip
+                  )
+                );
+              } catch (uiError) {
+                console.error('Error al mostrar el modal de calificación:', uiError);
+              }
             }
+          } catch (error) {
+            console.error('Error al verificar el documento de solicitud de viaje:', error);
           }
         }
       }, 1000);
@@ -724,53 +738,67 @@ export default function Passenger() {
       return;
     }
 
-    const hasActiveRequest = myRideRequests.some(
-      (request) => request.status === 'pending' || request.status === 'accepted'
-    );
-
-    if (hasActiveRequest) {
-      setError('Ya tienes una solicitud de viaje activa.');
-      return;
-    }
-
     setLoading(true);
     setError('');
+    setSuccessMessage('');
 
     try {
-      const rideRequest = {
-        passengerId: currentUser.uid,
-        passengerName: currentUser.displayName || STRINGS.USUARIO,
-        passengerEmail: currentUser.email,
-        origin: {
-          address: origin.address,
-          coordinates: new GeoPoint(origin.lat, origin.lng)
-        },
-        destination: {
-          address: destination.address,
-          coordinates: new GeoPoint(destination.lat, destination.lng)
-        },
-        status: 'pending',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        passengerPhotoURL: currentUser.photoURL || null,
-        estimatedPrice: parseInt(suggestedPrice) || 0, // Use the suggested price
-        estimatedDistance: null, 
-        estimatedDuration: null 
-      };
+      // First, check if there's an existing ride request with the same origin and destination
+      const existingRequestQuery = query(
+        collection(db, 'rideRequests'),
+        where('passengerId', '==', currentUser.uid),
+        where('origin.coordinates', '==', new GeoPoint(origin.lat, origin.lng)),
+        where('destination.coordinates', '==', new GeoPoint(destination.lat, destination.lng)),
+        where('status', 'in', ['pending', 'accepted', 'in_progress']),
+        limit(1)
+      );
+
+      const querySnapshot = await getDocs(existingRequestQuery);
       
-      // Add the ride request to the 'rideRequests' collection
-      await addDoc(collection(db, 'rideRequests'), rideRequest);
+      if (!querySnapshot.empty) {
+        // Update existing request instead of creating a new one
+        const existingRequest = querySnapshot.docs[0];
+        await updateDoc(existingRequest.ref, {
+          status: 'pending',
+          updatedAt: serverTimestamp(),
+          estimatedPrice: parseInt(suggestedPrice) || 0
+        });
+        
+        setSuccessMessage('Solicitud de viaje actualizada. Esperando a que un conductor acepte tu viaje.');
+      } else {
+        // Create a new ride request if none exists
+        const rideRequest = {
+          passengerId: currentUser.uid,
+          passengerName: currentUser.displayName || STRINGS.USUARIO,
+          passengerEmail: currentUser.email,
+          origin: {
+            address: origin.address,
+            coordinates: new GeoPoint(origin.lat, origin.lng)
+          },
+          destination: {
+            address: destination.address,
+            coordinates: new GeoPoint(destination.lat, destination.lng)
+          },
+          status: 'pending',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          passengerPhotoURL: currentUser.photoURL || null,
+          estimatedPrice: parseInt(suggestedPrice) || 0,
+          estimatedDistance: null,
+          estimatedDuration: null
+        };
+        
+        await addDoc(collection(db, 'rideRequests'), rideRequest);
+        setSuccessMessage('¡Tu solicitud de viaje ha sido publicada! Un conductor la aceptará pronto.');
+      }
       
       // Reset the form
       setOrigin(null);
       setDestination(null);
       
-      setSuccessMessage('¡Tu solicitud de viaje ha sido publicada! Un conductor la aceptará pronto.');
-      
     } catch (error) {
-      console.error(STRINGS.ERROR_SOLICITAR_VIAJE, error);
-      alert(`Error al crear el viaje: ${error.message}`); // Added alert
-      setError(STRINGS.ERROR_OCURRIDO_SOLICITAR_VIAJE);
+      console.error('Error al procesar la solicitud de viaje:', error);
+      setError(error.message || 'Ocurrió un error al procesar tu solicitud. Por favor, inténtalo de nuevo.');
     } finally {
       setLoading(false);
     }
