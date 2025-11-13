@@ -267,33 +267,29 @@ service cloud.firestore {
           (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canRate', 'updatedAt']) &&
            request.resource.data.updatedAt is timestamp) ||
           
-          // Rule 2: Allow updating rating fields for completed trips
-          ((resource.data.status in ['completed', 'in_progress', 'rated'] || request.resource.data.status == 'completed') &&
-           // Only allow specific fields to be updated
-           (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-             'rating', 'comment', 'ratedBy', 'canRate', 'ratedAt', 'updatedAt', 'status'
-           ]) || 
-           // Allow updating from in_progress to completed with rating
-           (request.resource.data.status == 'completed' && 
-            resource.data.status == 'in_progress' &&
-            request.resource.data.diff(resource.data).hasAll([
-              'status', 'rating', 'comment', 'ratedBy', 'canRate', 'ratedAt', 'updatedAt'
-            ])) ||
-           // Allow minimal rating update with just rating and updatedAt
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'updatedAt']) ||
-           // Allow updating canRate with updatedAt
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canRate', 'updatedAt'])) &&
-           // Basic field validation
-           (request.resource.data.rating == null || (request.resource.data.rating >= 1 && request.resource.data.rating <= 5)) &&
-           (request.resource.data.comment == null || request.resource.data.comment is string) &&
-           (request.resource.data.ratedBy == null || request.resource.data.ratedBy is list) &&
-           (request.resource.data.canRate == null || request.resource.data.canRate is bool) &&
-           (request.resource.data.ratedAt == null || request.resource.data.ratedAt is timestamp) &&
-           (request.resource.data.updatedAt is timestamp) &&
-           (request.resource.data.status == null || request.resource.data.status in ['completed', 'rated']) &&
-           // Ensure IDs don't change
-           (resource.data.passengerId == request.resource.data.passengerId) &&
-           (resource.data.driverId == request.resource.data.driverId))
+          // Rule 2: Allow updating rating fields for completed or accepted trips
+          ((resource.data.status in ['completed', 'in_progress', 'rated', 'accepted'] || 
+            request.resource.data.status in ['completed', 'rated']) &&
+          
+          // Allow any combination of rating-related fields
+          (request.resource.data.rating != null ||
+           request.resource.data.comment != null ||
+           request.resource.data.ratedBy != null ||
+           request.resource.data.ratedAt != null ||
+           request.resource.data.status == 'rated' ||
+           request.resource.data.canRate != null) &&
+          
+          // Basic field validation
+          (request.resource.data.rating == null || (request.resource.data.rating >= 1 && request.resource.data.rating <= 5)) &&
+          (request.resource.data.comment == null || request.resource.data.comment is string) &&
+          (request.resource.data.ratedBy == null || request.resource.data.ratedBy is list) &&
+          (request.resource.data.canRate == null || request.resource.data.canRate is bool) &&
+          (request.resource.data.ratedAt == null || request.resource.data.ratedAt is timestamp) &&
+          (request.resource.data.updatedAt is timestamp) &&
+          (request.resource.data.status == null || request.resource.data.status in ['completed', 'rated']) &&
+          // Ensure IDs don't change
+          (resource.data.passengerId == request.resource.data.passengerId) &&
+          (resource.data.driverId == request.resource.data.driverId))
         )) ||
         
         // Allow driver to update status to completed with all necessary fields
