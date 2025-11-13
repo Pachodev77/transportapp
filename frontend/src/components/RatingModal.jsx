@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaStar } from 'react-icons/fa';
 
-const RatingModal = ({ isOpen, onClose, onSubmit, tripId }) => {
+const RatingModal = ({ isOpen, onClose, onSubmit, tripId, rideRequestId }) => {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -13,7 +13,7 @@ const RatingModal = ({ isOpen, onClose, onSubmit, tripId }) => {
     
     setIsSubmitting(true);
     try {
-      await onSubmit({ tripId, rating, comment });
+      await onSubmit({ tripId, rideRequestId, rating, comment });
       onClose();
     } catch (error) {
       console.error('Error submitting rating:', error);

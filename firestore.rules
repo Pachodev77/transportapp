@@ -85,22 +85,26 @@ service cloud.firestore {
       
       // Allow updates to status by driver or passenger, or admin
       allow update: if isAuthenticated() && (
-        // Driver can complete the trip (from in_progress or accepted to completed)
+        // Rule 1: Allow updating rideRequestId and related fields
         (request.auth.uid == resource.data.driverId &&
-         resource.data.status in ['in_progress', 'accepted'] &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rideRequestId', 'updatedAt']) &&
+         'updatedAt' in request.resource.data) ||
+        
+        // Rule 2: Driver can complete the trip (from in_progress or accepted to completed)
+        (request.auth.uid == resource.data.driverId &&
+         resource.data.status in ['in_progress', 'accepted', 'pending', 'searching', 'completed'] &&
          request.resource.data.status == 'completed' &&
          // Allow all fields that might be updated during completion
          (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
            'status', 'endTime', 'updatedAt', 'completedAt', 'driverLocation', 
-           'driverId', 'passengerId', 'currentLocation', 'route', 'paymentStatus'
+           'driverId', 'passengerId', 'currentLocation', 'route', 'paymentStatus',
+           'rideRequestId'
          ]) || 
          // Or allow only status and IDs if using updateMask
          (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-           'status', 'driverId', 'passengerId'
-         ]) && 'status' in request.resource.data)) &&
+           'status', 'driverId', 'passengerId', 'rideRequestId', 'updatedAt'
+         ]))) &&
          // Ensure required fields are present
-         'endTime' in request.resource.data &&
-         'completedAt' in request.resource.data &&
          'updatedAt' in request.resource.data
         ) ||
         
@@ -201,16 +205,9 @@ service cloud.firestore {
       // 3. AND only specific fields can be updated
       allow update: if isAuthenticated() && (
         // Passenger can cancel their own request (from any state to cancelled)
-        (request.auth.uid == resource.data.passengerId && (
-          // Cancel request
-          (request.resource.data.status == 'cancelled' &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledAt', 'updatedAt', 'cancelledBy'])) ||
-          
-          // Update canRate field for completed trips
-          (resource.data.status == 'completed' &&
-           request.resource.data.status == 'completed' &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canRate', 'updatedAt']))
-        )) ||
+        (request.auth.uid == resource.data.passengerId &&
+         request.resource.data.status == 'cancelled' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledAt', 'updatedAt', 'cancelledBy'])) ||
         
         // Driver can accept/cancel requests or mark as completed
         (isDriver() && (
@@ -266,12 +263,26 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         // Allow passenger to update rating-related fields for completed trips
         (request.auth.uid == resource.data.passengerId && (
-          // Simple rule for rating updates
-          (resource.data.status in ['completed', 'in_progress', 'rated'] &&
+          // Rule 1: Allow updating canRate field for any status
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canRate', 'updatedAt']) &&
+           request.resource.data.updatedAt is timestamp) ||
+          
+          // Rule 2: Allow updating rating fields for completed trips
+          ((resource.data.status in ['completed', 'in_progress', 'rated'] || request.resource.data.status == 'completed') &&
            // Only allow specific fields to be updated
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+           (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
              'rating', 'comment', 'ratedBy', 'canRate', 'ratedAt', 'updatedAt', 'status'
-           ]) &&
+           ]) || 
+           // Allow updating from in_progress to completed with rating
+           (request.resource.data.status == 'completed' && 
+            resource.data.status == 'in_progress' &&
+            request.resource.data.diff(resource.data).hasAll([
+              'status', 'rating', 'comment', 'ratedBy', 'canRate', 'ratedAt', 'updatedAt'
+            ])) ||
+           // Allow minimal rating update with just rating and updatedAt
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'updatedAt']) ||
+           // Allow updating canRate with updatedAt
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['canRate', 'updatedAt'])) &&
            // Basic field validation
            (request.resource.data.rating == null || (request.resource.data.rating >= 1 && request.resource.data.rating <= 5)) &&
            (request.resource.data.comment == null || request.resource.data.comment is string) &&
@@ -281,33 +292,78 @@ service cloud.firestore {
            (request.resource.data.updatedAt is timestamp) &&
            (request.resource.data.status == null || request.resource.data.status in ['completed', 'rated']) &&
            // Ensure IDs don't change
-           resource.data.passengerId == request.resource.data.passengerId &&
-           resource.data.driverId == request.resource.data.driverId
-          )
+           (resource.data.passengerId == request.resource.data.passengerId) &&
+           (resource.data.driverId == request.resource.data.driverId))
         )) ||
-        // Allow driver to update status
+        
+        // Allow driver to update status to completed with all necessary fields
+        (request.auth.uid == resource.data.driverId && (
+          // Rule 1: Allow completing the trip from various statuses with all necessary fields
+          (request.resource.data.status == 'completed' &&
+           (resource.data.status == 'in_progress' || 
+            resource.data.status == 'accepted' || 
+            resource.data.status == 'completed' ||
+            resource.data.status == 'pending' ||
+            resource.data.status == 'searching') &&
+           // Allow all necessary fields to be updated during completion
+           (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'status', 'completedAt', 'updatedAt', 'canRate', 'tripId', 'endTime', 'driverId', 'passengerId'
+           ]) ||
+           // Allow the exact set of fields being updated in handleCompleteTrip
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'status', 'completedAt', 'updatedAt', 'canRate', 'endTime'
+           ]) ||
+           // Fallback for minimal update
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+             'status', 'updatedAt'
+           ])) &&
+           // Field validation
+           (request.resource.data.completedAt == null || request.resource.data.completedAt is timestamp) &&
+           (request.resource.data.updatedAt is timestamp) &&
+           (request.resource.data.canRate == null || request.resource.data.canRate == true) &&
+           // Allow tripId to be set or updated
+           (request.resource.data.tripId == null || request.resource.data.tripId is string) &&
+           // Ensure passengerId doesn't change if it exists
+           (resource.data.passengerId == null || resource.data.passengerId == request.resource.data.passengerId) &&
+           // Ensure driver ID matches the authenticated user
+           (resource.data.driverId == request.auth.uid)
+          ) ||
+          
+          // Rule 2: Allow updating other driver-specific fields
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'driverLocation', 'status', 'updatedAt'
+          ]) &&
+          request.resource.data.updatedAt is timestamp)
+        )) ||
+        // Allow driver to update status (legacy rule - can be removed if not needed)
         (request.auth.uid == resource.data.driverId && (
           // Allow completing the trip from either 'accepted' or 'in_progress' status
           (request.resource.data.status == 'completed' &&
            (resource.data.status == 'in_progress' || 
             resource.data.status == 'accepted' || 
             resource.data.status == 'completed' ||
-            resource.data.status == 'pending') &&
+            resource.data.status == 'pending' ||
+            resource.data.status == 'searching') &&
            // Allow these fields to be updated during completion
            (request.resource.data.diff(resource.data).affectedKeys().hasOnly([
              'status', 'completedAt', 'updatedAt', 'endTime', 'driverLocation', 'canRate', 
              'driverId', 'passengerId', 'tripId', 'origin', 'destination', 'price', 'distance',
-             'duration', 'paymentMethod', 'previousStatus', 'createdAt'
+             'duration', 'paymentMethod', 'previousStatus', 'createdAt', 'canRate', 'driverName',
+             'driverPhotoURL', 'passengerName', 'passengerPhotoURL', 'vehicleInfo'
            ]) || 
-           request.resource.data.diff(resource.data).affectedKeys().hasAll([
+           request.resource.data.diff(resource.data).hasAll([
              'status', 'completedAt', 'updatedAt', 'canRate', 'endTime'
-           ])) &&
-           request.resource.data.completedAt is timestamp &&
-           request.resource.data.updatedAt is timestamp &&
-           request.resource.data.status == 'completed' &&
-           request.resource.data.canRate == true &&
+           ]) ||
+           // Allow minimal update with just status and timestamps
+           request.resource.data.diff(resource.data).hasOnly(['status', 'completedAt', 'updatedAt', 'canRate'])) &&
+           (request.resource.data.completedAt == null || request.resource.data.completedAt is timestamp) &&
+           (request.resource.data.updatedAt is timestamp) &&
+           (request.resource.data.status == 'completed') &&
+           (request.resource.data.canRate == null || request.resource.data.canRate == true) &&
            // Ensure the driver is the one who accepted the request
-           (resource.data.driverId == request.auth.uid || request.resource.data.driverId == request.auth.uid)
+           (resource.data.driverId == request.auth.uid || 
+            request.resource.data.driverId == request.auth.uid ||
+            (resource.data.driverId == null && request.resource.data.driverId == request.auth.uid))
           ) ||
           // Allow updating driver location during trip
           (resource.data.status == 'in_progress' &&
@@ -339,6 +395,49 @@ service cloud.firestore {
       
       // Only allow admins to delete
       allow delete: if isRole('admin');
+    }
+    
+    match /users/{userId} {
+      // Allow users to read and write their own user document
+      allow read, update, delete: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.uid;
+      
+      // Allow admins to read any user document
+      allow read: if isRole('admin');
+      
+      // Rules for tripHistory subcollection
+      match /tripHistory/{tripId} {
+        // Allow users to read their own trip history
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+        
+        // Allow creating/updating trip history if:
+        // 1. The user is the driver or passenger of the trip
+        // 2. The trip is being marked as completed
+        allow create, update: if isAuthenticated() && (
+          // Rule 1: Allow the driver to create/update their own trip history
+          (request.auth.uid == request.resource.data.driverId &&
+           request.resource.data.status == 'completed' &&
+           (request.resource.data.completedAt is timestamp || request.resource.data.completedAt == null)) ||
+          
+          // Rule 2: Allow the driver to create/update the passenger's trip history
+          (request.auth.uid == resource.data.get('driverId', '') &&
+           userId == request.resource.data.passengerId &&
+           request.resource.data.status == 'completed' &&
+           (request.resource.data.completedAt is timestamp || request.resource.data.completedAt == null)) ||
+          
+          // Rule 3: Allow the passenger to update their own trip history
+          (request.auth.uid == userId &&
+           request.resource.data.status == 'completed' &&
+           (request.resource.data.completedAt is timestamp || request.resource.data.completedAt == null)) ||
+           
+          // Rule 4: Allow updating with minimal fields
+          (request.auth.uid in [resource.data.get('driverId', ''), userId] &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']))
+        );
+        
+        // Allow admins to manage trip history
+        allow read, write: if isRole('admin');
+      }
     }
     
     match /chats/{tripId} {

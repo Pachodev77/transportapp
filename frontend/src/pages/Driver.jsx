@@ -845,195 +845,209 @@ function Driver() {
       // Actualizar el estado local del viaje
       setAcceptedTrip(prev => prev ? { ...prev, status: 'completed', completedAt: now } : null);
 
-      // 3. Update the ride request to mark it as completed
+      // 3. Actualizar la solicitud de viaje asociada
       const updateRideRequest = async () => {
         try {
-          console.log('Starting to update ride request...');
+          console.log('Buscando solicitud de viaje asociada...');
           let rideRequestRef = null;
           let rideRequestData = null;
-          let rideRequestId = tripData.rideRequestId;
           
-          // First, try to find the ride request by rideRequestId from trip data
-          if (rideRequestId) {
-            console.log('Using rideRequestId from trip data:', rideRequestId);
-            rideRequestRef = doc(db, 'rideRequests', rideRequestId);
+          // Primero intentar por rideRequestId del viaje
+          if (tripData.rideRequestId) {
+            rideRequestRef = doc(db, 'rideRequests', tripData.rideRequestId);
             const rideRequestDoc = await getDoc(rideRequestRef);
+            if (rideRequestDoc.exists()) {
+              rideRequestData = rideRequestDoc.data();
+              console.log('Solicitud de viaje encontrada por rideRequestId:', rideRequestRef.id, 'con tripId:', rideRequestData.tripId);
+              return { rideRequestRef, rideRequestData };
+            }
+          }
+          
+          // Si no se encuentra, buscar por tripId
+          if (tripId) {
+            console.log('Buscando solicitud por tripId:', tripId);
+            const rideRequestsQuery = query(
+              collection(db, 'rideRequests'),
+              where('tripId', '==', tripId),
+              limit(1)
+            );
             
-            if (rideRequestDoc.exists()) {
-              rideRequestData = rideRequestDoc.data();
-              console.log('Found ride request by rideRequestId:', rideRequestRef.id);
-              return { rideRequestRef, rideRequestData, rideRequestId };
-            }
-            console.log('No ride request found with rideRequestId, trying other methods...');
-          }
-          
-          // If not found by rideRequestId, try to find by tripId
-          console.log('Trying to find ride request by tripId:', tripId);
-          const rideRequestsQuery = query(
-            collection(db, 'rideRequests'),
-            where('tripId', '==', tripId),
-            limit(1)
-          );
-          
-          const querySnapshot = await getDocs(rideRequestsQuery);
-          if (!querySnapshot.empty) {
-            rideRequestRef = doc(db, 'rideRequests', querySnapshot.docs[0].id);
-            const rideRequestDoc = await getDoc(rideRequestRef);
-            if (rideRequestDoc.exists()) {
-              rideRequestData = rideRequestDoc.data();
-              rideRequestId = rideRequestRef.id;
-              console.log('Found ride request by tripId:', rideRequestId);
-              
-              // Update the trip with the found rideRequestId if not set
-              if (!tripData.rideRequestId) {
-                await updateDoc(tripRef, {
-                  rideRequestId: rideRequestId,
-                  updatedAt: serverTimestamp()
-                });
+            const querySnapshot = await getDocs(rideRequestsQuery);
+            if (!querySnapshot.empty) {
+              rideRequestRef = doc(db, 'rideRequests', querySnapshot.docs[0].id);
+              const rideRequestDoc = await getDoc(rideRequestRef);
+              if (rideRequestDoc.exists()) {
+                rideRequestData = rideRequestDoc.data();
+                console.log('Solicitud de viaje encontrada por tripId:', rideRequestRef.id, 'con datos:', rideRequestData);
+                
+                // Actualizar el rideRequestId en el viaje si no está establecido
+                if (!tripData.rideRequestId && rideRequestRef?.id) {
+                  console.log('Actualizando rideRequestId en el viaje:', rideRequestRef.id);
+                  try {
+                    await updateDoc(tripRef, {
+                      rideRequestId: rideRequestRef.id,
+                      updatedAt: serverTimestamp()
+                    });
+                    console.log('rideRequestId actualizado exitosamente en el viaje');
+                  } catch (updateError) {
+                    console.error('Error actualizando rideRequestId en el viaje:', updateError);
+                    // Continuar aunque falle esta actualización
+                  }
+                }
+                
+                return { rideRequestRef, rideRequestData };
               }
-              
-              return { rideRequestRef, rideRequestData, rideRequestId };
             }
           }
           
-          // If still not found, try to find an active request for this passenger
-          console.log('No ride request found by tripId, checking for active requests for passenger:', tripData.passengerId);
-          const activeRequestsQuery = query(
-            collection(db, 'rideRequests'),
-            where('passengerId', '==', tripData.passengerId),
-            where('status', 'in', ['accepted', 'in_progress']),
-            orderBy('createdAt', 'desc'),
-            limit(1)
-          );
-          
-          const activeRequestSnapshot = await getDocs(activeRequestsQuery);
-          if (!activeRequestSnapshot.empty) {
-            rideRequestRef = doc(db, 'rideRequests', activeRequestSnapshot.docs[0].id);
-            const rideRequestDoc = await getDoc(rideRequestRef);
-            if (rideRequestDoc.exists()) {
-              rideRequestData = rideRequestDoc.data();
-              rideRequestId = rideRequestRef.id;
-              console.log('Found active ride request for passenger:', rideRequestId);
-              
-              // Update the trip with the found rideRequestId if not set
-              if (!tripData.rideRequestId) {
-                await updateDoc(tripRef, {
-                  rideRequestId: rideRequestId,
-                  updatedAt: serverTimestamp()
-                });
-              }
-              
-              return { rideRequestRef, rideRequestData, rideRequestId };
-            }
-          }
-          
-          console.log('No ride request found to update');
-          return { rideRequestRef: null, rideRequestData: null, rideRequestId: null };
+          console.log('No se encontró ninguna solicitud de viaje asociada');
+          return { rideRequestRef: null, rideRequestData: null };
           
         } catch (error) {
-          console.error('Error finding ride request:', error);
-          return { rideRequestRef: null, rideRequestData: null, rideRequestId: null };
+          console.error('Error buscando solicitud de viaje:', error);
+          return { rideRequestRef: null, rideRequestData: null };
         }
       };
       
-      // Find and update the ride request
-      const { rideRequestRef, rideRequestData, rideRequestId } = await updateRideRequest();
+      // Buscar y actualizar la solicitud de viaje
+      const { rideRequestRef, rideRequestData } = await updateRideRequest();
       
       if (rideRequestRef && rideRequestData) {
         try {
-          // Only update if not already completed
+          // Solo actualizar si no está ya completada
           if (rideRequestData.status !== 'completed') {
+            // Only update the specific fields we need
             const updateData = {
-              status: 'completed',
-              completedAt: now,
-              updatedAt: now,
-              canRate: true,
-              tripId: tripDoc.id,
-              driverId: currentUser.uid,
-              passengerId: tripData.passengerId,
-              origin: rideRequestData.origin || tripData.origin || {},
-              destination: rideRequestData.destination || tripData.destination || {},
-              price: rideRequestData.price || tripData.price || 0,
-              distance: rideRequestData.distance || tripData.distance || 0,
-              duration: rideRequestData.duration || tripData.duration || 0,
-              paymentMethod: rideRequestData.paymentMethod || tripData.paymentMethod || 'cash',
-              endTime: now
+              'status': 'completed',
+              'completedAt': serverTimestamp(),
+              'updatedAt': serverTimestamp(),
+              'canRate': true,
+              'endTime': serverTimestamp()
+              // Don't update driverId and passengerId as they shouldn't change
             };
             
-            console.log('Updating ride request with data:', updateData);
+            // Only update tripId if it's not already set and doesn't conflict with rideRequestId
+            if (!rideRequestData.tripId && rideRequestRef.id !== tripDoc.id) {
+              updateData.tripId = tripDoc.id;
+              console.log('Actualizando tripId en la solicitud de viaje:', tripDoc.id);
+            } else if (rideRequestRef.id === tripDoc.id) {
+              console.warn('El tripId y el rideRequestId son iguales, omitiendo actualización para evitar conflicto');
+            }
             
-            // Use a transaction to ensure atomic updates
-            await runTransaction(db, async (transaction) => {
-              // Get the current document to ensure it hasn't been modified
-              const rideRequestSnapshot = await transaction.get(rideRequestRef);
-              if (!rideRequestSnapshot.exists()) {
-                throw new Error('El documento de solicitud de viaje ya no existe');
-              }
-              
-              // Only update if the status is not already completed
-              const currentData = rideRequestSnapshot.data();
-              if (currentData.status === 'completed') {
-                console.log('Ride request already completed in transaction, skipping update');
-                return;
-              }
-              
-              // Update the ride request
-              transaction.update(rideRequestRef, updateData);
-              
-              // Also update the trip document if needed
-              if (!tripData.rideRequestId) {
-                transaction.update(tripRef, {
-                  rideRequestId: rideRequestRef.id,
-                  updatedAt: serverTimestamp()
-                });
-              }
-            });
+            console.log('Actualizando solicitud de viaje con campos específicos:', updateData);
             
-            console.log('Ride request updated successfully');
+            try {
+              // Update the ride request with only the specific fields
+              await updateDoc(rideRequestRef, updateData);
+              console.log('Solicitud de viaje actualizada exitosamente');
+            } catch (updateError) {
+              console.error('Error al actualizar la solicitud de viaje:', updateError);
+              // Try a more minimal update as fallback
+              try {
+                // First, try with minimal fields
+                const minimalUpdate = {
+                  'status': 'completed',
+                  'updatedAt': serverTimestamp()
+                };
+                console.log('Intentando actualización mínima con:', minimalUpdate);
+                await updateDoc(rideRequestRef, minimalUpdate);
+                console.log('Actualización mínima de la solicitud de viaje exitosa');
+              } catch (minError1) {
+                console.error('Error en la primera actualización mínima:', minError1);
+                
+                // If that fails, try with just the status field
+                try {
+                  console.log('Intentando actualización con solo el estado...');
+                  await updateDoc(rideRequestRef, {
+                    'status': 'completed'
+                  });
+                  console.log('Actualización de solo estado exitosa');
+                } catch (minError2) {
+                  console.error('Error en la actualización de solo estado:', minError2);
+                  
+                  // If that still fails, log the error but don't block the rest of the function
+                  console.warn('No se pudo actualizar la solicitud de viaje, pero continuando con el proceso...');
+                }
+              }
+            }
+            
+            // Asegurarse de que el viaje tenga el rideRequestId
+            if (!tripData.rideRequestId) {
+              await updateDoc(tripRef, {
+                rideRequestId: rideRequestRef.id,
+                updatedAt: serverTimestamp()
+              });
+            }
+            
+            console.log('Solicitud de viaje actualizada correctamente');
           } else {
-            console.log('Ride request already marked as completed');
+            console.log('La solicitud de viaje ya estaba marcada como completada');
           }
         } catch (error) {
-          console.error('Error updating ride request:', error);
-          // Try a simpler update if the transaction fails
-          try {
-            await updateDoc(rideRequestRef, {
-              status: 'completed',
-              updatedAt: serverTimestamp(),
-              canRate: true
-            });
-            console.log('Successfully updated ride request with minimal data');
-          } catch (simpleError) {
-            console.error('Error with simple ride request update:', simpleError);
-          }
+          console.error('Error actualizando solicitud de viaje:', error);
+          // Continuar aunque falle la actualización de la solicitud
         }
       }
 
       // 4. Actualizar historial y contadores
       console.log('Actualizando historial y contadores...');
       
-      // Actualizar historial del conductor
-      const driverHistoryRef = doc(collection(db, 'users', currentUser.uid, 'tripHistory'), tripId);
-      await setDoc(driverHistoryRef, {
-        ...tripData,
-        status: 'completed',
-        completedAt: now,
-        endTime: now,
-        updatedAt: now,
-        historyEntry: true
-      }, { merge: true });
-      
-      // Actualizar historial del pasajero
-      const passengerHistoryRef = doc(collection(db, 'users', tripData.passengerId, 'tripHistory'), tripId);
-      await setDoc(passengerHistoryRef, {
-        ...tripData,
-        status: 'completed',
-        completedAt: now,
-        endTime: now,
-        updatedAt: now,
-        historyEntry: true,
-        canRate: true
-      }, { merge: true });
+      try {
+        // Ensure we have the correct tripId (use the one from the document if available)
+        const actualTripId = tripDoc.id || tripId;
+        console.log('Usando tripId para historial:', actualTripId);
+        
+        // Create the trip history data object with only the necessary fields
+        const tripHistoryData = {
+          id: actualTripId,
+          driverId: tripData.driverId,
+          passengerId: tripData.passengerId,
+          status: 'completed',
+          completedAt: serverTimestamp(),
+          endTime: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          startTime: tripData.startTime || now,
+          origin: tripData.origin || {},
+          destination: tripData.destination || {},
+          price: tripData.price || 0,
+          distance: tripData.distance || 0,
+          duration: tripData.duration || 0,
+          paymentMethod: tripData.paymentMethod || 'cash',
+          rideRequestId: tripData.rideRequestId || (rideRequestRef ? rideRequestRef.id : null),
+          historyEntry: true,
+          canRate: true
+        };
+        
+        // Log the data we're about to save
+        console.log('Datos del historial de viaje:', JSON.stringify(tripHistoryData, null, 2));
+        
+        // Update driver's trip history
+        const driverHistoryRef = doc(db, 'users', currentUser.uid, 'tripHistory', actualTripId);
+        console.log('Actualizando historial del conductor:', { 
+          driverId: currentUser.uid,
+          tripId: actualTripId,
+          data: tripHistoryData 
+        });
+        
+        await setDoc(driverHistoryRef, tripHistoryData, { merge: true });
+        console.log('Historial del conductor actualizado exitosamente');
+        
+        // Update passenger's trip history if passenger exists
+        if (tripData.passengerId) {
+          const passengerHistoryRef = doc(db, 'users', tripData.passengerId, 'tripHistory', actualTripId);
+          console.log('Actualizando historial del pasajero:', { 
+            passengerId: tripData.passengerId,
+            tripId: actualTripId,
+            data: tripHistoryData 
+          });
+          
+          await setDoc(passengerHistoryRef, tripHistoryData, { merge: true });
+          console.log('Historial del pasajero actualizado exitosamente');
+        }
+      } catch (historyError) {
+        console.error('Error al actualizar el historial del viaje:', historyError);
+        // Continue with the rest of the function even if history update fails
+      }
       
       // Actualizar contador de viajes completados del conductor
       const driverRef = doc(db, 'users', currentUser.uid);
