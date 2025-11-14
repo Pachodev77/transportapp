@@ -99,7 +99,7 @@ facebookProvider.setCustomParameters({
 
 // Firestore collections
 export const usersCollection = collection(db, 'users');
-export const tripsCollection = collection(db, 'trips');
+export const rideRequestsCollection = collection(db, 'rideRequests');
 export const bookingsCollection = collection(db, 'bookings');
 
 // Rate limiting
@@ -204,45 +204,45 @@ export const createOrUpdateUser = async (userId, userData, merge = true) => {
 };
 
 /**
- * Create a new trip
- * @param {Object} tripData - Trip data
- * @returns {Promise<Object>} Created trip with ID
+ * Create a new ride request
+ * @param {Object} rideRequestData - Ride request data
+ * @returns {Promise<Object>} Created ride request with ID
  */
-export const createTrip = async (tripData) => {
+export const createRideRequest = async (rideRequestData) => {
   return withRateLimit(async () => {
     try {
-      const tripRef = doc(tripsCollection);
+      const rideRequestRef = doc(rideRequestsCollection);
       const now = serverTimestamp();
       
-      const tripWithMetadata = {
+      const rideRequestWithMetadata = {
         status: 'pending', // Default status
-        ...tripData,      // User-provided data overrides default
+        ...rideRequestData,      // User-provided data overrides default
         createdAt: now,
         updatedAt: now,
       };
       
-      await setDoc(tripRef, tripWithMetadata);
+      await setDoc(rideRequestRef, rideRequestWithMetadata);
       
       // Get the created document with ID
-      const createdTrip = await getDoc(tripRef);
-      return { id: createdTrip.id, ...createdTrip.data() };
+      const createdRideRequest = await getDoc(rideRequestRef);
+      return { id: createdRideRequest.id, ...createdRideRequest.data() };
     } catch (error) {
-      console.error('Error creating trip:', error);
+      console.error('Error creating ride request:', error);
       throw error;
     }
   });
 };
 
 /**
- * Get trips by status with pagination
- * @param {string} status - Trip status to filter by
+ * Get ride requests by status with pagination
+ * @param {string} status - Ride request status to filter by
  * @param {Object} options - Options object
  * @param {number} options.limit - Number of items per page (default: 10)
  * @param {DocumentSnapshot} options.lastDoc - Last document for pagination
  * @param {string[]} options.fields - Fields to return (empty for all)
- * @returns {Promise<{trips: Array, lastDoc: DocumentSnapshot}>}
+ * @returns {Promise<{rideRequests: Array, lastDoc: DocumentSnapshot}>}
  */
-export const getTripsByStatus = async (status, { 
+export const getRideRequestsByStatus = async (status, { 
   limit: pageSize = 10, 
   lastDoc = null,
   fields = []
@@ -250,7 +250,7 @@ export const getTripsByStatus = async (status, {
   try {
     checkRateLimit();
     let q = query(
-      tripsCollection,
+      rideRequestsCollection,
       where('status', '==', status),
       orderBy('createdAt', 'desc'),
       limit(pageSize)
@@ -271,7 +271,7 @@ export const getTripsByStatus = async (status, {
       querySnapshot = await getDocs(q);
     }
 
-    const trips = querySnapshot.docs.map(doc => {
+    const rideRequests = querySnapshot.docs.map(doc => {
       const data = doc.data();
       // Filter fields if specified
       if (fields.length > 0) {
@@ -289,32 +289,32 @@ export const getTripsByStatus = async (status, {
     });
 
     return {
-      trips,
+      rideRequests,
       lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1] || null
     };
   } catch (error) {
-    console.error('Error getting trips:', error);
+    console.error('Error getting ride requests:', error);
     throw error;
   }
 };
 
 /**
- * Subscribe to real-time updates for trips
- * @param {string} status - Trip status to subscribe to
+ * Subscribe to real-time updates for ride requests
+ * @param {string} status - Ride request status to subscribe to
  * @param {Function} callback - Callback function for updates
  * @param {string[]} fields - Fields to include in updates
  * @returns {Function} Unsubscribe function
  */
-export const subscribeToTrips = (status, onNext, onError, fields = []) => {
+export const subscribeToRideRequests = (status, onNext, onError, fields = []) => {
   try {
     const q = query(
-      tripsCollection,
+      rideRequestsCollection,
       where('status', '==', status),
       orderBy('createdAt', 'desc')
     );
 
     return onSnapshot(q, (querySnapshot) => {
-      const trips = querySnapshot.docs.map(doc => {
+      const rideRequests = querySnapshot.docs.map(doc => {
         const data = doc.data();
         // Filter fields if specified
         if (Array.isArray(fields) && fields.length > 0) {
@@ -330,10 +330,10 @@ export const subscribeToTrips = (status, onNext, onError, fields = []) => {
         }
         return { id: doc.id, ...data };
       });
-      onNext(trips);
+      onNext(rideRequests);
     }, onError); // Pass onError to onSnapshot
   } catch (error) {
-    console.error('Error setting up trip subscription:', error);
+    console.error('Error setting up ride request subscription:', error);
     if (onError) {
       onError(error);
     }
@@ -342,75 +342,45 @@ export const subscribeToTrips = (status, onNext, onError, fields = []) => {
 };
 
 /**
- * Update trip status
- * @param {string} tripId - Trip ID
+ * Update ride request status
+ * @param {string} rideRequestId - Ride request ID
  * @param {string} status - New status
  * @param {Object} additionalData - Additional fields to update
- * @returns {Promise<Object>} Updated trip data
+ * @returns {Promise<Object>} Updated ride request data
  */
-export const updateTripStatus = async (tripId, status, additionalData = {}) => {
+export const updateRideRequestStatus = async (rideRequestId, status, additionalData = {}) => {
   try {
     checkRateLimit();
-    const tripRef = doc(db, 'trips', tripId);
+    const rideRequestRef = doc(db, 'rideRequests', rideRequestId);
     const updateData = {
       status,
       updatedAt: serverTimestamp(),
       ...additionalData
     };
     
-    await updateDoc(tripRef, updateData);
-    return { id: tripId, ...updateData };
+    await updateDoc(rideRequestRef, updateData);
+    return { id: rideRequestId, ...updateData };
   } catch (error) {
-    console.error('Error updating trip status:', error);
+    console.error('Error updating ride request status:', error);
     throw error;
   }
 };
 
 /**
- * Batch update multiple trips
- * @param {Array<{tripId: string, updates: Object}>} tripUpdates - Array of trip updates
- * @returns {Promise<{success: boolean, updatedCount: number}>}
- */
-export const batchUpdateTrips = async (tripUpdates) => {
-  try {
-    checkRateLimit();
-    const batch = writeBatch(db);
-    const now = serverTimestamp();
-    
-    tripUpdates.forEach(({ tripId, updates }) => {
-      const tripRef = doc(db, 'trips', tripId);
-      batch.update(tripRef, {
-        ...updates,
-        updatedAt: now
-      });
-    });
-    
-    await batch.commit();
-    return { 
-      success: true, 
-      updatedCount: tripUpdates.length 
-    };
-  } catch (error) {
-    console.error('Error batch updating trips:', error);
-    throw error;
-  }
-};
-
-/**
- * Get trips for a specific user
+ * Get ride requests for a specific user
  * @param {string} userId - User ID
- * @param {boolean} history - Whether to fetch completed trips or active trips
- * @returns {Promise<Array>} Array of trips
+ * @param {boolean} history - Whether to fetch completed ride requests or active ride requests
+ * @returns {Promise<Array>} Array of ride requests
  */
-export const getUserTrips = async (userId, history = false) => {
+export const getUserRideRequests = async (userId, history = false) => {
   return withRateLimit(async () => {
     try {
-      const tripsRef = collection(db, 'trips');
+      const rideRequestsRef = collection(db, 'rideRequests');
       const status = history ? ['completed', 'cancelled'] : ['pending', 'accepted', 'in_progress'];
       
       const q = query(
-        tripsRef,
-        where('driverId', '==', userId),
+        rideRequestsRef,
+        where('passengerId', '==', userId),
         where('status', 'in', status),
         orderBy('createdAt', 'desc')
       );
@@ -421,32 +391,56 @@ export const getUserTrips = async (userId, history = false) => {
         ...doc.data()
       }));
     } catch (error) {
-      console.error('Error getting user trips:', error);
+      console.error('Error getting user ride requests:', error);
       throw error;
     }
   });
 };
 
 /**
- * Subscribe to real-time updates for a user's trips
- * @param {string} userId - User ID
+ * Subscribe to real-time updates for a passenger's ride requests
+ * @param {string} userId - User ID of the passenger
  * @param {Function} callback - Callback function for updates
  * @returns {Function} Unsubscribe function
  */
-export const subscribeToTripUpdates = (userId, callback) => {
+export const subscribeToPassengerRideRequestUpdates = (userId, callback) => {
   try {
     const q = query(
-      tripsCollection,
+      rideRequestsCollection,
+      where('passengerId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+
+    return onSnapshot(q, (querySnapshot) => {
+      const rideRequests = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      callback(rideRequests);
+    });
+  } catch (error) {
+    console.error('Error subscribing to passenger ride request updates:', error);
+    throw error;
+  }
+};
+
+/**
+ * Subscribe to real-time updates for a driver's ride requests
+ * @param {string} userId - User ID of the driver
+ * @param {Function} callback - Callback function for updates
+ * @returns {Function} Unsubscribe function
+ */
+export const subscribeToDriverRideRequestUpdates = (userId, callback) => {
+  try {
+    const q = query(
+      rideRequestsCollection,
       where('driverId', '==', userId),
       orderBy('createdAt', 'desc')
     );
 
     return onSnapshot(q, (querySnapshot) => {
-      const trips = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      callback(trips);
+      const rideRequests = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      callback(rideRequests);
     });
   } catch (error) {
-    console.error('Error subscribing to trip updates:', error);
+    console.error('Error subscribing to driver ride request updates:', error);
     throw error;
   }
 };
