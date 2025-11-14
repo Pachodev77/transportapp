@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase/config';
-import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { doc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaIdCard, FaCar, FaMotorcycle, FaTruck, FaEdit, FaStar, FaStarHalfAlt, FaRegStar, FaHistory, FaChartLine, FaCoins, FaRegSmile, FaRegFrown, FaRegMeh, FaSpinner } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
 import SuccessMessage from '../components/SuccessMessage';
@@ -132,91 +132,101 @@ export default function Profile() {
     totalSpent: 0,
   });
 
-  const fetchUserData = async () => {
+  useEffect(() => {
     if (!currentUser) return;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Get user creation date from Firebase Auth
-      const creationDate = currentUser.metadata?.creationTime 
-        ? new Date(currentUser.metadata.creationTime) 
-        : new Date(); // Fallback to current date if creationTime is not available
-      
-      // Format the date as 'YYYY'
-      const memberSince = creationDate.getFullYear();
-      
-      // Obtener datos del usuario
-      const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-      if (userDoc.exists()) {
-        const userData = {
-          id: userDoc.id,
-          ...userDoc.data(),
-          // Ensure we have all required fields with defaults
-          phoneNumber: userDoc.data().phoneNumber || 'No especificado',
-          address: userDoc.data().address || 'No especificada',
-          // Vehicle info with defaults
-          vehicleType: userDoc.data().vehicleType || 'No especificado',
-          licensePlate: userDoc.data().licensePlate || 'No especificada',
-          vehicleColor: userDoc.data().vehicleColor || 'No especificado',
-          vehicleYear: userDoc.data().vehicleYear || 'No especificado',
-          // Driver specific
-          driverApproved: userDoc.data().driverApproved || false,
-          // Add memberSince
+
+    setLoading(true);
+
+    // Listener for user data
+    const userDocRef = doc(db, 'users', currentUser.uid);
+    const unsubscribeUser = onSnapshot(userDocRef, (doc) => {
+      if (doc.exists()) {
+        const creationDate = currentUser.metadata?.creationTime 
+          ? new Date(currentUser.metadata.creationTime) 
+          : new Date();
+        const memberSince = creationDate.getFullYear();
+
+        setUserData({
+          id: doc.id,
+          ...doc.data(),
+          phoneNumber: doc.data().phoneNumber || 'No especificado',
+          address: doc.data().address || 'No especificada',
+          vehicleType: doc.data().vehicleType || 'No especificado',
+          licensePlate: doc.data().licensePlate || 'No especificada',
+          vehicleColor: doc.data().vehicleColor || 'No especificado',
+          vehicleYear: doc.data().vehicleYear || 'No especificado',
+          driverApproved: doc.data().driverApproved || false,
           memberSince: memberSince,
-          // Merge with auth data
           ...currentUser
-        };
-        setUserData(userData);
+        });
+      } else {
+        setError('No se encontraron datos de perfil.');
       }
+      setLoading(false); // Set loading to false after user data is fetched
+    }, (error) => {
+      console.error('Error fetching user data:', error);
+      setError('Error al cargar los datos del perfil.');
+      setLoading(false);
+    });
+
+    // Set up listeners for both passenger and driver trips
+    const passengerQuery = query(collection(db, 'rideRequests'), where('passengerId', '==', currentUser.uid));
+    const driverQuery = query(collection(db, 'rideRequests'), where('driverId', '==', currentUser.uid));
+
+    let passengerTrips = [];
+    let driverTrips = [];
+
+    const combineAndUpdateTrips = () => {
+      const allTrips = [...passengerTrips, ...driverTrips];
+      const uniqueTrips = Array.from(new Map(allTrips.map(trip => [trip.id, trip])).values())
+        .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
       
-      // Obtener historial de viajes
-      const tripsQuery = query(
-        collection(db, 'trips'),
-        where('passengerId', '==', currentUser.uid),
-        orderBy('date', 'desc')
-      );
+      setTrips(uniqueTrips);
+
+      // Calculate stats from the combined trips data
+      const completedTrips = uniqueTrips.filter(trip => trip.status === 'completed');
+      const totalSpent = uniqueTrips
+        .filter(trip => trip.passengerId === currentUser.uid) // Only count spending as a passenger
+        .reduce((sum, trip) => sum + (trip.estimatedPrice || 0), 0);
       
-      const tripsSnapshot = await getDocs(tripsQuery);
-      const tripsData = tripsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      setTrips(tripsData);
-      
-      // Calcular estadísticas
-      const completedTrips = tripsData.filter(trip => trip.status === 'completed');
-      const totalSpent = tripsData.reduce((sum, trip) => sum + (trip.price || 0), 0);
-      
-      // Calcular calificación promedio de viajes completados con rating
       const ratings = completedTrips
-        .filter(trip => trip.rating && !isNaN(parseFloat(trip.rating)))
+        .filter(trip => trip.passengerId === currentUser.uid && trip.rating && !isNaN(parseFloat(trip.rating)))
         .map(trip => parseFloat(trip.rating));
       
-      // Si no hay calificaciones, mostrar 0 en lugar de un valor por defecto
       const avgRating = ratings.length > 0 
         ? parseFloat((ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1))
         : 0;
-      
+
       setStats({
-        totalTrips: tripsData.length,
-        completedTrips,
-        rating: parseFloat(avgRating),
+        totalTrips: uniqueTrips.length,
+        completedTrips: completedTrips.length,
+        rating: avgRating,
         totalSpent,
       });
-      
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-      setError('Error al cargar los datos del perfil. Por favor, inténtalo de nuevo.');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  useEffect(() => {
-    fetchUserData();
+    };
+
+    const unsubscribePassenger = onSnapshot(passengerQuery, (snapshot) => {
+      passengerTrips = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      combineAndUpdateTrips();
+    }, (error) => {
+      console.error('Error fetching passenger trips:', error);
+      setError('Error al cargar el historial de viajes como pasajero.');
+    });
+
+    const unsubscribeDriver = onSnapshot(driverQuery, (snapshot) => {
+      driverTrips = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      combineAndUpdateTrips();
+    }, (error) => {
+      console.error('Error fetching driver trips:', error);
+      setError('Error al cargar el historial de viajes como conductor.');
+    });
+
+    // Cleanup listeners on component unmount
+    return () => {
+      unsubscribeUser();
+      unsubscribePassenger();
+      unsubscribeDriver();
+    };
   }, [currentUser]);
 
   if (loading && !userData) {

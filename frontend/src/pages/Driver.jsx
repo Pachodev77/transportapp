@@ -411,6 +411,8 @@ function Driver() {
       setAcceptedTrip(null);
 
       alert('¡Viaje completado con éxito! El pasajero podrá calificar el servicio.');
+      setShowHistory(true);
+      setActiveTab('my-trips');
 
     } catch (error) {
       console.error('Error al completar el viaje:', error);
