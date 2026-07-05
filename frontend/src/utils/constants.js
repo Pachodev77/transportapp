@@ -54,6 +54,7 @@ export const STRINGS = {
   VIAJES_ACTIVOS: "Viajes Activos",
   HISTORIAL: "Historial",
   PANEL_DEL_CONDUCTOR: "Panel del Conductor",
+  PANEL_DEL_PASAJERO: "Panel del Pasajero",
   SOLICITUDES_DE_VIAJE: "Solicitudes de viaje",
   NO_HAY_VIAJES_DISPONIBLES: "No hay viajes disponibles en este momento",
   ORIGEN_NO_ESPECIFICADO: "Origen no especificado",

@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { FaBars, FaUser, FaSignOutAlt, FaCarSide, FaTruck } from 'react-icons/fa';
+import { useTheme } from '../contexts/ThemeContext';
+import { FaBars, FaUser, FaSignOutAlt, FaCarSide, FaTruck, FaMoon, FaSun } from 'react-icons/fa';
 import { FaMotorcycle } from 'react-icons/fa';
 import { FaMotorcycle as FaMoto } from 'react-icons/fa6';
 
 export default function Navbar() {
   const { currentUser, logout } = useAuth();
+  const { isDarkMode, toggleDarkMode } = useTheme();
   const [isOpen, setIsOpen] = React.useState(false);
   const navigate = useNavigate();
   const carControls = useAnimation();
@@ -121,12 +123,12 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white shadow-lg fixed w-full z-40">
+    <nav className="bg-white dark:bg-gray-900 shadow-lg fixed w-full z-40 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0 flex items-center">
-              <div className="relative flex items-center" style={{ minWidth: '220px' }}> {/* Container to keep layout stable */}
+              <div className="relative flex items-center" style={{ minWidth: '280px' }}> {/* Container to keep layout stable */}
                 {/* Animated Car/Moto Container */}
                 <div className="absolute left-0 top-0">
                   <motion.div animate={carControls} style={{ zIndex: 1 }}>
@@ -141,22 +143,31 @@ export default function Navbar() {
                 </div>
 
                 {/* Title with transparent background */}
-                <span className="ml-8 text-xl font-bold text-gray-900 relative" style={{ zIndex: 2 }}>
+                <span className="ml-8 text-xl font-bold text-gray-900 dark:text-white relative" style={{ zIndex: 2 }}>
                   TransportApp
                 </span>
+
+                {/* Dark mode toggle */}
+                <button
+                  onClick={toggleDarkMode}
+                  className="ml-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  aria-label="Toggle dark mode"
+                >
+                  {isDarkMode ? <FaSun className="text-yellow-500" /> : <FaMoon className="text-gray-600" />}
+                </button>
               </div>
             </Link>
             <div className="hidden md:ml-6 md:flex md:space-x-8">
               <Link
                 to="/"
-                className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                className="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
               >
                 Inicio
               </Link>
               {currentUser && (
                 <Link
                   to={currentUser.role === 'driver' ? '/driver' : '/passenger'}
-                  className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+                  className="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
                 >
                   {currentUser.role === 'driver' ? 'Mis Viajes' : 'Buscar Viaje'}
                 </Link>
@@ -168,7 +179,7 @@ export default function Navbar() {
             {currentUser ? (
               <div className="ml-3 relative">
                 <div className="flex items-center space-x-4">
-                  <span className="text-sm text-gray-700">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
                     Hola, {currentUser.displayName || currentUser.email}
                   </span>
                   <div className="relative group">
@@ -176,22 +187,22 @@ export default function Navbar() {
                       className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                       onClick={() => setIsOpen(!isOpen)}
                     >
-                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
+                      <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300">
                         <FaUser className="h-5 w-5" />
                       </div>
                     </button>
                     {isOpen && (
-                      <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                      <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                         <Link
                           to="/profile"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                           onClick={() => setIsOpen(false)}
                         >
                           Mi perfil
                         </Link>
                         <button
                           onClick={handleLogout}
-                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center transition-colors"
                         >
                           <FaSignOutAlt className="mr-2" />
                           Cerrar sesión
@@ -205,14 +216,14 @@ export default function Navbar() {
               <div className="flex items-center space-x-4">
                 <Link
                   to="/login"
-                  className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium"
+                  className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 text-sm font-medium transition-colors"
                   state={{ from: window.location.pathname }}
                 >
                   Iniciar sesión
                 </Link>
                 <Link
                   to="/login"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
                   state={{ from: window.location.pathname, register: true }}
                 >
                   Registrarse
@@ -225,7 +236,7 @@ export default function Navbar() {
           <div className="-mr-2 flex items-center md:hidden relative">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 transition-colors"
             >
               <span className="sr-only">Abrir menú principal</span>
               <FaBars className="block h-6 w-6" />
@@ -236,22 +247,22 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {isOpen && (
-        <div className="md:hidden absolute right-0 top-full z-50 mt-0.5 bg-white shadow-lg rounded-b-lg w-64">
+        <div className="md:hidden absolute right-0 top-full z-50 mt-0.5 bg-white dark:bg-gray-800 shadow-lg rounded-b-lg w-64 transition-colors">
           {/* User info section */}
-          <div className="pt-4 pb-3 px-4 border-b border-gray-200">
+          <div className="pt-4 pb-3 px-4 border-b border-gray-200 dark:border-gray-700">
             {currentUser ? (
               <div className="space-y-3">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
+                    <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300">
                       <FaUser className="h-6 w-6" />
                     </div>
                   </div>
                   <div className="ml-3">
-                    <div className="text-base font-medium text-gray-800">
+                    <div className="text-base font-medium text-gray-800 dark:text-gray-200">
                       {currentUser.displayName || currentUser.email}
                     </div>
-                    <div className="text-sm font-medium text-gray-500">
+                    <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
                       {currentUser.role === 'driver' ? 'Conductor' : 'Pasajero'}
                     </div>
                   </div>
@@ -259,7 +270,7 @@ export default function Navbar() {
                 <div className="space-y-1">
                   <Link
                     to="/profile"
-                    className="block w-full text-left px-3 py-2 text-base font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-md"
+                    className="block w-full text-left px-3 py-2 text-base font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white rounded-md transition-colors"
                     onClick={() => setIsOpen(false)}
                   >
                     Mi perfil
@@ -270,17 +281,17 @@ export default function Navbar() {
               <div className="space-y-3">
                 <Link
                   to="/login"
-                  className="w-full flex justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  className="w-full flex justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors"
                   state={{ from: window.location.pathname }}
                   onClick={() => setIsOpen(false)}
                 >
                   Iniciar sesión
                 </Link>
-                <p className="text-center text-sm text-gray-600">
+                <p className="text-center text-sm text-gray-600 dark:text-gray-400">
                   ¿No tienes cuenta?{' '}
                   <Link
                     to="/login"
-                    className="font-medium text-blue-600 hover:text-blue-500"
+                    className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300"
                     state={{ from: window.location.pathname, register: true }}
                     onClick={() => setIsOpen(false)}
                   >
@@ -292,10 +303,10 @@ export default function Navbar() {
           </div>
 
           {/* Navigation links */}
-          <div className="py-2 border-b border-gray-200">
+          <div className="py-2 border-b border-gray-200 dark:border-gray-700">
             <Link
               to="/"
-              className="block px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
+              className="block px-4 py-2 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               onClick={() => setIsOpen(false)}
             >
               Inicio
@@ -303,7 +314,7 @@ export default function Navbar() {
             {currentUser && (
               <Link
                 to={currentUser.role === 'driver' ? '/driver' : '/passenger'}
-                className="block px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-100"
+                className="block px-4 py-2 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 onClick={() => setIsOpen(false)}
               >
                 {currentUser.role === 'driver' ? 'Mis Viajes' : 'Buscar Viaje'}
@@ -319,7 +330,7 @@ export default function Navbar() {
                   handleLogout();
                   setIsOpen(false);
                 }}
-                className="w-full text-left px-4 py-2 text-base font-medium text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center"
+                className="w-full text-left px-4 py-2 text-base font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300 flex items-center transition-colors"
               >
                 <FaSignOutAlt className="mr-2" />
                 Cerrar sesión

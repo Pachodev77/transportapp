@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RatingModal from '../components/RatingModal';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Polyline, useMap } from 'react-leaflet';
-import { FaSearch, FaMapMarkerAlt, FaCar, FaSpinner, FaStar, FaClock, FaCommentDots, FaStarHalfAlt } from 'react-icons/fa';
+import { FaSearch, FaMapMarkerAlt, FaCar, FaSpinner, FaStar, FaClock, FaCommentDots, FaStarHalfAlt, FaMap } from 'react-icons/fa';
 import { 
   doc, 
   getDoc, 
@@ -117,6 +117,7 @@ export default function Passenger() {
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [tripToRate, setTripToRate] = useState(null);
   const hasShownRatingModal = useRef({});
+  const [isMapCollapsed, setIsMapCollapsed] = useState(false);
 
   // Handle rating a trip
   const handleRateTrip = async (ratingData) => {
@@ -607,374 +608,338 @@ export default function Passenger() {
 
 
   return (
-    <div className="min-h-screen bg-light flex flex-col lg:flex-row pt-16">
+    <div className='min-h-screen bg-light pt-16'>
       {isChatOpen && selectedTrip && (
         <Chat tripId={selectedTrip.tripId || selectedTrip.id} onClose={() => setIsChatOpen(false)} />
       )}
 
-      {/* Contenido principal - En móviles: abajo del mapa, en desktop: al lado del mapa */}
-      <div className="w-full lg:w-1/3 bg-white p-6 overflow-y-auto order-2 lg:order-1">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-dark hidden lg:block">{STRINGS.SOLICITAR_VIAJE}</h1>
-          {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && (
-            <button onClick={() => setIsChatOpen(true)} className="p-2 rounded-full hover:bg-gray-200 transition-colors lg:block hidden">
-              <FaCommentDots className="text-primary text-2xl" />
-            </button>
-          )}
-        </div>
+      {/* Título principal - Visible en todas las pantallas */}
+      <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2'>
+        <h1 className='text-2xl font-bold text-dark'>{STRINGS.PANEL_DEL_PASAJERO}</h1>
+      </div>
+
+      <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4'>
         
-        {/* Alert for active trip - between map and tabs */}
-        {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && selectedTrip.passengerId === currentUser?.uid && (
-          <div className="mb-6 p-4 bg-success text-white rounded-lg text-center shadow-lg animate-pulse">
-            <p className="font-bold text-lg">¡Tu conductor está en camino!</p>
-            {selectedTrip.driverName && <p><strong>{selectedTrip.driverName}</strong> llegará pronto.</p>}
-          </div>
-        )}
-        
-        {/* Tabs */}
-        <div className="flex border-b mb-4 space-x-2 overflow-x-auto">
-          {tabs.map((tab) => (
-            <Button 
-              key={tab.id}
-              className={`flex-1 min-w-max py-2 px-2 text-sm font-medium whitespace-nowrap ${
-                activeTab === tab.id 
-                  ? 'text-primary border-b-2 border-primary' 
-                  : 'text-secondary hover:text-primary transition-colors'
-              }`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.name}
-            </Button>
-          ))}
-        </div>
-        
-        {successMessage && (
-          <div className="mb-4 p-3 bg-success text-white rounded-lg flex justify-between items-center">
-            <span>{successMessage}</span>
-            <button onClick={() => setSuccessMessage('')} className="text-xl font-bold leading-none p-1">&times;</button>
-          </div>
-        )}
-        {error && (
-          <div className="mb-4 p-3 bg-danger text-white rounded-lg">
-            {error}
-          </div>
-        )}
         {locationError && (
-          <div className="mb-4 p-3 bg-red-500 text-white rounded-lg">
-            <p className="font-bold">Location Error:</p>
+          <div className='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded' role='alert'>
+            <p className='font-bold'>Error de Ubicación</p>
             <p>{locationError}</p>
           </div>
         )}
 
-        {activeTab === 'my-requests' ? (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-dark">{STRINGS.MIS_SOLICITUDES_DE_VIAJE}</h2>
-            {myRideRequests.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-secondary mb-4">{STRINGS.NO_TIENES_SOLICITUDES}</p>
-                <Button
-                  onClick={() => setActiveTab('search')}
-                  className="text-primary hover:text-primary-dark font-medium"
-                >
-                  {STRINGS.SOLICITAR_UN_VIAJE_AHORA}
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {myRideRequests.map((request) => (
-                  <div key={request.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium text-dark">
-                          {request.origin?.address || STRINGS.ORIGEN} → {request.destination?.address || STRINGS.DESTINO}
-                        </h3>
-                        <p className="text-sm text-secondary mt-1">
-                          {formatDate(request.createdAt)}
-                        </p>
-                        <div className="mt-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            {
-                              pending: 'bg-warning text-white',
-                              accepted: 'bg-blue-500 text-white',
-                              in_progress: 'bg-blue-600 text-white',
-                              completed: 'bg-success text-white',
-                              cancelled: 'bg-secondary text-white'
-                            }[request.status] || 'bg-gray-400 text-white'
-                          }`}>
-                            {
-                              {
-                                pending: STRINGS.PENDIENTE,
-                                accepted: STRINGS.ACEPTADO,
-                                in_progress: STRINGS.EN_CURSO,
-                                completed: STRINGS.COMPLETADO,
-                                cancelled: STRINGS.CANCELADO
-                              }[request.status] || request.status
-                            }
-                          </span>
-                        </div>
-                      </div>
-                      {request.status === 'pending' && (
-                        <Button
-                          onClick={() => handleCancelRequest(request.id)}
-                          className="text-danger hover:text-danger-dark text-sm font-medium"
-                          disabled={loading}
-                        >
-                          {loading ? STRINGS.CANCELANDO : STRINGS.CANCELAR}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : activeTab === 'search' ? (
-          <>
-            <div className="space-y-4">
-              <AddressInput
-                label={STRINGS.ORIGEN}
-                icon={<FaMapMarkerAlt className="text-danger" />}
-                onSelect={(location) => setOrigin(location)}
-                value={originQuery}
-                onChange={setOriginQuery}
-                onUseCurrentLocation={handleSetCurrentLocationAsOrigin}
-              />
-              
-              <AddressInput
-                label={STRINGS.DESTINO}
-                icon={<FaMapMarkerAlt className="text-success" />}
-                onSelect={(location) => setDestination(location)}
-                value={destinationQuery}
-                onChange={setDestinationQuery}
-              />
-
-              <div>
-                <label htmlFor="price" className="block text-sm font-medium text-dark mb-1">
-                  {STRINGS.PRECIO_SUGERIDO}
-                </label>
-                <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-secondary sm:text-sm">$</span>
-                  </div>
-                  <input
-                    type="number"
-                    id="price"
-                    name="price"
-                    min="0"
-                    placeholder="0"
-                    value={suggestedPrice}
-                    onChange={(e) => setSuggestedPrice(e.target.value)}
-                    className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
-                    required
-                  />
-                </div>
-              </div>
-              
-              {hasActiveRequest ? (
-                <Button
-                  onClick={handleCancelActiveRequest}
-                  disabled={loading || !canCancelActiveRequest()}
-                >
-                  {loading ? (
-                    <>
-                      <FaSpinner className="animate-spin" />
-                      <span>{STRINGS.CANCELANDO}</span>
-                    </>
-                  ) : (
-                    <div className="flex items-center justify-center">
-                      <FaCar className="mr-2" />
-                      <span>{STRINGS.CANCELAR_VIAJE}</span>
-                    </div>
-                  )}
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleRequestRide}
-                  disabled={!origin || !destination || loading}
-                >
-                  {loading ? (
-                    <>
-                      <FaSpinner className="animate-spin" />
-                      <span>{STRINGS.BUSCANDO_CONDUCTOR}</span>
-                    </>
-                  ) : (
-                    <div className="flex items-center justify-center">
-                      <FaCar className="mr-2" />
-                      <span>{STRINGS.SOLICITAR_VIAJE}</span>
-                    </div>
-                  )}
-                </Button>
-              )}
-              
-              {origin && destination && (
-                <p className="mt-2 text-xs text-center text-secondary">
-                  {STRINGS.CONDUCTORES_CERCANOS_NOTIFICADOS}
-                </p>
-              )}
-            </div>
-            
-            {/* Available Trips */}
-            {availableTrips.length > 0 && (
-              <div className="mt-8">
-                <h2 className="text-lg font-semibold text-dark mb-4">{STRINGS.VIAJES_DISPONIBLES}</h2>
-                <div className="space-y-4">
-                  {availableTrips.map((trip) => (
-                    <div key={trip.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h3 className="font-medium text-dark">{trip.driverName}</h3>
-                          <div className="flex items-center text-warning text-sm">
-                            <FaStar className="mr-1" />
-                            <span>{trip.rating} ({trip.reviewCount} {STRINGS.RESENAS})</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xl font-bold text-primary">${trip.price?.toLocaleString()}</div>
-                          <div className="text-sm text-secondary">
-                            {trip.availableSeats > 0 
-                              ? `${trip.availableSeats} ${trip.availableSeats > 1 ? STRINGS.ASIENTOS : STRINGS.ASIENTO} ${STRINGS.DISPONIBLE}`
-                              : STRINGS.SIN_CUPOS}
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2 text-sm mb-4">
-                        <div className="flex items-center">
-                          <FaMapMarkerAlt className="text-danger mr-2 w-4" />
-                          <span className="truncate">{trip.origin?.address}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <FaMapMarkerAlt className="text-success mr-2 w-4" />
-                          <span className="truncate">{trip.destination?.address}</span>
-                        </div>
-                        <div className="flex items-center text-secondary">
-                          <FaClock className="mr-2 w-4" />
-                          <span>{formatDate(trip.departureTime)}</span>
-                        </div>
-                        <div className="flex items-center text-secondary">
-                          <FaCar className="mr-2 w-4" />
-                          <span>{trip.carModel} • {trip.carPlate}</span>
-                        </div>
-                      </div>
-                      
-                      <Button
-                        onClick={() => handleBookTrip(trip)}
-                        disabled={!trip.availableSeats || loading}
-                        className={`w-full ${
-                          trip.availableSeats > 0 
-                            ? 'bg-success hover:bg-success-dark' 
-                            : 'bg-secondary cursor-not-allowed'
-                        }`}
-                      >
-                        {trip.availableSeats > 0 ? STRINGS.RESERVAR_AHORA : STRINGS.SIN_CUPOS_DISPONIBLES}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-dark">{STRINGS.MIS_VIAJES}</h2>
-            
-            {myBookings.length === 0 ? (
-              <div className="text-center py-8">
-                <FaCar className="mx-auto text-secondary text-4xl mb-2" />
-                <p className="text-secondary">{STRINGS.NO_TIENES_VIAJES_PROGRAMADOS}</p>
-                <Button 
-                  onClick={() => setActiveTab('search')}
-                  className="mt-2 text-primary hover:underline text-sm"
-                >
-                  {STRINGS.BUSCAR_VIAJES_DISPONIBLES}
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {myBookings.map((booking) => (
-                  <div 
-                    key={booking.id} 
-                    className="border rounded-lg p-4 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="font-medium text-dark">
-                          {booking.origin?.address?.split(',')[0]} → {booking.destination?.address?.split(',')[0]}
-                        </h3>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          booking.status === 'confirmed' 
-                            ? 'bg-success text-white' 
-                            : booking.status === 'cancelled' 
-                              ? 'bg-secondary text-white' 
-                              : 'bg-warning text-white'
-                        }`}>
-                          {booking.status === 'confirmed' ? STRINGS.CONFIRMADO : 
-                           booking.status === 'pending' ? STRINGS.PENDIENTE : 
-                           booking.status === 'cancelled' ? STRINGS.CANCELADO : booking.status}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-xl font-bold text-primary">${booking.price?.toLocaleString()}</div>
-                        <div className="text-sm text-secondary">
-                          {booking.departureTime && formatDate(booking.departureTime)}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center">
-                        <FaMapMarkerAlt className="text-danger mr-2 w-4" />
-                        <span className="truncate">{booking.origin?.address}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <FaMapMarkerAlt className="text-success mr-2 w-4" />
-                        <span className="truncate">{booking.destination?.address}</span>
-                      </div>
-                      {booking.driverName && (
-                        <div className="flex items-center text-secondary">
-                          <span className="mr-2">{STRINGS.CONDUCTOR}</span>
-                          <span>{booking.driverName}</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {booking.status === 'pending' && (
-                      <div className="mt-4 pt-3 border-t">
-                        <Button
-                          onClick={() => handleCancelBooking(booking.id)}
-                          disabled={loading}
-                          className="w-full bg-danger text-white py-2 rounded-lg font-medium hover:bg-danger-dark transition-colors"
-                        >
-                          {loading ? STRINGS.CANCELANDO : STRINGS.CANCELAR_RESERVA}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* Alert for active trip - between map and tabs */}
+        {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && selectedTrip.passengerId === currentUser?.uid && (
+          <div className='mb-6 p-4 bg-success text-white rounded-lg text-center shadow-lg animate-pulse'>
+            <p className='font-bold text-lg'>¡Tu conductor está en camino!</p>
+            {selectedTrip.driverName && <p><strong>{selectedTrip.driverName}</strong> llegará pronto.</p>}
           </div>
         )}
-      </div>
 
-      {/* Mapa - En móviles: arriba del contenido, en desktop: a la derecha */}
-      <div className="w-full lg:w-2/3 order-1 lg:order-2 bg-white rounded-xl shadow-md overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 4rem)' }}>
-        {/* Título - Solo visible en móviles */}
-        <div className="lg:hidden bg-white p-4 border-b flex items-center justify-between relative z-10">
-          <h1 className="text-xl font-bold text-dark">{STRINGS.SOLICITAR_VIAJE}</h1>
-          {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && (
-            <button 
-              onClick={() => setIsChatOpen(true)} 
-              className="p-2 rounded-full hover:bg-gray-200 transition-colors relative z-20"
-              style={{
-                position: 'relative',
-                zIndex: 1000 // Higher z-index to ensure it stays above the map
-              }}
-            >
-              <FaCommentDots className="text-primary text-2xl" />
-            </button>
-          )}
-        </div>
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
+          {/* Sidebar izquierda - Contenido principal */}
+          <div className='lg:col-span-1 space-y-6 order-2 lg:order-1'>
+            {/* Tabs - Visibles en móviles y escritorio */}
+            <div className='bg-white rounded-lg shadow-md p-6'>
+              
+              <div className='flex border-b mb-4 space-x-2 overflow-x-auto'>
+                {tabs.map((tab) => (
+                  <Button 
+                    key={tab.id}
+                    className={`flex-1 min-w-max py-2 px-2 text-sm font-medium whitespace-nowrap ${
+                      activeTab === tab.id 
+                        ? 'text-primary border-b-2 border-primary' 
+                        : 'text-secondary hover:text-primary transition-colors'
+                    }`}
+                    onClick={() => setActiveTab(tab.id)}
+                  >
+                    {tab.name}
+                  </Button>
+                ))}
+              </div>
+
+              {successMessage && (
+                <div className='mb-4 p-3 bg-success text-white rounded-lg flex justify-between items-center'>
+                  <span>{successMessage}</span>
+                  <button onClick={() => setSuccessMessage('')} className='text-xl font-bold leading-none p-1'>&times;</button>
+                </div>
+              )}
+              {error && (
+                <div className='mb-4 p-3 bg-danger text-white rounded-lg'>
+                  {error}
+                </div>
+              )}
+
+              {/* My Requests Tab */}
+              {activeTab === 'my-requests' && (
+                <div className="space-y-4">
+                  <h3 className="font-medium text-dark">{STRINGS.MIS_SOLICITUDES_DE_VIAJE}</h3>
+                  {myRideRequests.length === 0 ? (
+                    <p className="text-sm text-secondary py-4 text-center">{STRINGS.NO_TIENES_SOLICITUDES}</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {myRideRequests.map((request) => (
+                        <div key={request.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-medium text-dark">
+                                {request.origin?.address || STRINGS.ORIGEN} → {request.destination?.address || STRINGS.DESTINO}
+                              </h3>
+                              <p className="text-sm text-secondary mt-1">
+                                {formatDate(request.createdAt)}
+                              </p>
+                              <div className="mt-2">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  {
+                                    pending: 'bg-warning text-white',
+                                    accepted: 'bg-blue-500 text-white',
+                                    in_progress: 'bg-blue-600 text-white',
+                                    completed: 'bg-success text-white',
+                                    cancelled: 'bg-secondary text-white'
+                                  }[request.status] || 'bg-gray-400 text-white'
+                                }`}>
+                                  {
+                                    {
+                                      pending: STRINGS.PENDIENTE,
+                                      accepted: STRINGS.ACEPTADO,
+                                      in_progress: STRINGS.EN_CURSO,
+                                      completed: STRINGS.COMPLETADO,
+                                      cancelled: STRINGS.CANCELADO
+                                    }[request.status] || request.status
+                                  }
+                                </span>
+                              </div>
+                            </div>
+                            {request.status === 'pending' && (
+                              <Button
+                                onClick={() => handleCancelRequest(request.id)}
+                                className="text-danger hover:text-danger-dark text-sm font-medium"
+                                disabled={loading}
+                              >
+                                {loading ? STRINGS.CANCELANDO : STRINGS.CANCELAR}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Search Tab */}
+              {activeTab === 'search' && (
+                <div className="space-y-4">
+                  <h3 className="font-medium text-dark">{STRINGS.BUSCAR_VIAJE}</h3>
+                  <AddressInput
+                    label={STRINGS.ORIGEN}
+                    icon={<FaMapMarkerAlt className="text-danger" />}
+                    onSelect={(location) => setOrigin(location)}
+                    value={originQuery}
+                    onChange={setOriginQuery}
+                    onUseCurrentLocation={handleSetCurrentLocationAsOrigin}
+                  />
+                  
+                  <AddressInput
+                    label={STRINGS.DESTINO}
+                    icon={<FaMapMarkerAlt className="text-success" />}
+                    onSelect={(location) => setDestination(location)}
+                    value={destinationQuery}
+                    onChange={setDestinationQuery}
+                  />
+
+                  <div>
+                    <label htmlFor="price" className="block text-sm font-medium text-dark mb-1">
+                      {STRINGS.PRECIO_SUGERIDO}
+                    </label>
+                    <div className="mt-1 relative rounded-md shadow-sm">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span className="text-secondary sm:text-sm">$</span>
+                      </div>
+                      <input
+                        type="number"
+                        id="price"
+                        name="price"
+                        min="0"
+                        placeholder="0"
+                        value={suggestedPrice}
+                        onChange={(e) => setSuggestedPrice(e.target.value)}
+                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                        required
+                      />
+                    </div>
+                  </div>
+                  
+                  {hasActiveRequest ? (
+                    <Button
+                      onClick={handleCancelActiveRequest}
+                      disabled={loading || !canCancelActiveRequest()}
+                      className="w-full bg-danger text-white py-2 rounded-lg font-medium hover:bg-danger-dark transition-colors"
+                    >
+                      {loading ? STRINGS.CANCELANDO : STRINGS.CANCELAR_VIAJE}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleRequestRide}
+                      disabled={!origin || !destination || loading}
+                      className="w-full bg-success text-white py-2 rounded-lg font-medium hover:bg-success-dark transition-colors"
+                    >
+                      {loading ? STRINGS.BUSCANDO_CONDUCTOR : STRINGS.SOLICITAR_VIAJE}
+                    </Button>
+                  )}
+                  
+                  {origin && destination && (
+                    <p className="mt-2 text-xs text-center text-secondary">
+                      {STRINGS.CONDUCTORES_CERCANOS_NOTIFICADOS}
+                    </p>
+                  )}
+
+                  {/* Available Trips */}
+                  {availableTrips.length > 0 && (
+                    <div className="mt-8">
+                      <h4 className="font-medium text-dark mb-4">{STRINGS.VIAJES_DISPONIBLES}</h4>
+                      <div className="space-y-4">
+                        {availableTrips.map((trip) => (
+                          <div key={trip.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <h3 className="font-medium text-dark">{trip.driverName}</h3>
+                                <div className="flex items-center text-warning text-sm">
+                                  <FaStar className="mr-1" />
+                                  <span>{trip.rating} ({trip.reviewCount} {STRINGS.RESENAS})</span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-xl font-bold text-primary">${trip.price?.toLocaleString()}</div>
+                                <div className="text-sm text-secondary">
+                                  {trip.availableSeats > 0 
+                                    ? `${trip.availableSeats} ${trip.availableSeats > 1 ? STRINGS.ASIENTOS : STRINGS.ASIENTO} ${STRINGS.DISPONIBLE}`
+                                    : STRINGS.SIN_CUPOS}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2 text-sm mb-4">
+                              <div className="flex items-center">
+                                <FaMapMarkerAlt className="text-danger mr-2 w-4" />
+                                <span className="truncate">{trip.origin?.address}</span>
+                              </div>
+                              <div className="flex items-center">
+                                <FaMapMarkerAlt className="text-success mr-2 w-4" />
+                                <span className="truncate">{trip.destination?.address}</span>
+                              </div>
+                              <div className="flex items-center text-secondary">
+                                <FaClock className="mr-2 w-4" />
+                                <span>{formatDate(trip.departureTime)}</span>
+                              </div>
+                              <div className="flex items-center text-secondary">
+                                <FaCar className="mr-2 w-4" />
+                                <span>{trip.carModel} • {trip.carPlate}</span>
+                              </div>
+                            </div>
+                            
+                            <Button
+                              onClick={() => handleBookTrip(trip)}
+                              disabled={!trip.availableSeats || loading}
+                              className={`w-full ${
+                                trip.availableSeats > 0 
+                                  ? 'bg-success hover:bg-success-dark' 
+                                  : 'bg-secondary cursor-not-allowed'
+                              }`}
+                            >
+                              {trip.availableSeats > 0 ? STRINGS.RESERVAR_AHORA : STRINGS.SIN_CUPOS_DISPONIBLES}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* My Trips Tab */}
+              {activeTab === 'my-trips' && (
+                <div className="space-y-4">
+                  <h3 className="font-medium text-dark">{STRINGS.MIS_VIAJES}</h3>
+                  {myBookings.length === 0 ? (
+                    <div className="text-center py-8 text-secondary">
+                      <p>{STRINGS.NO_TIENES_VIAJES_PROGRAMADOS}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {myBookings.map((booking) => (
+                        <div key={booking.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h3 className="font-medium text-dark">
+                                {booking.origin?.address?.split(',')[0]} → {booking.destination?.address?.split(',')[0]}
+                              </h3>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                booking.status === 'confirmed' 
+                                  ? 'bg-success text-white' 
+                                  : booking.status === 'cancelled' 
+                                    ? 'bg-secondary text-white' 
+                                    : 'bg-warning text-white'
+                              }`}>
+                                {booking.status === 'confirmed' ? STRINGS.CONFIRMADO : 
+                                 booking.status === 'pending' ? STRINGS.PENDIENTE : 
+                                 booking.status === 'cancelled' ? STRINGS.CANCELADO : booking.status}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xl font-bold text-primary">${booking.price?.toLocaleString()}</div>
+                              <div className="text-sm text-secondary">
+                                {booking.departureTime && formatDate(booking.departureTime)}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2 text-sm">
+                            <div className="flex items-center">
+                              <FaMapMarkerAlt className="text-danger mr-2 w-4" />
+                              <span className="truncate">{booking.origin?.address}</span>
+                            </div>
+                            <div className="flex items-center">
+                              <FaMapMarkerAlt className="text-success mr-2 w-4" />
+                              <span className="truncate">{booking.destination?.address}</span>
+                            </div>
+                            {booking.driverName && (
+                              <div className="flex items-center text-secondary">
+                                <span className="mr-2">{STRINGS.CONDUCTOR}</span>
+                                <span>{booking.driverName}</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {booking.status === 'pending' && (
+                            <div className="mt-4 pt-3 border-t">
+                              <Button
+                                onClick={() => handleCancelBooking(booking.id)}
+                                disabled={loading}
+                                className="w-full bg-danger text-white py-2 rounded-lg font-medium hover:bg-danger-dark transition-colors"
+                              >
+                                {loading ? STRINGS.CANCELANDO : STRINGS.CANCELAR_RESERVA}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Mapa - Visible en móviles (arriba) y escritorio (derecha) */}
+          <div className='lg:col-span-2 order-1 lg:order-2 bg-white rounded-xl shadow-md overflow-hidden relative' style={{ height: isMapCollapsed ? '0' : 'calc(100vh - 8rem)', transition: 'height 0.3s ease' }}>
+            <div className='absolute inset-0 flex items-center justify-center bg-gray-100'>
+              {!currentPosition && (
+                <div className='text-center p-4 bg-white rounded-lg shadow-lg'>
+                  <p className='text-lg font-medium text-gray-700'>Cargando mapa...</p>
+                  <p className='text-sm text-gray-500 mt-1'>Obteniendo tu ubicación</p>
+                </div>
+              )}
+            </div>
         
         <MapContainer 
           center={currentPosition || [0, 0]}
@@ -1071,24 +1036,42 @@ export default function Passenger() {
             )}
             <LocationSelector onSelect={handleLocationSelect} />
             
-            {/* Route Line */}
-          </MapContainer>
-        
+            </MapContainer>
+          </div>
+
+          {/* Botones flotantes - Mapa y Chat */}
+          <div className='fixed top-20 right-4 flex gap-2' style={{ zIndex: 1000 }}>
+            {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && (
+              <button
+                onClick={() => setIsChatOpen(!isChatOpen)}
+                className='bg-white p-2 rounded-full shadow-lg hover:bg-gray-100 transition-colors'
+              >
+                <FaCommentDots className='text-primary text-xl' />
+              </button>
+            )}
+            <button
+              onClick={() => setIsMapCollapsed(!isMapCollapsed)}
+              className='bg-white p-2 rounded-full shadow-lg hover:bg-gray-100 transition-colors'
+            >
+              <FaMap className='text-gray-700' />
+            </button>
+          </div>
+        </div>
       </div>
       
       {/* Rating Modal - Always render but control visibility with isOpen */}
-  {tripToRate && (
-    <RatingModal
-      key={tripToRate.id}
-      isOpen={showRatingModal}
-      onClose={() => {
-        console.log('Closing rating modal');
-        setShowRatingModal(false);
-      }}
-      onSubmit={handleRateTrip}
-      rideRequestId={tripToRate.id}
-    />
-  )}
+      {tripToRate && (
+        <RatingModal
+          key={tripToRate.id}
+          isOpen={showRatingModal}
+          onClose={() => {
+            console.log('Closing rating modal');
+            setShowRatingModal(false);
+          }}
+          onSubmit={handleRateTrip}
+          rideRequestId={tripToRate.id}
+        />
+      )}
     </div>
   );
 }

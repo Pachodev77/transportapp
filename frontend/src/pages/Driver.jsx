@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap, Polyline } from 'react-leaflet';
-import { FaCar, FaMapMarkerAlt, FaClock, FaUser, FaMoneyBillWave, FaStar, FaPlus, FaCheck, FaTimes, FaSpinner, FaCommentDots } from 'react-icons/fa';
+import { FaCar, FaMapMarkerAlt, FaClock, FaUser, FaMoneyBillWave, FaStar, FaPlus, FaCheck, FaTimes, FaSpinner, FaCommentDots, FaMap } from 'react-icons/fa';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   getRideRequestsByStatus,
@@ -296,6 +296,7 @@ function Driver() {
     carPlate: '',
     estimatedDuration: ''
   });
+  const [isMapCollapsed, setIsMapCollapsed] = useState(false);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -448,14 +449,7 @@ function Driver() {
       
       {/* Título principal - Visible en todas las pantallas */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-dark">{STRINGS.PANEL_DEL_CONDUCTOR}</h1>
-          {acceptedTrip && (
-            <button onClick={() => setIsChatOpen(true)} className="p-2 rounded-full hover:bg-gray-200 transition-colors">
-              <FaCommentDots className="text-primary text-2xl" />
-            </button>
-          )}
-        </div>
+        <h1 className="text-2xl font-bold text-dark">{STRINGS.PANEL_DEL_CONDUCTOR}</h1>
       </div>
       
       {isChatOpen && acceptedTrip && (
@@ -691,7 +685,7 @@ function Driver() {
           </div>
           
           {/* Mapa - Visible en móviles (arriba) y escritorio (derecha) */}
-          <div className="lg:col-span-2 order-1 lg:order-2 bg-white rounded-xl shadow-md overflow-hidden relative" style={{ height: 'calc(100vh - 8rem)' }}>
+          <div className="lg:col-span-2 order-1 lg:order-2 bg-white rounded-xl shadow-md overflow-hidden relative" style={{ height: isMapCollapsed ? '0' : 'calc(100vh - 8rem)', transition: 'height 0.3s ease' }}>
             <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
               {!currentPosition && (
                 <div className="text-center p-4 bg-white rounded-lg shadow-lg">
@@ -892,6 +886,24 @@ function Driver() {
                 <LocationSelector onSelect={handleLocationSelect} />
               )}
             </MapContainer>
+          </div>
+          
+          {/* Botones flotantes - Mapa y Chat */}
+          <div className="fixed top-20 right-4 flex gap-2" style={{ zIndex: 1000 }}>
+            {acceptedTrip && (
+              <button
+                onClick={() => setIsChatOpen(!isChatOpen)}
+                className="bg-white p-2 rounded-full shadow-lg hover:bg-gray-100 transition-colors"
+              >
+                <FaCommentDots className="text-primary text-xl" />
+              </button>
+            )}
+            <button
+              onClick={() => setIsMapCollapsed(!isMapCollapsed)}
+              className="bg-white p-2 rounded-full shadow-lg hover:bg-gray-100 transition-colors"
+            >
+              <FaMap className="text-gray-700" />
+            </button>
           </div>
         </div>
       </div>

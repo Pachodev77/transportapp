@@ -2,6 +2,7 @@ import React, { useEffect, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import './index.css';
@@ -103,61 +104,63 @@ function App() {
 
   return (
     <React.Suspense fallback={<Loading />}>
-      <AuthProvider>
-        <BrowserRouter>
-          <ScrollToTop />
-          <Routes>
-            <Route path="/" element={
-              <Layout>
-                <LandingPage />
-              </Layout>
-            } />
-            <Route path="/login" element={
-              <AuthCheck>
-                <Login />
-              </AuthCheck>
-            } />
-            <Route path="/passenger/*" element={
-              <ProtectedRoute>
+      <ThemeProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <ScrollToTop />
+            <Routes>
+              <Route path="/" element={
                 <Layout>
-                  <Passenger />
+                  <LandingPage />
                 </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/driver/*" element={
-              <ProtectedRoute roles={['driver']}>
+              } />
+              <Route path="/login" element={
+                <AuthCheck>
+                  <Login />
+                </AuthCheck>
+              } />
+              <Route path="/passenger/*" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Passenger />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/driver/*" element={
+                <ProtectedRoute roles={['driver']}>
+                  <Layout>
+                    <Driver />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/app" element={
+                <ProtectedRoute>
+                  <RoleBasedRedirect />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Profile />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/profile/edit" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <EditProfile />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="*" element={
                 <Layout>
-                  <Driver />
+                  <Navigate to="/" replace />
                 </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/app" element={
-              <ProtectedRoute>
-                <RoleBasedRedirect />
-              </ProtectedRoute>
-            } />
-            <Route path="/profile" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Profile />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/profile/edit" element={
-              <ProtectedRoute>
-                <Layout>
-                  <EditProfile />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="*" element={
-              <Layout>
-                <Navigate to="/" replace />
-              </Layout>
-            } />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
+              } />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </ThemeProvider>
     </React.Suspense>
   );
 }
