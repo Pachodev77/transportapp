@@ -36,9 +36,11 @@ service cloud.firestore {
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fcmToken', 'updatedAt'])) ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completedTrips', 'updatedAt']) &&
          request.resource.data.completedTrips == resource.data.completedTrips + 1) ||
-        // Allow rating updates only via transaction
+        // Allow rating updates
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'ratingCount', 'updatedAt']) &&
-         request.auth.token.firebase.sign_in_provider == 'custom')
+         request.resource.data.rating >= 0 && 
+         request.resource.data.rating <= 5 &&
+         request.resource.data.ratingCount > 0)
       );
       
       allow create: if isAuthenticated();

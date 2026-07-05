@@ -166,27 +166,21 @@ export default function Passenger() {
         throw new Error('Este viaje ya fue calificado.');
       }
 
-      const batch = writeBatch(db);
-
-      const ratingUpdate = {
-        rating: Number(rating),
-        comment: String(comment || '').trim(),
-        ratedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      // 1. First, mark the ride as rated
+      await updateDoc(rideRequestRef, {
         canRate: false,
-        ratedBy: arrayUnion(currentUser.uid)
-      };
+        ratedBy: arrayUnion(currentUser.uid),
+        updatedAt: serverTimestamp()
+      });
 
-      batch.update(rideRequestRef, ratingUpdate);
-
-      // The following transaction is removed because it violates security rules.
-      // A Cloud Function should be used to aggregate ratings and update the driver's profile.
-      /*
+      // 2. Then, update the driver's rating
       if (rideRequestData.driverId) {
         const driverRef = doc(db, 'users', rideRequestData.driverId);
         
+        // Use a transaction to ensure atomic updates
         await runTransaction(db, async (transaction) => {
           const driverDoc = await transaction.get(driverRef);
+          
           if (driverDoc.exists()) {
             const driverData = driverDoc.data();
             const currentRating = Number(driverData.rating) || 0;
@@ -202,17 +196,13 @@ export default function Passenger() {
           }
         });
       }
-      */
 
-      await batch.commit();
-
+      // Update local state
       setMyBookings(prev =>
         prev.map(booking =>
           booking.id === rideRequestId
             ? {
                 ...booking,
-                rating: Number(rating),
-                comment: String(comment || '').trim(),
                 canRate: false,
                 ratedBy: [...(booking.ratedBy || []), currentUser.uid]
               }
@@ -220,7 +210,7 @@ export default function Passenger() {
         )
       );
 
-      setSuccessMessage('¡Gracias por calificar tu viaje!');
+      setSuccessMessage('¡Gracias por calificar al conductor!');
       setTimeout(() => {
         setShowRatingModal(false);
         setTripToRate(null);
