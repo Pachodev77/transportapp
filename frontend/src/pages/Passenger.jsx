@@ -330,6 +330,7 @@ export default function Passenger() {
   }, [selectedTrip, currentPosition, driverLocation]);
 
   const [mapViewMode, setMapViewMode] = useState('currentLocation'); // Default to currentLocation
+  const [isSelectingOnMap, setIsSelectingOnMap] = useState(false); // Pause auto-center while user is selecting
   const intervalRef = useRef(null); // Use a ref to store the interval ID
 
   useEffect(() => {
@@ -464,6 +465,8 @@ export default function Passenger() {
 
   // Handle location selection on the map
   const handleLocationSelect = async (latlng) => {
+    // Pause auto-centering while user is picking a location on the map
+    setIsSelectingOnMap(true);
     try {
       const address = await getAddressFromCoordinates(latlng.lat, latlng.lng);
       
@@ -638,6 +641,7 @@ export default function Passenger() {
       
       setOrigin(null);
       setDestination(null);
+      setIsSelectingOnMap(false); // Resume auto-centering
       
     } catch (error) {
       console.error('Error al procesar la solicitud de viaje:', error);
@@ -1072,7 +1076,7 @@ export default function Passenger() {
             <TileLayer
               url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
             />
-            {mapViewMode === 'currentLocation' && currentPosition && (
+            {mapViewMode === 'currentLocation' && currentPosition && !isSelectingOnMap && (
               <RecenterMap position={currentPosition} zoom={15} />
             )}
             {mapViewMode === 'allPoints' && pointsToFit && pointsToFit.length > 0 && (
