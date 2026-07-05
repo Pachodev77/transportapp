@@ -106,7 +106,11 @@ service cloud.firestore {
           (resource.data.status == 'accepted' &&
            request.resource.data.status in ['in_progress', 'completed'] &&
            request.resource.data.driverId == request.auth.uid &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'completedAt', 'canRate']))
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'completedAt', 'canRate'])) ||
+          (resource.data.status in ['accepted', 'in_progress'] &&
+           request.resource.data.status == 'cancelled' &&
+           request.resource.data.driverId == request.auth.uid &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'cancelledAt', 'cancelledBy']))
         )) ||
         isAdmin()
       );
