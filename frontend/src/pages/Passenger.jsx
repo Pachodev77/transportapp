@@ -72,10 +72,13 @@ const driverIcon = createMarkerIcon(createIconContent('fa-solid fa-car'), '#2ecc
 const flashingDriverIcon = createMarkerIcon(createIconContent('fa-solid fa-car'), '#2ecc71', 'flashing-marker');
 const passengerIcon = createMarkerIcon(createIconContent('fa-solid fa-person'), '#f1c40f');
 
-function LocationSelector({ onSelect }) {
+function LocationSelector({ onSelect, onDrag }) {
   useMapEvents({
     click(e) {
       onSelect(e.latlng);
+    },
+    dragstart() {
+      if (onDrag) onDrag();
     }
   });
   return null;
@@ -83,13 +86,25 @@ function LocationSelector({ onSelect }) {
 
 function RecenterMap({ position, zoom }) {
   const map = useMap();
+  const hasFlownRef = useRef(false);
 
+  useEffect(() => {
+    if (!hasFlownRef.current && position && position[0] !== 0 && position[1] !== 0) {
+      map.flyTo(position, zoom);
+      hasFlownRef.current = true;
+    }
+  }, [position, zoom, map]);
+
+  return null;
+}
+
+function ForceCenterMap({ position, zoom }) {
+  const map = useMap();
   useEffect(() => {
     if (position && position[0] !== 0 && position[1] !== 0) {
       map.flyTo(position, zoom);
     }
   }, [position, zoom, map]);
-
   return null;
 }
 
@@ -330,7 +345,8 @@ export default function Passenger() {
   }, [selectedTrip, currentPosition, driverLocation]);
 
   const [mapViewMode, setMapViewMode] = useState('currentLocation'); // Default to currentLocation
-  const [isSelectingOnMap, setIsSelectingOnMap] = useState(false); // Pause auto-center while user is selecting
+  const [userDraggedMap, setUserDraggedMap] = useState(false); // True after user drags map
+  const [forceRecenter, setForceRecenter] = useState(false); // Force a one-shot re-center
   const intervalRef = useRef(null); // Use a ref to store the interval ID
 
   useEffect(() => {
@@ -466,7 +482,7 @@ export default function Passenger() {
   // Handle location selection on the map
   const handleLocationSelect = async (latlng) => {
     // Pause auto-centering while user is picking a location on the map
-    setIsSelectingOnMap(true);
+    setUserDraggedMap(true);
     try {
       const address = await getAddressFromCoordinates(latlng.lat, latlng.lng);
       
@@ -641,7 +657,7 @@ export default function Passenger() {
       
       setOrigin(null);
       setDestination(null);
-      setIsSelectingOnMap(false); // Resume auto-centering
+      setUserDraggedMap(false); // Resume auto-centering
       
     } catch (error) {
       console.error('Error al procesar la solicitud de viaje:', error);
@@ -858,7 +874,7 @@ export default function Passenger() {
                     onClear={() => {
                       setOrigin(null);
                       setOriginQuery('');
-                      setIsSelectingOnMap(false);
+                      setUserDraggedMap(false);
                     }}
                   />
                   
@@ -1085,8 +1101,11 @@ export default function Passenger() {
             <TileLayer
               url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
             />
-            {mapViewMode === 'currentLocation' && currentPosition && !isSelectingOnMap && (
+            {mapViewMode === 'currentLocation' && currentPosition && !userDraggedMap && (
               <RecenterMap position={currentPosition} zoom={15} />
+            )}
+            {forceRecenter && currentPosition && (
+              <ForceCenterMap position={currentPosition} zoom={15} />
             )}
             {mapViewMode === 'allPoints' && pointsToFit && pointsToFit.length > 0 && (
               <FitBoundsToMarkers points={pointsToFit} />
@@ -1161,7 +1180,7 @@ export default function Passenger() {
                 )}
               </>
             )}
-            <LocationSelector onSelect={handleLocationSelect} />
+            <LocationSelector onSelect={handleLocationSelect} onDrag={() => setUserDraggedMap(true)} />
             
             </MapContainer>
           </div>
