@@ -102,26 +102,10 @@ const Chat = ({ tripId, onClose, onNewMessage, otherUserName, otherUserPhotoURL,
           return (
             <div
               key={msg.id}
-              className={`flex mb-3 ${isMine ? 'justify-end' : 'justify-start'}`}>
+              className={`flex mb-3 ${isMine ? 'justify-start' : 'justify-end'}`}>
               
-              {!isMine && (
-                <div className="flex-shrink-0 mr-2 self-end mb-1">
-                  <UserAvatar
-                    userId={otherUserId}
-                    fallbackName={msg.senderName}
-                    size="w-8 h-8"
-                    className="border border-gray-300 dark:border-gray-600 shadow-sm"
-                  />
-                </div>
-              )}
-
-              <div className={`rounded-2xl px-4 py-2 max-w-[75%] shadow-sm ${isMine ? 'bg-primary text-white rounded-br-sm' : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-bl-sm border border-gray-100 dark:border-gray-600'}`}>
-                <p className="text-sm break-words">{msg.text}</p>
-                <p className="text-[10px] text-right mt-1 opacity-70">{formatDate(msg.timestamp)}</p>
-              </div>
-
               {isMine && (
-                <div className="flex-shrink-0 ml-2 self-end mb-1">
+                <div className="flex-shrink-0 mr-2 self-end mb-1">
                   {photoToUse ? (
                     <img src={photoToUse} alt="Me" className="w-8 h-8 rounded-full object-cover border border-primary/30 shadow-sm" />
                   ) : (
@@ -129,6 +113,22 @@ const Chat = ({ tripId, onClose, onNewMessage, otherUserName, otherUserPhotoURL,
                       <span className="text-primary text-xs font-bold">{currentUser.displayName?.charAt(0)?.toUpperCase() || '?'}</span>
                     </div>
                   )}
+                </div>
+              )}
+
+              <div className={`rounded-2xl px-4 py-2 max-w-[75%] shadow-sm ${isMine ? 'bg-primary text-white rounded-bl-sm' : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-br-sm border border-gray-100 dark:border-gray-600'}`}>
+                <p className="text-sm break-words">{msg.text}</p>
+                <p className="text-[10px] text-right mt-1 opacity-70">{formatDate(msg.timestamp)}</p>
+              </div>
+
+              {!isMine && (
+                <div className="flex-shrink-0 ml-2 self-end mb-1">
+                  <UserAvatar
+                    userId={otherUserId}
+                    fallbackName={msg.senderName}
+                    size="w-8 h-8"
+                    className="border border-gray-300 dark:border-gray-600 shadow-sm"
+                  />
                 </div>
               )}
 

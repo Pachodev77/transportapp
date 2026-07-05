@@ -1053,10 +1053,10 @@ export default function Passenger() {
             minHeight: 0 // Ensures the map container can shrink below its content size
           }}
           zoomControl={true}
+          attributionControl={false}
         >
             <TileLayer
               url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-              attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
             />
             {mapViewMode === 'currentLocation' && currentPosition && (
               <RecenterMap position={currentPosition} zoom={15} />

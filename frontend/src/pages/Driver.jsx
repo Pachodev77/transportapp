@@ -472,6 +472,39 @@ function Driver() {
     }
   };
 
+  const handleCancelTrip = async (requestId) => {
+    if (!requestId) {
+      alert('No se pudo identificar el viaje a cancelar');
+      return;
+    }
+
+    if (!window.confirm('¿Estás seguro de que deseas cancelar este viaje?')) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await updateRideRequestStatus(requestId, 'cancelled', {
+        cancelledBy: 'driver',
+        cancelledAt: serverTimestamp(),
+      });
+
+      setMyTrips(prevTrips =>
+        prevTrips.filter(trip => trip.id !== requestId)
+      );
+      setAcceptedTrip(null);
+
+      alert('El viaje ha sido cancelado.');
+      
+    } catch (error) {
+      console.error('Error al cancelar el viaje:', error);
+      alert(`Error al cancelar el viaje: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-light dark:bg-gray-900 pt-16 transition-colors duration-200">
@@ -678,6 +711,13 @@ function Driver() {
                           {(trip.status === 'accepted' || trip.status === 'in_progress') && (
                             <div className="flex gap-2">
                               <Button
+                                onClick={() => handleCancelTrip(trip.id)}
+                                disabled={loading}
+                                className="flex-1 bg-red-500 text-white py-2 rounded-lg font-medium hover:bg-red-600 transition-colors"
+                              >
+                                Cancelar
+                              </Button>
+                              <Button
                                 onClick={() => handleCompleteTrip(trip.id)}
                                 disabled={loading}
                                 className="flex-1 bg-success text-white py-2 rounded-lg font-medium hover:bg-success-dark transition-colors"
@@ -756,6 +796,7 @@ function Driver() {
                 backgroundColor: '#e5e7eb' // Fondo gris claro mientras carga
               }}
               zoomControl={true}
+              attributionControl={false}
               whenCreated={(mapInstance) => {
                 console.log('Mapa inicializado:', mapInstance);
                 handleMapLoad(mapInstance);
@@ -770,7 +811,6 @@ function Driver() {
               })()}
               <TileLayer
                 url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-                attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
               />
               {mapViewMode === 'allPoints' && pointsToFit && pointsToFit.length > 0 && (() => {
                 console.log('DEBUG: MapContainer rendering FitBoundsToMarkers.');
