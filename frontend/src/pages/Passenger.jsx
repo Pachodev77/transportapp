@@ -855,6 +855,11 @@ export default function Passenger() {
                     value={originQuery}
                     onChange={setOriginQuery}
                     onUseCurrentLocation={handleSetCurrentLocationAsOrigin}
+                    onClear={() => {
+                      setOrigin(null);
+                      setOriginQuery('');
+                      setIsSelectingOnMap(false);
+                    }}
                   />
                   
                   <AddressInput
@@ -863,6 +868,10 @@ export default function Passenger() {
                     onSelect={(location) => setDestination(location)}
                     value={destinationQuery}
                     onChange={setDestinationQuery}
+                    onClear={() => {
+                      setDestination(null);
+                      setDestinationQuery('');
+                    }}
                   />
 
                   <div>

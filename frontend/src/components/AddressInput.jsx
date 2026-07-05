@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaMapMarkerAlt } from 'react-icons/fa';
+import { FaTimes } from 'react-icons/fa';
 
-const AddressInput = ({ label, onSelect, icon, value, onChange, onUseCurrentLocation }) => {
-  const [internalQuery, setInternalQuery] = useState(value); // Internal state for typing
+const AddressInput = ({ label, onSelect, icon, value, onChange, onUseCurrentLocation, onClear }) => {
+  const [internalQuery, setInternalQuery] = useState(value);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const isTypingRef = useRef(false); // Track if user is actively typing
+  const isTypingRef = useRef(false);
 
   // Sync external value with internal query
   useEffect(() => {
-    if (!isTypingRef.current) { // Only update internalQuery if not actively typing
+    if (!isTypingRef.current) {
       setInternalQuery(value);
     }
   }, [value]);
@@ -40,23 +40,31 @@ const AddressInput = ({ label, onSelect, icon, value, onChange, onUseCurrentLoca
     }, 500);
 
     return () => clearTimeout(debounce);
-  }, [internalQuery]); // Depend on internalQuery
+  }, [internalQuery]);
 
   const handleInputChange = (e) => {
-    isTypingRef.current = true; // User is typing
+    isTypingRef.current = true;
     setInternalQuery(e.target.value);
-    onChange(e.target.value); // Propagate change to parent
+    onChange(e.target.value);
   };
 
   const handleSelect = (result) => {
-    isTypingRef.current = false; // User selected, no longer typing
-    setInternalQuery(result.display_name); // Update internal query
-    setResults([]); // Clear results
+    isTypingRef.current = false;
+    setInternalQuery(result.display_name);
+    setResults([]);
     onSelect({
       lat: parseFloat(result.lat),
       lng: parseFloat(result.lon),
       address: result.display_name
     });
+  };
+
+  const handleClear = () => {
+    isTypingRef.current = false;
+    setInternalQuery('');
+    setResults([]);
+    onChange('');
+    if (onClear) onClear();
   };
 
   return (
@@ -69,10 +77,20 @@ const AddressInput = ({ label, onSelect, icon, value, onChange, onUseCurrentLoca
             type="text"
             value={internalQuery}
             onChange={handleInputChange}
-            onBlur={() => isTypingRef.current = false}
+            onBlur={() => (isTypingRef.current = false)}
             className="w-full bg-transparent focus:outline-none ml-2 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
             placeholder="Escribe una dirección..."
           />
+          {internalQuery && internalQuery.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="ml-1 flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-500 hover:bg-gray-400 dark:hover:bg-gray-400 transition-colors"
+              title="Limpiar"
+            >
+              <FaTimes className="text-gray-600 dark:text-gray-200 text-xs" />
+            </button>
+          )}
           {onUseCurrentLocation && (
             <button
               type="button"
