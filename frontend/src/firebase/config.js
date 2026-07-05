@@ -43,10 +43,13 @@ const firebaseConfig = {
   measurementId: "G-HQ0VQ56HPB"
 };
 
+import { getStorage } from 'firebase/storage';
+
 // Initialize Firebase only once
 let app;
 let auth;
 let db;
+let storage;
 
 try {
   app = getApp();
@@ -55,6 +58,7 @@ try {
 }
 
 auth = getAuth(app);
+storage = getStorage(app);
 
 try {
   db = getFirestore(app);
@@ -445,5 +449,5 @@ export const subscribeToDriverRideRequestUpdates = (userId, callback) => {
   }
 };
 
-export { app, auth, db, runTransaction };
+export { app, auth, db, storage, runTransaction };
 export default app;

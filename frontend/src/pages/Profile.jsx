@@ -285,8 +285,14 @@ export default function Profile() {
           <div className="px-6 py-8 bg-gradient-to-r from-blue-600 to-blue-800">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between">
               <div className="flex items-center">
-                <div className="h-20 w-20 rounded-full bg-white flex items-center justify-center text-blue-600 text-3xl font-bold shadow-lg">
-                  {currentUser?.displayName?.charAt(0) || currentUser?.email?.charAt(0).toUpperCase()}
+                <div className="h-20 w-20 rounded-full bg-white flex items-center justify-center overflow-hidden shadow-lg border-2 border-white">
+                  {currentUser?.photoURL ? (
+                    <img src={currentUser.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-blue-600 text-3xl font-bold">
+                      {currentUser?.displayName?.charAt(0) || currentUser?.email?.charAt(0).toUpperCase()}
+                    </span>
+                  )}
                 </div>
                 <div className="ml-6">
                   <h1 className="text-2xl font-bold text-white">{currentUser?.displayName || 'Usuario'}</h1>

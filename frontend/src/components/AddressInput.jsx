@@ -61,35 +61,35 @@ const AddressInput = ({ label, onSelect, icon, value, onChange, onUseCurrentLoca
 
   return (
     <div>
-      <label className="block text-sm font-medium text-dark mb-1">{label}</label>
+      <label className="block text-sm font-medium text-dark dark:text-gray-300 mb-1">{label}</label>
       <div className="relative">
-        <div className="flex items-center bg-light rounded-lg p-3">
+        <div className="flex items-center bg-light dark:bg-gray-700 rounded-lg p-3 border border-transparent dark:border-gray-600">
           {icon}
           <input
             type="text"
-            value={internalQuery} // Use internalQuery for input value
-            onChange={handleInputChange} // Use new handler
-            onBlur={() => isTypingRef.current = false} // Reset typing state on blur
-            className="w-full bg-transparent focus:outline-none ml-2"
+            value={internalQuery}
+            onChange={handleInputChange}
+            onBlur={() => isTypingRef.current = false}
+            className="w-full bg-transparent focus:outline-none ml-2 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
             placeholder="Escribe una dirección..."
           />
           {onUseCurrentLocation && (
             <button
               type="button"
-              className="px-3 flex items-center text-gray-500 hover:text-gray-700"
+              className="px-3 flex items-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
               onClick={onUseCurrentLocation}
             >
               <i className="fa-solid fa-crosshairs"></i>
             </button>
           )}
         </div>
-        {results.length > 0 && isTypingRef.current && ( // Only show if results and typing
-          <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-y-auto">
+        {results.length > 0 && isTypingRef.current && (
+          <ul className="absolute z-10 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md mt-1 max-h-60 overflow-y-auto shadow-lg">
             {results.map((result) => (
               <li
                 key={result.place_id}
                 onClick={() => handleSelect(result)}
-                className="p-2 hover:bg-gray-100 cursor-pointer"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-gray-800 dark:text-gray-200 text-sm"
               >
                 {result.display_name}
               </li>

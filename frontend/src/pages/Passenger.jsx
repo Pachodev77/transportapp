@@ -112,6 +112,7 @@ export default function Passenger() {
   const [suggestedPrice, setSuggestedPrice] = useState('');
   const [hasActiveRequest, setHasActiveRequest] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [hasUnreadChat, setHasUnreadChat] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [pointsToFit, setPointsToFit] = useState(null);
   const [showRatingModal, setShowRatingModal] = useState(false);
@@ -244,6 +245,57 @@ export default function Passenger() {
       setShowRatingModal(true);
     }
   }, [myRideRequests, currentUser, showRatingModal]); // Only depend on uid instead of the whole currentUser object
+
+  // Background listener for unread chat messages (always active when there's an active trip)
+  const lastSeenCountRef = useRef(0);
+  useEffect(() => {
+    const tripId = selectedTrip?.tripId || selectedTrip?.id;
+    if (!tripId || !currentUser) {
+      lastSeenCountRef.current = 0;
+      return;
+    }
+
+    // Reset unread when trip changes
+    lastSeenCountRef.current = 0;
+    setHasUnreadChat(false);
+
+    const messagesRef = collection(db, 'chats', tripId, 'messages');
+    const q = query(messagesRef, orderBy('timestamp', 'asc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (msgs.length > lastSeenCountRef.current) {
+        const newMsgs = msgs.slice(lastSeenCountRef.current);
+        const hasNewFromOther = newMsgs.some(m => m.senderId !== currentUser.uid);
+        if (hasNewFromOther && !isChatOpen) {
+          setHasUnreadChat(true);
+        }
+        // Only advance the counter when chat is open (messages are "seen")
+        if (isChatOpen) {
+          lastSeenCountRef.current = msgs.length;
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTrip?.tripId, selectedTrip?.id, currentUser?.uid]);
+
+  // Mark messages as read when chat is opened
+  useEffect(() => {
+    if (isChatOpen) {
+      const tripId = selectedTrip?.tripId || selectedTrip?.id;
+      if (!tripId) return;
+      // Sync counter by re-querying — simpler: just clear unread flag
+      setHasUnreadChat(false);
+      // Allow future messages to be tracked from now
+      const messagesRef = collection(db, 'chats', tripId, 'messages');
+      const q = query(messagesRef, orderBy('timestamp', 'asc'));
+      getDocs(q).then(snapshot => {
+        lastSeenCountRef.current = snapshot.size;
+      });
+    }
+  }, [isChatOpen, selectedTrip?.tripId, selectedTrip?.id]);
 
   // Effect to update points to fit when a trip is active
   useEffect(() => {
@@ -610,7 +662,13 @@ export default function Passenger() {
   return (
     <div className='min-h-screen bg-light dark:bg-gray-900 pt-16 transition-colors duration-200'>
       {isChatOpen && selectedTrip && (
-        <Chat tripId={selectedTrip.tripId || selectedTrip.id} onClose={() => setIsChatOpen(false)} />
+        <Chat 
+          tripId={selectedTrip.tripId || selectedTrip.id} 
+          onClose={() => setIsChatOpen(false)} 
+          onNewMessage={() => { if (!isChatOpen) setHasUnreadChat(true); }}
+          otherUserName={selectedTrip.driverName}
+          otherUserPhotoURL={selectedTrip.driverPhotoURL} 
+        />
       )}
 
       {/* Título principal - Visible en todas las pantallas */}
@@ -627,11 +685,59 @@ export default function Passenger() {
           </div>
         )}
 
-        {/* Alert for active trip - between map and tabs */}
+        {/* Floating driver info card - shown when trip is accepted or in progress */}
         {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && selectedTrip.passengerId === currentUser?.uid && (
-          <div className='mb-6 p-4 bg-success text-white rounded-lg text-center shadow-lg animate-pulse'>
-            <p className='font-bold text-lg'>¡Tu conductor está en camino!</p>
-            {selectedTrip.driverName && <p><strong>{selectedTrip.driverName}</strong> llegará pronto.</p>}
+          <div className='fixed bottom-0 left-0 right-0 animate-slide-up' style={{ zIndex: 999 }}>
+            <div className='mx-auto max-w-2xl px-3 pb-3'>
+              <div className='bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 animate-pulse'>
+
+                {/* Ping indicator */}
+                <span className='relative flex-shrink-0 flex h-2.5 w-2.5'>
+                  <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60' />
+                  <span className='relative inline-flex rounded-full h-2.5 w-2.5 bg-white' />
+                </span>
+
+                {/* Avatar */}
+                <div className='flex-shrink-0'>
+                  {selectedTrip.driverPhotoURL ? (
+                    <img
+                      src={selectedTrip.driverPhotoURL}
+                      alt={selectedTrip.driverName}
+                      className='h-10 w-10 rounded-full object-cover border-2 border-white/60 shadow'
+                    />
+                  ) : (
+                    <div className='h-10 w-10 rounded-full bg-white/20 border-2 border-white/60 flex items-center justify-center shadow'>
+                      <span className='text-white text-sm font-bold'>
+                        {selectedTrip.driverName?.charAt(0)?.toUpperCase() || '?'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className='flex-1 min-w-0'>
+                  <p className='text-white font-semibold text-sm leading-tight truncate'>
+                    {selectedTrip.status === 'accepted' ? '¡Conductor en camino!' : '¡Viaje en curso!'}
+                  </p>
+                  <p className='text-white/80 text-xs truncate'>
+                    {selectedTrip.driverName || 'Conductor'}
+                    {selectedTrip.rating > 0 && (
+                      <span className='ml-2'>⭐ {Number(selectedTrip.rating).toFixed(1)}</span>
+                    )}
+                  </p>
+                </div>
+
+                {/* Price */}
+                {selectedTrip.estimatedPrice > 0 && (
+                  <div className='flex-shrink-0 text-right'>
+                    <p className='text-white/70 text-[10px] uppercase tracking-wide'>Precio</p>
+                    <p className='text-white font-bold text-base leading-tight'>
+                      ${Number(selectedTrip.estimatedPrice).toLocaleString()}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1043,10 +1149,13 @@ export default function Passenger() {
           <div className='fixed top-20 right-4 flex gap-2' style={{ zIndex: 1000 }}>
             {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && (
               <button
-                onClick={() => setIsChatOpen(!isChatOpen)}
-                className='bg-white dark:bg-gray-800 p-2 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
+                onClick={() => { setIsChatOpen(!isChatOpen); setHasUnreadChat(false); }}
+                className='relative bg-white dark:bg-gray-800 p-2 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
               >
                 <FaCommentDots className='text-primary text-xl' />
+                {hasUnreadChat && !isChatOpen && (
+                  <span className='absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-800 animate-pulse' />
+                )}
               </button>
             )}
             <button

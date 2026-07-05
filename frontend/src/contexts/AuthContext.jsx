@@ -307,8 +307,8 @@ export function AuthProvider({ children }) {
             setCurrentUser({
               uid: user.uid,
               email: user.email,
-              displayName: user.displayName || userData.displayName,
-              photoURL: user.photoURL || userData.photoURL,
+              displayName: userData.displayName || user.displayName || 'Usuario',
+              photoURL: userData.photoURL || user.photoURL || '',
               role: userData.role || 'passenger',
               provider: user.providerData?.[0]?.providerId || 'email'
             });

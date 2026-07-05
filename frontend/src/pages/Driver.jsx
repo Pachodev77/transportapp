@@ -281,6 +281,54 @@ function Driver() {
   const [passengerLocation, setPassengerLocation] = useState(null);
   const [error, setError] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [hasUnreadChat, setHasUnreadChat] = useState(false);
+  const lastSeenCountRef = useRef(0);
+
+  // Background listener for unread chat messages (always active when there's an active trip)
+  useEffect(() => {
+    const tripId = acceptedTrip?.id;
+    if (!tripId || !currentUser) {
+      lastSeenCountRef.current = 0;
+      return;
+    }
+
+    // Reset when trip changes
+    lastSeenCountRef.current = 0;
+    setHasUnreadChat(false);
+
+    const messagesRef = collection(db, 'chats', tripId, 'messages');
+    const q = query(messagesRef, orderBy('timestamp', 'asc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (msgs.length > lastSeenCountRef.current) {
+        const newMsgs = msgs.slice(lastSeenCountRef.current);
+        const hasNewFromOther = newMsgs.some(m => m.senderId !== currentUser.uid);
+        if (hasNewFromOther && !isChatOpen) {
+          setHasUnreadChat(true);
+        }
+        if (isChatOpen) {
+          lastSeenCountRef.current = msgs.length;
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acceptedTrip?.id, currentUser?.uid]);
+
+  // Mark messages as read when chat is opened
+  useEffect(() => {
+    if (isChatOpen && acceptedTrip?.id) {
+      setHasUnreadChat(false);
+      const messagesRef = collection(db, 'chats', acceptedTrip.id, 'messages');
+      const q = query(messagesRef, orderBy('timestamp', 'asc'));
+      getDocs(q).then(snapshot => {
+        lastSeenCountRef.current = snapshot.size;
+      });
+    }
+  }, [isChatOpen, acceptedTrip?.id]);
+
   const [availableTrips, setAvailableTrips] = useState([]);
   const [myTrips, setMyTrips] = useState([]);
   const [tripHistory, setTripHistory] = useState([]);
@@ -453,7 +501,13 @@ function Driver() {
       </div>
       
       {isChatOpen && acceptedTrip && (
-        <Chat tripId={acceptedTrip.id} onClose={() => setIsChatOpen(false)} />
+        <Chat 
+          tripId={acceptedTrip.id} 
+          onClose={() => setIsChatOpen(false)} 
+          onNewMessage={() => { if (!isChatOpen) setHasUnreadChat(true); }}
+          otherUserName={acceptedTrip.passengerName}
+          otherUserPhotoURL={acceptedTrip.passengerPhotoURL} 
+        />
       )}
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
@@ -892,10 +946,13 @@ function Driver() {
           <div className="fixed top-20 right-4 flex gap-2" style={{ zIndex: 1000 }}>
             {acceptedTrip && (
               <button
-                onClick={() => setIsChatOpen(!isChatOpen)}
-                className="bg-white dark:bg-gray-800 p-2 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                onClick={() => { setIsChatOpen(!isChatOpen); setHasUnreadChat(false); }}
+                className="relative bg-white dark:bg-gray-800 p-2 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <FaCommentDots className="text-primary text-xl" />
+                {hasUnreadChat && !isChatOpen && (
+                  <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-800 animate-pulse" />
+                )}
               </button>
             )}
             <button

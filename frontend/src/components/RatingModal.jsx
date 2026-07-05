@@ -25,16 +25,16 @@ const RatingModal = ({ isOpen, onClose, onSubmit, rideRequestId }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <h2 className="text-xl font-bold mb-4">Califica tu viaje</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md shadow-xl border border-gray-200 dark:border-gray-700">
+        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Califica tu viaje</h2>
         <form onSubmit={handleSubmit}>
           <div className="flex justify-center mb-4">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
                 type="button"
-                className={`text-3xl ${(hover || rating) >= star ? 'text-yellow-400' : 'text-gray-300'} mx-1`}
+                className={`text-3xl ${(hover || rating) >= star ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'} mx-1`}
                 onClick={() => setRating(star)}
                 onMouseEnter={() => setHover(star)}
                 onMouseLeave={() => setHover(rating)}
@@ -45,13 +45,13 @@ const RatingModal = ({ isOpen, onClose, onSubmit, rideRequestId }) => {
           </div>
           
           <div className="mb-4">
-            <label htmlFor="comment" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="comment" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Comentario (opcional)
             </label>
             <textarea
               id="comment"
               rows="3"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="¿Cómo fue tu experiencia?"
@@ -62,7 +62,7 @@ const RatingModal = ({ isOpen, onClose, onSubmit, rideRequestId }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 bg-white dark:bg-gray-800"
               disabled={isSubmitting}
             >
               Cancelar

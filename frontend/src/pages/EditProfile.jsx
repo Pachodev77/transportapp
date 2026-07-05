@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { db } from '../firebase/config';
+import { db, auth } from '../firebase/config';
 import { doc, updateDoc } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { FaArrowLeft, FaSave, FaUser, FaPhone, FaMapMarkerAlt, FaCar, FaMotorcycle, FaTruck } from 'react-icons/fa';
+import { FaArrowLeft, FaSave, FaUser, FaPhone, FaMapMarkerAlt, FaCar, FaMotorcycle, FaTruck, FaCamera } from 'react-icons/fa';
 
 export default function EditProfile() {
   const { currentUser } = useAuth();
@@ -16,10 +17,13 @@ export default function EditProfile() {
     vehicleColor: '',
     vehicleYear: ''
   });
+  const [photoBase64, setPhotoBase64] = useState('');
+  const [photoPreview, setPhotoPreview] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (currentUser) {
@@ -33,6 +37,7 @@ export default function EditProfile() {
         vehicleColor: currentUser.vehicleColor || '',
         vehicleYear: currentUser.vehicleYear || ''
       }));
+      setPhotoPreview(currentUser.photoURL || '');
     }
   }, [currentUser]);
 
@@ -42,6 +47,54 @@ export default function EditProfile() {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        setError('Por favor, selecciona una imagen válida.');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          // Resize image using Canvas to save directly to Firestore (bypass Storage/CORS)
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 250;
+          const MAX_HEIGHT = 250;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Get compressed base64 string
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+          setPhotoBase64(compressedBase64);
+          setPhotoPreview(compressedBase64);
+          setError('');
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const validateForm = () => {
@@ -82,6 +135,13 @@ export default function EditProfile() {
     setSuccess('');
 
     try {
+      let updatedPhotoURL = currentUser.photoURL;
+
+      // If we have a new base64 photo
+      if (photoBase64) {
+        updatedPhotoURL = photoBase64;
+      }
+
       const userRef = doc(db, 'users', currentUser.uid);
       const updateData = {
         displayName: formData.displayName.trim(),
@@ -89,6 +149,10 @@ export default function EditProfile() {
         address: formData.address,
         updatedAt: new Date()
       };
+
+      if (updatedPhotoURL !== currentUser.photoURL) {
+        updateData.photoURL = updatedPhotoURL;
+      }
 
       if (currentUser.role === 'driver') {
         updateData.vehicleType = formData.vehicleType;
@@ -99,14 +163,21 @@ export default function EditProfile() {
 
       await updateDoc(userRef, updateData);
 
+      // Update Auth Profile using Firebase v9 API and auth.currentUser
+      // Note: Firebase Auth has a strict length limit for photoURL, so we can't save base64 data URLs there.
+      // We only update displayName in Auth, and rely on Firestore for the photoURL.
       if (formData.displayName !== currentUser.displayName) {
-        await currentUser.updateProfile({
+        const authUpdate = {
           displayName: formData.displayName.trim()
-        });
+        };
+        
+        if (auth.currentUser) {
+          await updateProfile(auth.currentUser, authUpdate);
+        }
       }
 
       setSuccess('Perfil actualizado correctamente');
-      setTimeout(() => navigate('/profile?success=true'), 1500);
+      setTimeout(() => window.location.assign('/profile?success=true'), 1000);
     } catch (error) {
       console.error('Error updating profile:', error);
       setError('Error al actualizar el perfil. Por favor, inténtalo de nuevo.');
@@ -178,6 +249,34 @@ export default function EditProfile() {
             <div className="space-y-6">
               <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Información Personal</h3>
+                
+                {/* Photo Upload */}
+                <div className="flex flex-col items-center mb-6">
+                  <div 
+                    className="relative w-24 h-24 rounded-full overflow-hidden border-4 border-white dark:border-gray-800 shadow-lg cursor-pointer group"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {photoPreview ? (
+                      <img src={photoPreview} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                        <FaUser className="text-3xl text-blue-500 dark:text-blue-300" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <FaCamera className="text-white text-xl" />
+                    </div>
+                  </div>
+                  <input 
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Toca para cambiar la foto (Max 5MB)</p>
+                </div>
+
                 <div className="space-y-4">
                   <div>
                     <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
