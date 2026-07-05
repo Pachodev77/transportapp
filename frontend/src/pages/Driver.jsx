@@ -203,7 +203,8 @@ function Driver() {
         }
       },
       (error) => {
-        setLocationError(`Location access denied (Code: ${error.code}). Please ensure location services are enabled for your browser and this site.`);
+        setLocationError(`No se pudo obtener la ubicación (Código: ${error.code}). Se utilizará una ubicación aproximada.`);
+        setCurrentPosition(prev => prev || [4.6097, -74.0817]);
       },
       {
         enableHighAccuracy: true,
@@ -216,6 +217,14 @@ function Driver() {
       navigator.geolocation.clearWatch(watchId);
     };
   }, [currentUser]);
+
+  // Auto-dismiss location error
+  useEffect(() => {
+    if (locationError) {
+      const timer = setTimeout(() => setLocationError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [locationError]);
   
   const [pointsToFit, setPointsToFit] = useState(null);
   const [mapViewMode, setMapViewMode] = useState('allPoints'); // 'allPoints' or 'currentLocation'

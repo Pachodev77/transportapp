@@ -433,7 +433,8 @@ export default function Passenger() {
         }
       },
       (error) => {
-        setLocationError(`Location access denied (Code: ${error.code}). Please ensure location services are enabled for your browser and this site.`);
+        setLocationError(`No se pudo obtener la ubicación (Código: ${error.code}). Se utilizará una ubicación aproximada.`);
+        setCurrentPosition(prev => prev || [4.6097, -74.0817]);
       },
       {
         enableHighAccuracy: true,
@@ -446,6 +447,14 @@ export default function Passenger() {
       navigator.geolocation.clearWatch(watchId);
     };
   }, [currentUser]);
+
+  // Auto-dismiss location error
+  useEffect(() => {
+    if (locationError) {
+      const timer = setTimeout(() => setLocationError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [locationError]);
   
   const tabs = [
     { id: 'search', name: STRINGS.BUSCAR_VIAJE },
@@ -540,7 +549,12 @@ export default function Passenger() {
   // Handle canceling the active request
   const handleCancelActiveRequest = () => {
     if (selectedTrip) {
-      handleCancelRequest(selectedTrip.rideRequestId);
+      const id = selectedTrip.id || selectedTrip.tripId || selectedTrip.rideRequestId;
+      if (id) {
+        handleCancelRequest(id);
+      } else {
+        alert("No se pudo identificar el viaje a cancelar.");
+      }
     }
   };
 
