@@ -41,6 +41,7 @@ import Button from '../components/Button';
 import Routing from '../components/Routing';
 import FitBoundsToMarkers from '../components/FitBoundsToMarkers';
 import Chat from '../components/Chat';
+import UserAvatar from '../components/UserAvatar';
 
 // Fix for default marker icons
 const defaultIcon = new L.Icon({
@@ -518,14 +519,8 @@ function Driver() {
           </div>
         )}
         
-        {/* Active trip alert - between map and tabs */}
-        {acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress') && (
-          <div className="mb-6 p-4 bg-success text-white rounded-lg text-center shadow-lg animate-pulse">
-            <p className="font-bold text-lg">¡El pasajero te está esperando!</p>
-            {acceptedTrip.passengerName && <p><strong>{acceptedTrip.passengerName}</strong> está listo para el viaje.</p>}
-          </div>
-        )}
         
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Sidebar izquierda - Contenido principal */}
           <div className="lg:col-span-1 space-y-6 order-2 lg:order-1">
@@ -940,59 +935,49 @@ function Driver() {
                 <LocationSelector onSelect={handleLocationSelect} />
               )}
             </MapContainer>
-          </div>
-          
           {/* Floating passenger info card - shown when trip is accepted or in progress */}
-          {acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress') && (
-            <div className="fixed bottom-0 left-0 right-0 animate-slide-up" style={{ zIndex: 999 }}>
-              <div className="mx-auto max-w-2xl px-3 pb-3">
-                <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 animate-pulse">
-                  {/* Ping indicator */}
-                  <span className="relative flex-shrink-0 flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60" />
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
-                  </span>
+        {acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress') && (
+          <div className="fixed bottom-0 left-0 right-0 animate-slide-up" style={{ zIndex: 999 }}>
+            <div className="mx-auto max-w-2xl px-3 pb-3">
+              <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 animate-pulse">
+                {/* Ping indicator */}
+                <span className="relative flex-shrink-0 flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
+                </span>
 
-                  {/* Avatar */}
-                  <div className="flex-shrink-0">
-                    {acceptedTrip.passengerPhotoURL ? (
-                      <img
-                        src={acceptedTrip.passengerPhotoURL}
-                        alt={acceptedTrip.passengerName}
-                        className="h-10 w-10 rounded-full object-cover border-2 border-white/60 shadow"
-                      />
-                    ) : (
-                      <div className="h-10 w-10 rounded-full bg-white/20 border-2 border-white/60 flex items-center justify-center shadow">
-                        <span className="text-white text-sm font-bold">
-                          {acceptedTrip.passengerName?.charAt(0)?.toUpperCase() || '?'}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                {/* Avatar */}
+                <div className="flex-shrink-0">
+                  <UserAvatar 
+                    userId={acceptedTrip.passengerId} 
+                    fallbackName={acceptedTrip.passengerName} 
+                    className="border-2 border-white/60" 
+                  />
+                </div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-semibold text-sm leading-tight truncate">
-                      {acceptedTrip.status === 'accepted' ? '¡Recoger al pasajero!' : '¡Viaje en curso!'}
-                    </p>
-                    <p className="text-white/80 text-xs truncate">
-                      {acceptedTrip.passengerName || 'Pasajero'}
-                    </p>
-                  </div>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-semibold text-sm leading-tight truncate">
+                    {acceptedTrip.status === 'accepted' ? '¡Recoger al pasajero!' : '¡Viaje en curso!'}
+                  </p>
+                  <p className="text-white/80 text-xs truncate">
+                    {acceptedTrip.passengerName || 'Pasajero'}
+                  </p>
+                </div>
 
-                  {/* Price */}
-                  <div className="flex-shrink-0 text-right">
-                    <p className="text-white font-bold text-lg leading-tight">
-                      ${acceptedTrip.price}
-                    </p>
-                    <p className="text-white/70 text-[10px] uppercase font-bold tracking-wider">
-                      Tarifa
-                    </p>
-                  </div>
+                {/* Price */}
+                <div className="flex-shrink-0 text-right">
+                  <p className="text-white font-bold text-lg leading-tight">
+                    ${acceptedTrip.price}
+                  </p>
+                  <p className="text-white/70 text-[10px] uppercase font-bold tracking-wider">
+                    Tarifa
+                  </p>
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        )}           </div>
           
           {/* Botones flotantes - Mapa y Chat */}
           <div className="fixed top-20 right-4 flex gap-2" style={{ zIndex: 1000 }}>

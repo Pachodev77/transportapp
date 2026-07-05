@@ -3,8 +3,9 @@ import { db } from '../firebase/config';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { FaPaperPlane, FaTimes } from 'react-icons/fa';
+import UserAvatar from './UserAvatar';
 
-const Chat = ({ tripId, onClose, onNewMessage, otherUserName, otherUserPhotoURL }) => {
+const Chat = ({ tripId, onClose, onNewMessage, otherUserName, otherUserPhotoURL, otherUserId }) => {
   const { currentUser } = useAuth();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -77,13 +78,11 @@ const Chat = ({ tripId, onClose, onNewMessage, otherUserName, otherUserPhotoURL 
       {/* Header */}
       <div className="flex justify-between items-center p-3 bg-primary text-white rounded-t-lg">
         <div className="flex items-center gap-3">
-          {otherUserPhotoURL ? (
-            <img src={otherUserPhotoURL} alt={otherUserName || 'Chat'} className="w-10 h-10 rounded-full object-cover border border-white/50" />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center border border-white/50">
-              <span className="text-white font-bold">{otherUserName?.charAt(0)?.toUpperCase() || '?'}</span>
-            </div>
-          )}
+          <UserAvatar 
+            userId={otherUserId} 
+            fallbackName={otherUserName} 
+            className="border border-white/50" 
+          />
           <div>
             <h3 className="font-bold text-lg leading-none">{otherUserName || 'Chat del Viaje'}</h3>
             <span className="text-xs text-white/80">En línea</span>

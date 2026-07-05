@@ -23,6 +23,7 @@ import {
   runTransaction,
   arrayUnion
 } from 'firebase/firestore';
+import UserAvatar from '../components/UserAvatar';
 import { db, createRideRequest, subscribeToRideRequests, updateRideRequestStatus, getUserRideRequests, subscribeToPassengerRideRequestUpdates } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
 import 'leaflet/dist/leaflet.css';
@@ -699,19 +700,11 @@ export default function Passenger() {
 
                 {/* Avatar */}
                 <div className='flex-shrink-0'>
-                  {selectedTrip.driverPhotoURL ? (
-                    <img
-                      src={selectedTrip.driverPhotoURL}
-                      alt={selectedTrip.driverName}
-                      className='h-10 w-10 rounded-full object-cover border-2 border-white/60 shadow'
-                    />
-                  ) : (
-                    <div className='h-10 w-10 rounded-full bg-white/20 border-2 border-white/60 flex items-center justify-center shadow'>
-                      <span className='text-white text-sm font-bold'>
-                        {selectedTrip.driverName?.charAt(0)?.toUpperCase() || '?'}
-                      </span>
-                    </div>
-                  )}
+                  <UserAvatar 
+                    userId={selectedTrip.driverId} 
+                    fallbackName={selectedTrip.driverName} 
+                    className="border-2 border-white/60" 
+                  />
                 </div>
 
                 {/* Info */}
