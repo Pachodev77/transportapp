@@ -129,24 +129,24 @@ export default function EditProfile() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
       <div className="max-w-3xl mx-auto">
-        <div className="bg-white shadow overflow-hidden rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200 bg-white">
+        <div className="bg-white dark:bg-gray-800 shadow overflow-hidden rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
             <div className="flex items-center">
               <button
                 onClick={() => navigate(-1)}
-                className="mr-4 p-2 rounded-full hover:bg-gray-100"
+                className="mr-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
               >
-                <FaArrowLeft className="text-gray-600" />
+                <FaArrowLeft className="text-gray-600 dark:text-gray-300" />
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">Editar Perfil</h1>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Editar Perfil</h1>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             {error && (
-              <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
+              <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-400 p-4 mb-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -154,14 +154,14 @@ export default function EditProfile() {
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm text-red-700">{error}</p>
+                    <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
                   </div>
                 </div>
               </div>
             )}
 
             {success && (
-              <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-4">
+              <div className="bg-green-50 dark:bg-green-900/30 border-l-4 border-green-400 p-4 mb-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -169,18 +169,18 @@ export default function EditProfile() {
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm text-green-700">{success}</p>
+                    <p className="text-sm text-green-700 dark:text-green-300">{success}</p>
                   </div>
                 </div>
               </div>
             )}
 
             <div className="space-y-6">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Información Personal</h3>
+              <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Información Personal</h3>
                 <div className="space-y-4">
                   <div>
-                    <label htmlFor="displayName" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Nombre completo
                     </label>
                     <div className="mt-1 relative rounded-md shadow-sm">
@@ -193,7 +193,7 @@ export default function EditProfile() {
                         id="displayName"
                         value={formData.displayName}
                         onChange={handleChange}
-                        className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
+                        className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white rounded-md"
                         placeholder="Tu nombre completo"
                         required
                       />
@@ -201,7 +201,7 @@ export default function EditProfile() {
                   </div>
 
                   <div>
-                    <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Número de teléfono
                     </label>
                     <div className="mt-1 relative rounded-md shadow-sm">
@@ -214,14 +214,14 @@ export default function EditProfile() {
                         id="phoneNumber"
                         value={formData.phoneNumber}
                         onChange={handleChange}
-                        className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
+                        className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white rounded-md"
                         placeholder="+57 300 123 4567"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+                    <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                       Dirección
                     </label>
                     <div className="mt-1 relative rounded-md shadow-sm">
@@ -234,7 +234,7 @@ export default function EditProfile() {
                         rows="3"
                         value={formData.address}
                         onChange={handleChange}
-                        className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
+                        className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white rounded-md"
                         placeholder="Tu dirección completa"
                       />
                     </div>
@@ -243,11 +243,11 @@ export default function EditProfile() {
               </div>
 
               {currentUser?.role === 'driver' && (
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Información del Vehículo</h3>
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Información del Vehículo</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="vehicleType" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="vehicleType" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                         Tipo de vehículo
                       </label>
                       <div className="mt-1 relative rounded-md shadow-sm">
@@ -259,7 +259,7 @@ export default function EditProfile() {
                           name="vehicleType"
                           value={formData.vehicleType}
                           onChange={handleChange}
-                          className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 pr-10 sm:text-sm border-gray-300 rounded-md"
+                          className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 pr-10 sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white rounded-md"
                           required
                         >
                           <option value="car">Automóvil</option>
@@ -271,7 +271,7 @@ export default function EditProfile() {
                     </div>
 
                     <div>
-                      <label htmlFor="licensePlate" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="licensePlate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                         Placa del vehículo
                       </label>
                       <input
@@ -280,14 +280,14 @@ export default function EditProfile() {
                         id="licensePlate"
                         value={formData.licensePlate}
                         onChange={handleChange}
-                        className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white rounded-md"
                         placeholder="ABC123"
                         required={currentUser?.role === 'driver'}
                       />
                     </div>
 
                     <div>
-                      <label htmlFor="vehicleColor" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="vehicleColor" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                         Color del vehículo
                       </label>
                       <input
@@ -296,13 +296,13 @@ export default function EditProfile() {
                         id="vehicleColor"
                         value={formData.vehicleColor}
                         onChange={handleChange}
-                        className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white rounded-md"
                         placeholder="Ej: Rojo, Azul, Negro..."
                       />
                     </div>
 
                     <div>
-                      <label htmlFor="vehicleYear" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="vehicleYear" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                         Año del vehículo
                       </label>
                       <input
@@ -313,7 +313,7 @@ export default function EditProfile() {
                         max={new Date().getFullYear() + 1}
                         value={formData.vehicleYear}
                         onChange={handleChange}
-                        className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white rounded-md"
                         placeholder="2020"
                       />
                     </div>
@@ -325,7 +325,7 @@ export default function EditProfile() {
                 <button
                   type="button"
                   onClick={() => navigate('/profile')}
-                  className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="bg-white dark:bg-gray-700 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                   disabled={loading}
                 >
                   Cancelar

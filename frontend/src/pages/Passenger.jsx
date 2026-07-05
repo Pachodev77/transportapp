@@ -608,14 +608,14 @@ export default function Passenger() {
 
 
   return (
-    <div className='min-h-screen bg-light pt-16'>
+    <div className='min-h-screen bg-light dark:bg-gray-900 pt-16 transition-colors duration-200'>
       {isChatOpen && selectedTrip && (
         <Chat tripId={selectedTrip.tripId || selectedTrip.id} onClose={() => setIsChatOpen(false)} />
       )}
 
       {/* Título principal - Visible en todas las pantallas */}
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2'>
-        <h1 className='text-2xl font-bold text-dark'>{STRINGS.PANEL_DEL_PASAJERO}</h1>
+        <h1 className='text-2xl font-bold text-dark dark:text-white'>{STRINGS.PANEL_DEL_PASAJERO}</h1>
       </div>
 
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4'>
@@ -639,7 +639,7 @@ export default function Passenger() {
           {/* Sidebar izquierda - Contenido principal */}
           <div className='lg:col-span-1 space-y-6 order-2 lg:order-1'>
             {/* Tabs - Visibles en móviles y escritorio */}
-            <div className='bg-white rounded-lg shadow-md p-6'>
+            <div className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-6'>
               
               <div className='flex border-b mb-4 space-x-2 overflow-x-auto'>
                 {tabs.map((tab) => (
@@ -672,19 +672,19 @@ export default function Passenger() {
               {/* My Requests Tab */}
               {activeTab === 'my-requests' && (
                 <div className="space-y-4">
-                  <h3 className="font-medium text-dark">{STRINGS.MIS_SOLICITUDES_DE_VIAJE}</h3>
+                  <h3 className="font-medium text-dark dark:text-white">{STRINGS.MIS_SOLICITUDES_DE_VIAJE}</h3>
                   {myRideRequests.length === 0 ? (
                     <p className="text-sm text-secondary py-4 text-center">{STRINGS.NO_TIENES_SOLICITUDES}</p>
                   ) : (
                     <div className="space-y-4">
                       {myRideRequests.map((request) => (
-                        <div key={request.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div key={request.id} className="border dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow">
                           <div className="flex justify-between items-start">
                             <div>
-                              <h3 className="font-medium text-dark">
+                              <h3 className="font-medium text-dark dark:text-white">
                                 {request.origin?.address || STRINGS.ORIGEN} → {request.destination?.address || STRINGS.DESTINO}
                               </h3>
-                              <p className="text-sm text-secondary mt-1">
+                              <p className="text-sm text-secondary dark:text-gray-400 mt-1">
                                 {formatDate(request.createdAt)}
                               </p>
                               <div className="mt-2">
@@ -729,7 +729,7 @@ export default function Passenger() {
               {/* Search Tab */}
               {activeTab === 'search' && (
                 <div className="space-y-4">
-                  <h3 className="font-medium text-dark">{STRINGS.BUSCAR_VIAJE}</h3>
+                  <h3 className="font-medium text-dark dark:text-white">{STRINGS.BUSCAR_VIAJE}</h3>
                   <AddressInput
                     label={STRINGS.ORIGEN}
                     icon={<FaMapMarkerAlt className="text-danger" />}
@@ -748,12 +748,12 @@ export default function Passenger() {
                   />
 
                   <div>
-                    <label htmlFor="price" className="block text-sm font-medium text-dark mb-1">
+                    <label htmlFor="price" className="block text-sm font-medium text-dark dark:text-gray-300 mb-1">
                       {STRINGS.PRECIO_SUGERIDO}
                     </label>
                     <div className="mt-1 relative rounded-md shadow-sm">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-secondary sm:text-sm">$</span>
+                        <span className="text-secondary dark:text-gray-400 sm:text-sm">$</span>
                       </div>
                       <input
                         type="number"
@@ -763,7 +763,7 @@ export default function Passenger() {
                         placeholder="0"
                         value={suggestedPrice}
                         onChange={(e) => setSuggestedPrice(e.target.value)}
-                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                        className="w-full pl-7 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white"
                         required
                       />
                     </div>
@@ -796,13 +796,13 @@ export default function Passenger() {
                   {/* Available Trips */}
                   {availableTrips.length > 0 && (
                     <div className="mt-8">
-                      <h4 className="font-medium text-dark mb-4">{STRINGS.VIAJES_DISPONIBLES}</h4>
+                      <h4 className="font-medium text-dark dark:text-white mb-4">{STRINGS.VIAJES_DISPONIBLES}</h4>
                       <div className="space-y-4">
                         {availableTrips.map((trip) => (
-                          <div key={trip.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                          <div key={trip.id} className="border dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow">
                             <div className="flex justify-between items-start mb-3">
                               <div>
-                                <h3 className="font-medium text-dark">{trip.driverName}</h3>
+                                <h3 className="font-medium text-dark dark:text-white">{trip.driverName}</h3>
                                 <div className="flex items-center text-warning text-sm">
                                   <FaStar className="mr-1" />
                                   <span>{trip.rating} ({trip.reviewCount} {STRINGS.RESENAS})</span>
@@ -810,7 +810,7 @@ export default function Passenger() {
                               </div>
                               <div className="text-right">
                                 <div className="text-xl font-bold text-primary">${trip.price?.toLocaleString()}</div>
-                                <div className="text-sm text-secondary">
+                                <div className="text-sm text-secondary dark:text-gray-400">
                                   {trip.availableSeats > 0 
                                     ? `${trip.availableSeats} ${trip.availableSeats > 1 ? STRINGS.ASIENTOS : STRINGS.ASIENTO} ${STRINGS.DISPONIBLE}`
                                     : STRINGS.SIN_CUPOS}
@@ -821,17 +821,17 @@ export default function Passenger() {
                             <div className="space-y-2 text-sm mb-4">
                               <div className="flex items-center">
                                 <FaMapMarkerAlt className="text-danger mr-2 w-4" />
-                                <span className="truncate">{trip.origin?.address}</span>
+                                <span className="truncate dark:text-gray-300">{trip.origin?.address}</span>
                               </div>
                               <div className="flex items-center">
                                 <FaMapMarkerAlt className="text-success mr-2 w-4" />
-                                <span className="truncate">{trip.destination?.address}</span>
+                                <span className="truncate dark:text-gray-300">{trip.destination?.address}</span>
                               </div>
-                              <div className="flex items-center text-secondary">
+                              <div className="flex items-center text-secondary dark:text-gray-400">
                                 <FaClock className="mr-2 w-4" />
                                 <span>{formatDate(trip.departureTime)}</span>
                               </div>
-                              <div className="flex items-center text-secondary">
+                              <div className="flex items-center text-secondary dark:text-gray-400">
                                 <FaCar className="mr-2 w-4" />
                                 <span>{trip.carModel} • {trip.carPlate}</span>
                               </div>
@@ -859,18 +859,18 @@ export default function Passenger() {
               {/* My Trips Tab */}
               {activeTab === 'my-trips' && (
                 <div className="space-y-4">
-                  <h3 className="font-medium text-dark">{STRINGS.MIS_VIAJES}</h3>
+                  <h3 className="font-medium text-dark dark:text-white">{STRINGS.MIS_VIAJES}</h3>
                   {myBookings.length === 0 ? (
-                    <div className="text-center py-8 text-secondary">
+                    <div className="text-center py-8 text-secondary dark:text-gray-400">
                       <p>{STRINGS.NO_TIENES_VIAJES_PROGRAMADOS}</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {myBookings.map((booking) => (
-                        <div key={booking.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div key={booking.id} className="border dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow">
                           <div className="flex justify-between items-start mb-3">
                             <div>
-                              <h3 className="font-medium text-dark">
+                              <h3 className="font-medium text-dark dark:text-white">
                                 {booking.origin?.address?.split(',')[0]} → {booking.destination?.address?.split(',')[0]}
                               </h3>
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -887,7 +887,7 @@ export default function Passenger() {
                             </div>
                             <div className="text-right">
                               <div className="text-xl font-bold text-primary">${booking.price?.toLocaleString()}</div>
-                              <div className="text-sm text-secondary">
+                              <div className="text-sm text-secondary dark:text-gray-400">
                                 {booking.departureTime && formatDate(booking.departureTime)}
                               </div>
                             </div>
@@ -896,14 +896,14 @@ export default function Passenger() {
                           <div className="space-y-2 text-sm">
                             <div className="flex items-center">
                               <FaMapMarkerAlt className="text-danger mr-2 w-4" />
-                              <span className="truncate">{booking.origin?.address}</span>
+                              <span className="truncate dark:text-gray-300">{booking.origin?.address}</span>
                             </div>
                             <div className="flex items-center">
                               <FaMapMarkerAlt className="text-success mr-2 w-4" />
-                              <span className="truncate">{booking.destination?.address}</span>
+                              <span className="truncate dark:text-gray-300">{booking.destination?.address}</span>
                             </div>
                             {booking.driverName && (
-                              <div className="flex items-center text-secondary">
+                              <div className="flex items-center text-secondary dark:text-gray-400">
                                 <span className="mr-2">{STRINGS.CONDUCTOR}</span>
                                 <span>{booking.driverName}</span>
                               </div>
@@ -931,12 +931,12 @@ export default function Passenger() {
           </div>
 
           {/* Mapa - Visible en móviles (arriba) y escritorio (derecha) */}
-          <div className='lg:col-span-2 order-1 lg:order-2 bg-white rounded-xl shadow-md overflow-hidden relative' style={{ height: isMapCollapsed ? '0' : 'calc(100vh - 8rem)', transition: 'height 0.3s ease' }}>
-            <div className='absolute inset-0 flex items-center justify-center bg-gray-100'>
+          <div className='lg:col-span-2 order-1 lg:order-2 bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden relative' style={{ height: isMapCollapsed ? '0' : 'calc(100vh - 8rem)', transition: 'height 0.3s ease' }}>
+            <div className='absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-900'>
               {!currentPosition && (
-                <div className='text-center p-4 bg-white rounded-lg shadow-lg'>
-                  <p className='text-lg font-medium text-gray-700'>Cargando mapa...</p>
-                  <p className='text-sm text-gray-500 mt-1'>Obteniendo tu ubicación</p>
+                <div className='text-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg'>
+                  <p className='text-lg font-medium text-gray-700 dark:text-gray-300'>Cargando mapa...</p>
+                  <p className='text-sm text-gray-500 dark:text-gray-400'>Obteniendo tu ubicación</p>
                 </div>
               )}
             </div>
@@ -1044,16 +1044,16 @@ export default function Passenger() {
             {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && (
               <button
                 onClick={() => setIsChatOpen(!isChatOpen)}
-                className='bg-white p-2 rounded-full shadow-lg hover:bg-gray-100 transition-colors'
+                className='bg-white dark:bg-gray-800 p-2 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
               >
                 <FaCommentDots className='text-primary text-xl' />
               </button>
             )}
             <button
               onClick={() => setIsMapCollapsed(!isMapCollapsed)}
-              className='bg-white p-2 rounded-full shadow-lg hover:bg-gray-100 transition-colors'
+              className='bg-white dark:bg-gray-800 p-2 rounded-full shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'
             >
-              <FaMap className='text-gray-700' />
+              <FaMap className='text-gray-700 dark:text-gray-300' />
             </button>
           </div>
         </div>

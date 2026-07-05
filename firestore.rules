@@ -78,13 +78,12 @@ service cloud.firestore {
 
     // Ride Requests collection rules
     match /rideRequests/{requestId} {
-      allow read: if isAuthenticated() && 
-                 (request.auth.uid == resource.data.passengerId ||
-                  isDriver() || 
-                  isAdmin());
-                  
-      allow list: if isAuthenticated() && 
-                 (isDriver() && request.query.where.status == 'pending' || isAdmin());
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.passengerId ||
+        request.auth.uid == resource.data.driverId ||
+        (isDriver() && resource.data.status == 'pending') ||
+        isAdmin()
+      );
       
       allow create: if isAuthenticated() && 
                    request.resource.data.passengerId == request.auth.uid;
@@ -94,7 +93,8 @@ service cloud.firestore {
          resource.data.status == 'completed' &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'comment', 'ratedAt', 'updatedAt', 'canRate', 'ratedBy'])) ||
         (request.auth.uid == resource.data.passengerId &&
-         request.resource.data.status == 'pending' &&
+         resource.data.status in ['pending', 'accepted', 'in_progress'] &&
+         request.resource.data.status == 'cancelled' &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledAt', 'updatedAt', 'cancelledBy'])) ||
         (isDriver() && (
           (resource.data.status == 'pending' && 

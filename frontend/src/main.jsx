@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ActiveTripProvider } from './contexts/ActiveTripContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import './index.css';
@@ -31,10 +32,10 @@ const EditProfile = React.lazy(() => import('./pages/EditProfile'));
 
 // Loading component
 const Loading = () => (
-  <div className="min-h-screen flex items-center justify-center">
+  <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
     <div className="text-center">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-      <p className="mt-4 text-gray-600">Cargando...</p>
+      <p className="mt-4 text-gray-600 dark:text-gray-400">Cargando...</p>
     </div>
   </div>
 );
@@ -68,12 +69,12 @@ const RoleBasedRedirect = () => {
 // Layout component that includes the Navbar and main content
 function Layout({ children }) {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       <Navbar />
       <main className="flex-grow">
         {children}
       </main>
-      <footer className="bg-gray-800 text-white py-6">
+      <footer className="bg-gray-800 dark:bg-gray-950 text-white py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <p>© {new Date().getFullYear()} TransportApp. Todos los derechos reservados.</p>
@@ -106,7 +107,8 @@ function App() {
     <React.Suspense fallback={<Loading />}>
       <ThemeProvider>
         <AuthProvider>
-          <BrowserRouter>
+          <ActiveTripProvider>
+            <BrowserRouter>
             <ScrollToTop />
             <Routes>
               <Route path="/" element={
@@ -159,6 +161,7 @@ function App() {
               } />
             </Routes>
           </BrowserRouter>
+          </ActiveTripProvider>
         </AuthProvider>
       </ThemeProvider>
     </React.Suspense>

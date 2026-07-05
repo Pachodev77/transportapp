@@ -30,7 +30,7 @@ const RatingStars = ({ rating }) => {
       <div className="flex">
         {stars}
       </div>
-      <span className="ml-2 text-gray-600 text-sm">{rating.toFixed(1)}</span>
+      <span className="ml-2 text-gray-600 dark:text-gray-400 text-sm">{rating.toFixed(1)}</span>
     </div>
   );
 };
@@ -51,13 +51,13 @@ const TripCard = ({ trip }) => {
   };
 
   return (
-    <div className="border rounded-lg p-4 mb-4 bg-white shadow-sm hover:shadow-md transition-shadow">
+    <div className="border dark:border-gray-700 rounded-lg p-4 mb-4 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-2">
         <div>
-          <h4 className="font-medium text-gray-900">
+          <h4 className="font-medium text-gray-900 dark:text-white">
             {trip.origin?.address || 'Origen no disponible'} → {trip.destination?.address || 'Destino no disponible'}
           </h4>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             {trip.date ? new Date(trip.date.seconds * 1000).toLocaleDateString() : 'Fecha no disponible'}
           </p>
         </div>
@@ -66,13 +66,13 @@ const TripCard = ({ trip }) => {
       
       {trip.driverRating && (
         <div className="mt-2">
-          <p className="text-sm text-gray-600">Tu calificación al conductor:</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Tu calificación al conductor:</p>
           <RatingStars rating={trip.driverRating} />
         </div>
       )}
       
       {trip.comments && (
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
           <span className="font-medium">Comentario:</span> {trip.comments}
         </p>
       )}
@@ -90,14 +90,14 @@ const StatsCard = ({ icon, title, value, description, color = 'blue' }) => {
   };
   
   return (
-    <div className="bg-white rounded-lg shadow p-4 flex items-start">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 flex items-start">
       <div className={`p-3 rounded-full ${colors[color]} mr-4`}>
         {icon}
       </div>
       <div>
-        <p className="text-sm font-medium text-gray-500">{title}</p>
-        <p className="text-2xl font-bold">{value}</p>
-        {description && <p className="text-xs text-gray-500 mt-1">{description}</p>}
+        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{title}</p>
+        <p className="text-2xl font-bold dark:text-white">{value}</p>
+        {description && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{description}</p>}
       </div>
     </div>
   );
@@ -231,10 +231,10 @@ export default function Profile() {
 
   if (loading && !userData) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <FaSpinner className="animate-spin h-12 w-12 text-blue-500 mx-auto mb-4" />
-          <p className="text-gray-600">Cargando perfil...</p>
+          <p className="text-gray-600 dark:text-gray-400">Cargando perfil...</p>
         </div>
       </div>
     );
@@ -254,9 +254,9 @@ export default function Profile() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
       {error && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+        <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-400 p-4 mb-6">
           <div className="flex">
             <div className="flex-shrink-0">
               <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -264,10 +264,10 @@ export default function Profile() {
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm text-red-700">{error}</p>
+              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
               <button
                 onClick={fetchUserData}
-                className="mt-2 text-sm font-medium text-red-700 hover:text-red-600"
+                className="mt-2 text-sm font-medium text-red-700 dark:text-red-300 hover:text-red-600"
               >
                 Reintentar
               </button>
@@ -284,7 +284,7 @@ export default function Profile() {
       )}
       <div className="max-w-7xl mx-auto mt-16 md:mt-20">
         {/* Encabezado del perfil */}
-        <div className="bg-white shadow overflow-hidden rounded-lg mb-6">
+        <div className="bg-white dark:bg-gray-800 shadow overflow-hidden rounded-lg mb-6">
           <div className="px-6 py-8 bg-gradient-to-r from-blue-600 to-blue-800">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between">
               <div className="flex items-center">
@@ -312,7 +312,7 @@ export default function Profile() {
           </div>
           
           {/* Estadísticas rápidas */}
-          <div className="px-6 py-4 bg-white border-b border-gray-200">
+          <div className="px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatsCard 
                 icon={<FaHistory className="text-xl" />} 
@@ -346,18 +346,26 @@ export default function Profile() {
         </div>
         
         {/* Pestañas de navegación */}
-        <div className="bg-white shadow overflow-hidden rounded-lg mb-6">
-          <div className="border-b border-gray-200">
+        <div className="bg-white dark:bg-gray-800 shadow overflow-hidden rounded-lg mb-6">
+          <div className="border-b border-gray-200 dark:border-gray-700">
             <nav className="flex -mb-px">
               <button
                 onClick={() => setActiveTab('info')}
-                className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'info' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
+                  activeTab === 'info'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'
+                }`}
               >
                 Información Personal
               </button>
               <button
                 onClick={() => setActiveTab('trips')}
-                className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'trips' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
+                  activeTab === 'trips'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'
+                }`}
               >
                 <FaHistory className="inline mr-2" />
                 Historial de Viajes
@@ -365,7 +373,11 @@ export default function Profile() {
               {currentUser?.role === 'driver' && (
                 <button
                   onClick={() => setActiveTab('driver')}
-                  className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'driver' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                  className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
+                    activeTab === 'driver'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'
+                  }`}
                 >
                   <FaCar className="inline mr-2" />
                   Panel de Conductor
@@ -373,7 +385,11 @@ export default function Profile() {
               )}
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${activeTab === 'settings' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
+                className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
+                  activeTab === 'settings'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'
+                }`}
               >
                 Configuración
               </button>
@@ -384,28 +400,28 @@ export default function Profile() {
           <div className="p-6">
             {activeTab === 'info' && (
               <div className="space-y-6">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Información de Contacto</h3>
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Información de Contacto</h3>
                   <div className="space-y-4">
                     <div className="flex items-center">
                       <FaEnvelope className="text-gray-400 mr-3 w-5 flex-shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-sm text-gray-500">Correo electrónico</p>
-                        <p className="text-gray-900 truncate">{userData?.email || 'No especificado'}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Correo electrónico</p>
+                        <p className="text-gray-900 dark:text-gray-100 truncate">{userData?.email || 'No especificado'}</p>
                       </div>
                     </div>
                     <div className="flex items-center">
                       <FaPhone className="text-gray-400 mr-3 w-5 flex-shrink-0" />
                       <div>
-                        <p className="text-sm text-gray-500">Teléfono</p>
-                        <p className="text-gray-900">{userData?.phoneNumber || 'No especificado'}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Teléfono</p>
+                        <p className="text-gray-900 dark:text-gray-100">{userData?.phoneNumber || 'No especificado'}</p>
                       </div>
                     </div>
                     <div className="flex items-start">
                       <FaMapMarkerAlt className="text-gray-400 mr-3 mt-1 w-5 flex-shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-sm text-gray-500">Dirección</p>
-                        <p className="text-gray-900 break-words">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Dirección</p>
+                        <p className="text-gray-900 dark:text-gray-100 break-words">
                           {userData?.address || 'No especificada'}
                         </p>
                       </div>
@@ -413,35 +429,35 @@ export default function Profile() {
                     
                     {/* Información del Vehículo (solo para conductores) */}
                     {userData?.role === 'driver' && (
-                      <div className="mt-6 pt-6 border-t border-gray-200">
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">Información del Vehículo</h3>
+                      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Información del Vehículo</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="flex items-center">
-                            <div className="p-2 rounded-full bg-blue-50 text-blue-600 mr-3">
+                            <div className="p-2 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 mr-3">
                               {renderVehicleIcon(userData?.vehicleType)}
                             </div>
                             <div>
-                              <p className="text-sm text-gray-500">Tipo de vehículo</p>
-                              <p className="text-gray-900 capitalize">
+                              <p className="text-sm text-gray-500 dark:text-gray-400">Tipo de vehículo</p>
+                              <p className="text-gray-900 dark:text-gray-100 capitalize">
                                 {userData?.vehicleType || 'No especificado'}
                               </p>
                             </div>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500">Placa</p>
-                            <p className="text-gray-900 font-medium">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Placa</p>
+                            <p className="text-gray-900 dark:text-gray-100 font-medium">
                               {userData?.licensePlate || 'No especificada'}
                             </p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500">Color</p>
-                            <p className="text-gray-900">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Color</p>
+                            <p className="text-gray-900 dark:text-gray-100">
                               {userData?.vehicleColor || 'No especificado'}
                             </p>
                           </div>
                           <div>
-                            <p className="text-sm text-gray-500">Año</p>
-                            <p className="text-gray-900">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Año</p>
+                            <p className="text-gray-900 dark:text-gray-100">
                               {userData?.vehicleYear || 'No especificado'}
                             </p>
                           </div>
@@ -452,34 +468,34 @@ export default function Profile() {
                 </div>
                 
                 {currentUser?.role === 'driver' && (
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Información del Vehículo</h3>
+                  <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Información del Vehículo</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-gray-500">Tipo de vehículo</p>
-                        <p className="text-gray-900 flex items-center">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Tipo de vehículo</p>
+                        <p className="text-gray-900 dark:text-gray-100 flex items-center">
                           {renderVehicleIcon(userData?.vehicleType)}
                           <span className="capitalize">{userData?.vehicleType || 'No especificado'}</span>
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500">Placa</p>
-                        <p className="text-gray-900">{userData?.licensePlate || 'No especificada'}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Placa</p>
+                        <p className="text-gray-900 dark:text-gray-100">{userData?.licensePlate || 'No especificada'}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500">Color</p>
-                        <p className="text-gray-900">{userData?.vehicleColor || 'No especificado'}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Color</p>
+                        <p className="text-gray-900 dark:text-gray-100">{userData?.vehicleColor || 'No especificado'}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-500">Año</p>
-                        <p className="text-gray-900">{userData?.vehicleYear || 'No especificado'}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Año</p>
+                        <p className="text-gray-900 dark:text-gray-100">{userData?.vehicleYear || 'No especificado'}</p>
                       </div>
                     </div>
                   </div>
                 )}
                 
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Preferencias</h3>
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Preferencias</h3>
                   <div className="space-y-2">
                     <div className="flex items-center">
                       <input
@@ -489,7 +505,7 @@ export default function Profile() {
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         defaultChecked={true}
                       />
-                      <label htmlFor="notifications" className="ml-2 block text-sm text-gray-700">
+                      <label htmlFor="notifications" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                         Recibir notificaciones por correo electrónico
                       </label>
                     </div>
@@ -501,7 +517,7 @@ export default function Profile() {
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         defaultChecked={true}
                       />
-                      <label htmlFor="sms" className="ml-2 block text-sm text-gray-700">
+                      <label htmlFor="sms" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                         Recibir notificaciones por SMS
                       </label>
                     </div>
@@ -512,7 +528,7 @@ export default function Profile() {
             
             {activeTab === 'trips' && (
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Historial de Viajes</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Historial de Viajes</h3>
                 {trips.length > 0 ? (
                   <div className="space-y-4">
                     {trips.map(trip => (
@@ -522,8 +538,8 @@ export default function Profile() {
                 ) : (
                   <div className="text-center py-12">
                     <FaHistory className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No hay viajes registrados</h3>
-                    <p className="mt-1 text-sm text-gray-500">
+                    <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No hay viajes registrados</h3>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                       Cuando realices un viaje, aparecerá aquí.
                     </p>
                     <div className="mt-6">
@@ -541,14 +557,14 @@ export default function Profile() {
             
             {activeTab === 'driver' && currentUser?.role === 'driver' && (
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Panel de Conductor</h3>
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Panel de Conductor</h3>
+                <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 p-4 mb-6">
                   <div className="flex">
                     <div className="flex-shrink-0">
                       <FaInfoCircle className="h-5 w-5 text-blue-400" />
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm text-blue-700">
+                      <p className="text-sm text-blue-700 dark:text-blue-300">
                         Tu perfil de conductor está {userData?.driverApproved ? 'verificado' : 'en revisión'}. 
                         {!userData?.driverApproved && 'Te notificaremos cuando sea aprobado.'}
                       </p>
@@ -557,71 +573,71 @@ export default function Profile() {
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                    <h4 className="font-medium text-gray-900 mb-2">Rendimiento</h4>
+                  <div className="bg-white dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-2">Rendimiento</h4>
                     <div className="space-y-4">
                       <div>
                             <div className="flex justify-between text-sm mb-1">
-                              <span>Puntualidad</span>
-                              <span className="font-medium">4.8/5</span>
+                              <span className="dark:text-gray-300">Puntualidad</span>
+                              <span className="font-medium dark:text-gray-200">4.8/5</span>
                             </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2.5">
+                            <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5">
                               <div className="bg-yellow-400 h-2.5 rounded-full" style={{ width: '96%' }}></div>
                             </div>
                           </div>
                           <div>
                             <div className="flex justify-between text-sm mb-1">
-                              <span>Limpieza</span>
-                              <span className="font-medium">4.9/5</span>
+                              <span className="dark:text-gray-300">Limpieza</span>
+                              <span className="font-medium dark:text-gray-200">4.9/5</span>
                             </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2.5">
+                            <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5">
                               <div className="bg-yellow-400 h-2.5 rounded-full" style={{ width: '98%' }}></div>
                             </div>
                           </div>
                           <div>
                             <div className="flex justify-between text-sm mb-1">
-                              <span>Conducción</span>
-                              <span className="font-medium">4.7/5</span>
+                              <span className="dark:text-gray-300">Conducción</span>
+                              <span className="font-medium dark:text-gray-200">4.7/5</span>
                             </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2.5">
+                            <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5">
                               <div className="bg-yellow-400 h-2.5 rounded-full" style={{ width: '94%' }}></div>
                             </div>
                           </div>
                     </div>
                   </div>
                   
-                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                    <h4 className="font-medium text-gray-900 mb-3">Estadísticas de la semana</h4>
+                  <div className="bg-white dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-3">Estadísticas de la semana</h4>
                     <div className="space-y-3">
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-500">Viajes completados</span>
-                        <span className="text-sm font-medium">12</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Viajes completados</span>
+                        <span className="text-sm font-medium dark:text-gray-200">12</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-500">Ingresos</span>
-                        <span className="text-sm font-medium">$245,000</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Ingresos</span>
+                        <span className="text-sm font-medium dark:text-gray-200">$245,000</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-500">Horas activo</span>
-                        <span className="text-sm font-medium">28.5 hrs</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Horas activo</span>
+                        <span className="text-sm font-medium dark:text-gray-200">28.5 hrs</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-500">Calificación promedio</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Calificación promedio</span>
                         <div className="flex items-center">
                           <FaStar className="text-yellow-400 mr-1" />
-                          <span className="text-sm font-medium">4.8</span>
+                          <span className="text-sm font-medium dark:text-gray-200">4.8</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
                 
-                <div className="mt-6 bg-white p-4 rounded-lg border border-gray-200">
-                  <h4 className="font-medium text-gray-900 mb-3">Estado del conductor</h4>
+                <div className="mt-6 bg-white dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-3">Estado del conductor</h4>
                   <div className="flex items-center">
                     <div className="flex-shrink-0 h-2 w-2 rounded-full bg-green-400 mr-2"></div>
-                    <span className="text-sm text-gray-700">Disponible para viajes</span>
-                    <button className="ml-auto text-sm text-blue-600 hover:text-blue-800">Cambiar estado</button>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Disponible para viajes</span>
+                    <button className="ml-auto text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800">Cambiar estado</button>
                   </div>
                 </div>
               </div>
@@ -629,24 +645,24 @@ export default function Profile() {
             
             {activeTab === 'settings' && (
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Configuración de la cuenta</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Configuración de la cuenta</h3>
                 <div className="space-y-6">
-                  <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+                  <div className="bg-white dark:bg-gray-700 shadow overflow-hidden sm:rounded-lg">
                     <div className="px-4 py-5 sm:px-6">
-                      <h3 className="text-lg leading-6 font-medium text-gray-900">Preferencias de privacidad</h3>
-                      <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                      <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">Preferencias de privacidad</h3>
+                      <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
                         Controla cómo interactúas con otros usuarios en la plataforma.
                       </p>
                     </div>
-                    <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
-                      <dl className="sm:divide-y sm:divide-gray-200">
+                    <div className="border-t border-gray-200 dark:border-gray-600 px-4 py-5 sm:p-0">
+                      <dl className="sm:divide-y sm:divide-gray-200 dark:sm:divide-gray-600">
                         <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                          <dt className="text-sm font-medium text-gray-500">Mostrar mi perfil en búsquedas</dt>
-                          <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Mostrar mi perfil en búsquedas</dt>
+                          <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:mt-0 sm:col-span-2">
                             <select
                               id="privacy"
                               name="privacy"
-                              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                               defaultValue="all"
                             >
                               <option value="all">Todos los usuarios</option>
@@ -660,18 +676,18 @@ export default function Profile() {
                     </div>
                   </div>
                   
-                  <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+                  <div className="bg-white dark:bg-gray-700 shadow overflow-hidden sm:rounded-lg">
                     <div className="px-4 py-5 sm:px-6">
-                      <h3 className="text-lg leading-6 font-medium text-gray-900">Notificaciones</h3>
-                      <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                      <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">Notificaciones</h3>
+                      <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
                         Controla cómo y cuándo recibes notificaciones.
                       </p>
                     </div>
-                    <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
-                      <dl className="sm:divide-y sm:divide-gray-200">
+                    <div className="border-t border-gray-200 dark:border-gray-600 px-4 py-5 sm:p-0">
+                      <dl className="sm:divide-y sm:divide-gray-200 dark:sm:divide-gray-600">
                         <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                          <dt className="text-sm font-medium text-gray-500">Notificaciones por correo</dt>
-                          <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Notificaciones por correo</dt>
+                          <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:mt-0 sm:col-span-2">
                             <div className="flex items-center">
                               <input
                                 id="email-notifications"
@@ -680,15 +696,15 @@ export default function Profile() {
                                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                 defaultChecked={true}
                               />
-                              <label htmlFor="email-notifications" className="ml-2">
+                              <label htmlFor="email-notifications" className="ml-2 dark:text-gray-300">
                                 Recibir notificaciones por correo electrónico
                               </label>
                             </div>
                           </dd>
                         </div>
                         <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                          <dt className="text-sm font-medium text-gray-500">Notificaciones push</dt>
-                          <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Notificaciones push</dt>
+                          <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:mt-0 sm:col-span-2">
                             <div className="flex items-center">
                               <input
                                 id="push-notifications"
@@ -697,7 +713,7 @@ export default function Profile() {
                                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                 defaultChecked={true}
                               />
-                              <label htmlFor="push-notifications" className="ml-2">
+                              <label htmlFor="push-notifications" className="ml-2 dark:text-gray-300">
                                 Recibir notificaciones en el dispositivo
                               </label>
                             </div>
@@ -707,18 +723,18 @@ export default function Profile() {
                     </div>
                   </div>
                   
-                  <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+                  <div className="bg-white dark:bg-gray-700 shadow overflow-hidden sm:rounded-lg">
                     <div className="px-4 py-5 sm:px-6">
                       <h3 className="text-lg leading-6 font-medium text-red-600">Zona de peligro</h3>
-                      <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                      <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">
                         Acciones que no se pueden deshacer.
                       </p>
                     </div>
-                    <div className="border-t border-gray-200 px-4 py-5 sm:p-0">
-                      <dl className="sm:divide-y sm:divide-gray-200">
+                    <div className="border-t border-gray-200 dark:border-gray-600 px-4 py-5 sm:p-0">
+                      <dl className="sm:divide-y sm:divide-gray-200 dark:sm:divide-gray-600">
                         <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                          <dt className="text-sm font-medium text-gray-500">Eliminar cuenta</dt>
-                          <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                          <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Eliminar cuenta</dt>
+                          <dd className="mt-1 text-sm text-gray-900 dark:text-gray-100 sm:mt-0 sm:col-span-2">
                             <button
                               type="button"
                               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
@@ -730,7 +746,7 @@ export default function Profile() {
                             >
                               Eliminar mi cuenta permanentemente
                             </button>
-                            <p className="mt-2 text-sm text-gray-500">
+                            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                               Se eliminarán todos tus datos de forma permanente. Esta acción no se puede deshacer.
                             </p>
                           </dd>

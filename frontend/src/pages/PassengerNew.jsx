@@ -160,7 +160,7 @@ export default function Passenger() {
   }, [currentUser]);
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-200">
       <div className="flex h-screen">
         {/* Map Section */}
         <div className="w-2/3 h-full">
@@ -212,9 +212,9 @@ export default function Passenger() {
         </div>
         
         {/* Sidebar */}
-        <div className="w-1/3 bg-white p-6 overflow-y-auto">
+        <div className="w-1/3 bg-white dark:bg-gray-800 p-6 overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">Solicitar Viaje</h1>
+            <h1 className="text-2xl font-bold dark:text-white">Solicitar Viaje</h1>
             <button 
               onClick={() => {
                 setOrigin(null);
@@ -234,11 +234,11 @@ export default function Passenger() {
             </div>
           )}
           
-          <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-800 mb-3">
+          <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900 rounded-lg">
+            <p className="text-sm text-blue-800 dark:text-blue-200 mb-3">
               <span className="font-semibold">Instrucciones:</span> Haz clic en el mapa para seleccionar origen y destino.
             </p>
-            <ol className="list-decimal list-inside text-sm space-y-1 text-blue-800">
+            <ol className="list-decimal list-inside text-sm space-y-1 text-blue-800 dark:text-blue-200">
               <li>Selecciona el punto de origen</li>
               <li>Selecciona el punto de destino</li>
               <li>Confirma tu solicitud de viaje</li>
@@ -246,43 +246,43 @@ export default function Passenger() {
           </div>
           
           <div className="space-y-6">
-            <div className="p-4 border rounded-lg">
-              <h2 className="text-lg font-semibold mb-3">Detalles del viaje</h2>
+            <div className="p-4 border dark:border-gray-700 rounded-lg">
+              <h2 className="text-lg font-semibold dark:text-white mb-3">Detalles del viaje</h2>
               
               <div className="space-y-4">
                 <div>
                   <div className="flex items-start">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-1">
-                      <FaMapMarkerAlt className="text-blue-600" />
+                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0 mt-1">
+                      <FaMapMarkerAlt className="text-blue-600 dark:text-blue-400" />
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm text-gray-500">Origen</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Origen</p>
                       {origin ? (
-                        <p className="font-medium">{origin.address}</p>
+                        <p className="font-medium dark:text-white">{origin.address}</p>
                       ) : (
-                        <p className="text-gray-400 italic">Selecciona en el mapa</p>
+                        <p className="text-gray-400 dark:text-gray-500 italic">Selecciona en el mapa</p>
                       )}
                     </div>
                   </div>
                   
-                  <div className="ml-4 pl-3 border-l-2 border-gray-200 h-6"></div>
+                  <div className="ml-4 pl-3 border-l-2 border-gray-200 dark:border-gray-600 h-6"></div>
                   
                   <div className="flex items-start">
-                    <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-1">
-                      <FaMapMarkerAlt className="text-red-500" />
+                    <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center flex-shrink-0 mt-1">
+                      <FaMapMarkerAlt className="text-red-500 dark:text-red-400" />
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm text-gray-500">Destino</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Destino</p>
                       {destination ? (
-                        <p className="font-medium">{destination.address}</p>
+                        <p className="font-medium dark:text-white">{destination.address}</p>
                       ) : (
-                        <p className="text-gray-400 italic">Selecciona en el mapa</p>
+                        <p className="text-gray-400 dark:text-gray-500 italic">Selecciona en el mapa</p>
                       )}
                     </div>
                   </div>
                 </div>
                 
-                <div className="pt-4 border-t">
+                <div className="pt-4 border-t dark:border-gray-700">
                   <button
                     onClick={handleRequestRide}
                     disabled={!origin || !destination || loading}
@@ -330,23 +330,23 @@ export default function Passenger() {
                   {myBookings.slice(0, 3).map((booking) => (
                     <div 
                       key={booking.id} 
-                      className="p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                      className="p-3 border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors"
                       onClick={() => navigate(`/booking/${booking.id}`)}
                     >
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="font-medium text-sm">
+                          <p className="font-medium text-sm dark:text-white">
                             {booking.origin?.address || 'Origen'} → {booking.destination?.address || 'Destino'}
                           </p>
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                             {booking.createdAt?.toDate().toLocaleString()}
                           </p>
                         </div>
                         <span className={`px-2 py-1 text-xs rounded-full ${
-                          booking.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                          booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                          booking.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
+                          booking.status === 'accepted' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                          booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                          booking.status === 'completed' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                          'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
                         }`}>
                           {booking.status === 'accepted' ? 'Aceptado' :
                            booking.status === 'pending' ? 'Pendiente' :

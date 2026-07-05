@@ -1,7 +1,8 @@
 import React, { useCallback, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FaCar, FaSearch, FaShieldAlt, FaMoneyBillWave } from 'react-icons/fa';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useActiveTrip } from '../contexts/ActiveTripContext';
+import { FaCar, FaUser, FaClock, FaStar, FaShieldAlt, FaLeaf, FaSearch, FaMoneyBillWave } from 'react-icons/fa';
 
 // Importar imágenes
 import pic1 from '../../public/pic 1.jpg';
@@ -17,6 +18,7 @@ import pic9 from '../../public/pic 9.jpg';
 function LandingPage() {
   const navigate = useNavigate();
   const { currentUser, updateUserRole } = useAuth();
+  const { activePassengerTrip, activeDriverTrip } = useActiveTrip();
   
   // Estilos en línea para el carrusel
   const carouselStyle = {
@@ -243,7 +245,7 @@ function LandingPage() {
   ];
 
   return (
-    <div className="bg-white">
+    <div className="bg-white dark:bg-gray-900 transition-colors duration-200">
       {/* Navbar is already included in the Layout component */}
       
       {/* Hero Section con Carrusel de Fondo */}
@@ -286,7 +288,24 @@ function LandingPage() {
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button
-                  onClick={() => navigate(currentUser ? '/passenger' : '/login', { state: { role: 'passenger' } })}
+                  onClick={async () => {
+                    if (currentUser) {
+                      if (activeDriverTrip) {
+                        alert("No puedes cambiar a pasajero mientras tienes un viaje activo como conductor.");
+                        return;
+                      }
+                      if (currentUser.role !== 'passenger') {
+                        const success = await updateUserRole('passenger');
+                        if (!success) {
+                          alert('Error al actualizar tu rol a pasajero.');
+                          return;
+                        }
+                      }
+                      navigate('/passenger');
+                    } else {
+                      navigate('/login', { state: { role: 'passenger', from: '/passenger' } });
+                    }
+                  }}
                   className="px-8 py-4 bg-white text-blue-700 font-semibold rounded-lg hover:bg-blue-50 transition-colors duration-200 shadow-lg"
                 >
                   Soy pasajero
@@ -298,6 +317,10 @@ function LandingPage() {
                       if (!currentUser.uid) {
                         alert('User ID not found. Please log in again.');
                         console.error('currentUser.uid is missing.');
+                        return;
+                      }
+                      if (activePassengerTrip) {
+                        alert("No puedes cambiar a conductor mientras tienes un viaje activo como pasajero.");
                         return;
                       }
                       const success = await updateUserRole('driver');
@@ -327,14 +350,14 @@ function LandingPage() {
       </section>
 
       {/* Features Carousel */}
-      <div className="py-12 bg-white">
+      <div className="py-12 bg-white dark:bg-gray-900">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
-            <h2 className="text-base text-blue-600 font-semibold tracking-wide uppercase">Características</h2>
-            <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+            <h2 className="text-base text-blue-600 dark:text-blue-400 font-semibold tracking-wide uppercase">Características</h2>
+            <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
               Una mejor manera de viajar
             </p>
-            <p className="mt-3 max-w-2xl text-xl text-gray-500 mx-auto">
+            <p className="mt-3 max-w-2xl text-xl text-gray-500 dark:text-gray-400 mx-auto">
               TransportApp hace que viajar sea más fácil, económico y ecológico.
             </p>
           </div>
@@ -351,16 +374,16 @@ function LandingPage() {
               {features.map((feature, index) => (
                 <div 
                   key={index}
-                  className={`absolute inset-0 flex flex-col items-center justify-center p-8 bg-gray-50 rounded-xl transition-opacity duration-500 ${
+                  className={`absolute inset-0 flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-gray-800 rounded-xl transition-opacity duration-500 ${
                     index === currentFeatureIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
                   }`}
                 >
                   <div className="text-center max-w-md mx-auto">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-blue-600 mb-6">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 mb-6">
                       {React.cloneElement(feature.icon, { className: 'w-8 h-8' })}
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h3>
-                    <p className="text-gray-600">{feature.description}</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">{feature.title}</h3>
+                    <p className="text-gray-600 dark:text-gray-300">{feature.description}</p>
                   </div>
                 </div>
               ))}
@@ -373,7 +396,7 @@ function LandingPage() {
                 setIsAutoPlaying(false);
                 setTimeout(() => setIsAutoPlaying(true), 5000);
               }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white p-2 rounded-full shadow-md text-gray-700 hover:text-blue-600 focus:outline-none z-20"
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-700 p-2 rounded-full shadow-md text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none z-20"
               aria-label="Anterior característica"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -386,7 +409,7 @@ function LandingPage() {
                 setIsAutoPlaying(false);
                 setTimeout(() => setIsAutoPlaying(true), 5000);
               }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white p-2 rounded-full shadow-md text-gray-700 hover:text-blue-600 focus:outline-none z-20"
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white dark:bg-gray-700 p-2 rounded-full shadow-md text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 focus:outline-none z-20"
               aria-label="Siguiente característica"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -404,7 +427,7 @@ function LandingPage() {
                 className={`h-2 rounded-full transition-all duration-300 ${
                   index === currentFeatureIndex 
                     ? `bg-${features[currentFeatureIndex].color}-500 w-6` 
-                    : 'bg-gray-300 hover:bg-gray-400 w-2'
+                    : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 w-2'
                 }`}
                 aria-label={`Ir a característica ${index + 1}`}
               />

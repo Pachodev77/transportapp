@@ -3,6 +3,7 @@ import { motion, useAnimation } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useActiveTrip } from '../contexts/ActiveTripContext';
 import { FaBars, FaUser, FaSignOutAlt, FaCarSide, FaTruck, FaMoon, FaSun } from 'react-icons/fa';
 import { FaMotorcycle } from 'react-icons/fa';
 import { FaMotorcycle as FaMoto } from 'react-icons/fa6';
@@ -10,6 +11,7 @@ import { FaMotorcycle as FaMoto } from 'react-icons/fa6';
 export default function Navbar() {
   const { currentUser, logout } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
+  const { activePassengerTrip, activeDriverTrip } = useActiveTrip();
   const [isOpen, setIsOpen] = React.useState(false);
   const navigate = useNavigate();
   const carControls = useAnimation();
@@ -149,11 +151,27 @@ export default function Navbar() {
 
                 {/* Dark mode toggle */}
                 <button
-                  onClick={toggleDarkMode}
-                  className="ml-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleDarkMode();
+                  }}
+                  className={`ml-4 w-14 h-7 rounded-full flex items-center p-1 cursor-pointer transition-colors duration-300 ${
+                    isDarkMode ? 'bg-indigo-900' : 'bg-blue-100'
+                  }`}
                   aria-label="Toggle dark mode"
                 >
-                  {isDarkMode ? <FaSun className="text-yellow-500" /> : <FaMoon className="text-gray-600" />}
+                  <div
+                    className={`w-5 h-5 rounded-full shadow-md flex items-center justify-center transform transition-transform duration-300 ${
+                      isDarkMode ? 'translate-x-7 bg-indigo-500' : 'translate-x-0 bg-white'
+                    }`}
+                  >
+                    {isDarkMode ? (
+                      <FaMoon className="w-3 h-3 text-white" />
+                    ) : (
+                      <FaSun className="w-3 h-3 text-yellow-500" />
+                    )}
+                  </div>
                 </button>
               </div>
             </Link>
@@ -164,14 +182,27 @@ export default function Navbar() {
               >
                 Inicio
               </Link>
-              {currentUser && (
-                <Link
-                  to={currentUser.role === 'driver' ? '/driver' : '/passenger'}
-                  className="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors"
-                >
-                  {currentUser.role === 'driver' ? 'Mis Viajes' : 'Buscar Viaje'}
-                </Link>
-              )}
+              {currentUser && (() => {
+                let navTarget = currentUser.role === 'driver' ? '/driver' : '/passenger';
+                let navText = currentUser.role === 'driver' ? 'Mis Viajes' : 'Buscar Viaje';
+                
+                if (activePassengerTrip) {
+                  navTarget = '/passenger';
+                  navText = 'Viaje Activo (Pasajero)';
+                } else if (activeDriverTrip) {
+                  navTarget = '/driver';
+                  navText = 'Viaje Activo (Conductor)';
+                }
+
+                return (
+                  <Link
+                    to={navTarget}
+                    className={`border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors ${(activePassengerTrip || activeDriverTrip) ? 'text-blue-600 dark:text-blue-400 font-bold' : ''}`}
+                  >
+                    {navText}
+                  </Link>
+                );
+              })()}
             </div>
           </div>
           
@@ -311,15 +342,28 @@ export default function Navbar() {
             >
               Inicio
             </Link>
-            {currentUser && (
-              <Link
-                to={currentUser.role === 'driver' ? '/driver' : '/passenger'}
-                className="block px-4 py-2 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                onClick={() => setIsOpen(false)}
-              >
-                {currentUser.role === 'driver' ? 'Mis Viajes' : 'Buscar Viaje'}
-              </Link>
-            )}
+            {currentUser && (() => {
+              let navTarget = currentUser.role === 'driver' ? '/driver' : '/passenger';
+              let navText = currentUser.role === 'driver' ? 'Mis Viajes' : 'Buscar Viaje';
+              
+              if (activePassengerTrip) {
+                navTarget = '/passenger';
+                navText = 'Viaje Activo (Pasajero)';
+              } else if (activeDriverTrip) {
+                navTarget = '/driver';
+                navText = 'Viaje Activo (Conductor)';
+              }
+
+              return (
+                <Link
+                  to={navTarget}
+                  className={`block px-4 py-2 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${(activePassengerTrip || activeDriverTrip) ? 'text-blue-600 dark:text-blue-400 font-bold' : ''}`}
+                  onClick={() => setIsOpen(false)}
+                >
+                  {navText}
+                </Link>
+              );
+            })()}
           </div>
 
           {/* Logout option */}
