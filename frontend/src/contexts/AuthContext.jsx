@@ -229,6 +229,29 @@ export function AuthProvider({ children }) {
     setError(null);
   }, []);
 
+  const updateUserRole = useCallback(async (newRole) => {
+    if (!currentUser) return false;
+    
+    try {
+      // Update in Firestore
+      await updateDoc(doc(db, 'users', currentUser.uid), {
+        role: newRole,
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Update local state immediately
+      setCurrentUser(prev => ({
+        ...prev,
+        role: newRole
+      }));
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      return false;
+    }
+  }, [currentUser]);
+
   const verifyAndUpdateUser = useCallback(async (user) => {
     if (!user) return null;
     
@@ -326,6 +349,7 @@ export function AuthProvider({ children }) {
     loginWithFacebook,
     logout,
     resetPassword,
+    updateUserRole,
     loading,
     error,
     clearError

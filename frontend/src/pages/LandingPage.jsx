@@ -2,8 +2,6 @@ import React, { useCallback, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaCar, FaSearch, FaShieldAlt, FaMoneyBillWave } from 'react-icons/fa';
 import { useAuth } from '../contexts/AuthContext';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
 
 // Importar imágenes
 import pic1 from '../../public/pic 1.jpg';
@@ -18,7 +16,7 @@ import pic9 from '../../public/pic 9.jpg';
 
 function LandingPage() {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, updateUserRole } = useAuth();
   
   // Estilos en línea para el carrusel
   const carouselStyle = {
@@ -180,23 +178,6 @@ function LandingPage() {
     }
   };
   
-  const updateUserRole = useCallback(async (newRole) => {
-    if (!currentUser) return false;
-    
-    try {
-      const userRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(userRef, {
-        role: newRole,
-        updatedAt: new Date().toISOString()
-      });
-      
-      console.log(`User role updated to ${newRole}`);
-      return true;
-    } catch (error) {
-      console.error('Error updating user role:', error);
-      return false;
-    }
-  }, [currentUser]);
 
   const features = [
     {
