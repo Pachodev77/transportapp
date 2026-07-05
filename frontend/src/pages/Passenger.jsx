@@ -669,6 +669,7 @@ export default function Passenger() {
           onNewMessage={() => { if (!isChatOpen) setHasUnreadChat(true); }}
           otherUserName={selectedTrip.driverName}
           otherUserPhotoURL={selectedTrip.driverPhotoURL} 
+          otherUserId={selectedTrip.driverId}
         />
       )}
 
@@ -1054,8 +1055,8 @@ export default function Passenger() {
           zoomControl={true}
         >
             <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+              attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
             />
             {mapViewMode === 'currentLocation' && currentPosition && (
               <RecenterMap position={currentPosition} zoom={15} />

@@ -106,13 +106,12 @@ const Chat = ({ tripId, onClose, onNewMessage, otherUserName, otherUserPhotoURL,
               
               {!isMine && (
                 <div className="flex-shrink-0 mr-2 self-end mb-1">
-                  {photoToUse ? (
-                    <img src={photoToUse} alt={msg.senderName} className="w-8 h-8 rounded-full object-cover border border-gray-300 dark:border-gray-600 shadow-sm" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center shadow-sm">
-                      <span className="text-gray-700 dark:text-gray-200 text-xs font-bold">{msg.senderName?.charAt(0)?.toUpperCase() || '?'}</span>
-                    </div>
-                  )}
+                  <UserAvatar
+                    userId={otherUserId}
+                    fallbackName={msg.senderName}
+                    size="w-8 h-8"
+                    className="border border-gray-300 dark:border-gray-600 shadow-sm"
+                  />
                 </div>
               )}
 

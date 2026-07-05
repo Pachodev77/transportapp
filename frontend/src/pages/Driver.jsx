@@ -508,6 +508,7 @@ function Driver() {
           onNewMessage={() => { if (!isChatOpen) setHasUnreadChat(true); }}
           otherUserName={acceptedTrip.passengerName}
           otherUserPhotoURL={acceptedTrip.passengerPhotoURL} 
+          otherUserId={acceptedTrip.passengerId}
         />
       )}
       
@@ -768,8 +769,8 @@ function Driver() {
                 return <RecenterMap position={currentPosition} zoom={15} />;
               })()}
               <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+                attribution='&copy; <a href="https://www.google.com/maps">Google Maps</a>'
               />
               {mapViewMode === 'allPoints' && pointsToFit && pointsToFit.length > 0 && (() => {
                 console.log('DEBUG: MapContainer rendering FitBoundsToMarkers.');
