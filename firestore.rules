@@ -28,10 +28,12 @@ service cloud.firestore {
 
     // Users collection rules
     match /users/{userId} {
-      allow read: if isAuthenticated() && (isOwner(userId) || isRole('admin'));
+      allow read: if isAuthenticated();
       
       allow update: if isAuthenticated() && (
-        isOwner(userId) || 
+        (isOwner(userId) && 
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['rating', 'ratingCount', 'completedTrips', 'driverApproved']) &&
+         (!('role' in request.resource.data) || request.resource.data.role in ['passenger', 'driver'])) ||
         isRole('admin') ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fcmToken', 'updatedAt'])) ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completedTrips', 'updatedAt']) &&

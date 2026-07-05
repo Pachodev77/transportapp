@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase/config';
 import { doc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaIdCard, FaCar, FaMotorcycle, FaTruck, FaEdit, FaStar, FaStarHalfAlt, FaRegStar, FaHistory, FaChartLine, FaCoins, FaRegSmile, FaRegFrown, FaRegMeh, FaSpinner } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaIdCard, FaCar, FaMotorcycle, FaTruck, FaEdit, FaStar, FaStarHalfAlt, FaRegStar, FaHistory, FaChartLine, FaCoins, FaRegSmile, FaRegFrown, FaRegMeh, FaSpinner, FaInfoCircle } from 'react-icons/fa';
 import { useNavigate, useLocation } from 'react-router-dom';
 import SuccessMessage from '../components/SuccessMessage';
 
@@ -130,6 +130,7 @@ export default function Profile() {
     completedTrips: 0,
     rating: 0,
     totalSpent: 0,
+    totalEarned: 0,
   });
 
   useEffect(() => {
@@ -186,22 +187,18 @@ export default function Profile() {
       // Calculate stats from the combined trips data
       const completedTrips = uniqueTrips.filter(trip => trip.status === 'completed');
       const totalSpent = uniqueTrips
-        .filter(trip => trip.passengerId === currentUser.uid) // Only count spending as a passenger
+        .filter(trip => trip.passengerId === currentUser.uid && trip.status === 'completed') // Only count spending as a passenger
         .reduce((sum, trip) => sum + (trip.estimatedPrice || 0), 0);
       
-      const ratings = completedTrips
-        .filter(trip => trip.passengerId === currentUser.uid && trip.rating && !isNaN(parseFloat(trip.rating)))
-        .map(trip => parseFloat(trip.rating));
-      
-      const avgRating = ratings.length > 0 
-        ? parseFloat((ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1))
-        : 0;
+      const totalEarned = uniqueTrips
+        .filter(trip => trip.driverId === currentUser.uid && trip.status === 'completed') // Only count earnings as a driver
+        .reduce((sum, trip) => sum + (trip.estimatedPrice || 0), 0);
 
       setStats({
         totalTrips: uniqueTrips.length,
         completedTrips: completedTrips.length,
-        rating: avgRating,
         totalSpent,
+        totalEarned,
       });
     };
 
@@ -294,7 +291,7 @@ export default function Profile() {
                 <div className="ml-6">
                   <h1 className="text-2xl font-bold text-white">{currentUser?.displayName || 'Usuario'}</h1>
                   <div className="flex items-center mt-1">
-                    <RatingStars rating={stats.rating} />
+                    <RatingStars rating={userData?.rating || 0} />
                     <span className="ml-2 text-blue-100 text-sm">Miembro desde {userData?.memberSince || '2023'}</span>
                   </div>
                 </div>
@@ -330,8 +327,8 @@ export default function Profile() {
               <StatsCard 
                 icon={<FaStar className="text-xl" />} 
                 title="Calificación" 
-                value={stats.rating.toFixed(1)} 
-                description="Basado en tus viajes"
+                value={(userData?.rating || 0).toFixed(1)} 
+                description="Tu calificación actual"
                 color="yellow"
               />
               <StatsCard 
@@ -579,53 +576,53 @@ export default function Profile() {
                       <div>
                             <div className="flex justify-between text-sm mb-1">
                               <span className="dark:text-gray-300">Puntualidad</span>
-                              <span className="font-medium dark:text-gray-200">4.8/5</span>
+                              <span className="font-medium dark:text-gray-200">{(userData?.rating || 0).toFixed(1)}/5</span>
                             </div>
                             <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5">
-                              <div className="bg-yellow-400 h-2.5 rounded-full" style={{ width: '96%' }}></div>
+                              <div className="bg-yellow-400 h-2.5 rounded-full" style={{ width: `${(userData?.rating || 0) * 20}%` }}></div>
                             </div>
                           </div>
                           <div>
                             <div className="flex justify-between text-sm mb-1">
                               <span className="dark:text-gray-300">Limpieza</span>
-                              <span className="font-medium dark:text-gray-200">4.9/5</span>
+                              <span className="font-medium dark:text-gray-200">{(userData?.rating || 0).toFixed(1)}/5</span>
                             </div>
                             <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5">
-                              <div className="bg-yellow-400 h-2.5 rounded-full" style={{ width: '98%' }}></div>
+                              <div className="bg-yellow-400 h-2.5 rounded-full" style={{ width: `${(userData?.rating || 0) * 20}%` }}></div>
                             </div>
                           </div>
                           <div>
                             <div className="flex justify-between text-sm mb-1">
                               <span className="dark:text-gray-300">Conducción</span>
-                              <span className="font-medium dark:text-gray-200">4.7/5</span>
+                              <span className="font-medium dark:text-gray-200">{(userData?.rating || 0).toFixed(1)}/5</span>
                             </div>
                             <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5">
-                              <div className="bg-yellow-400 h-2.5 rounded-full" style={{ width: '94%' }}></div>
+                              <div className="bg-yellow-400 h-2.5 rounded-full" style={{ width: `${(userData?.rating || 0) * 20}%` }}></div>
                             </div>
                           </div>
                     </div>
                   </div>
                   
                   <div className="bg-white dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
-                    <h4 className="font-medium text-gray-900 dark:text-white mb-3">Estadísticas de la semana</h4>
+                    <h4 className="font-medium text-gray-900 dark:text-white mb-3">Estadísticas Generales</h4>
                     <div className="space-y-3">
                       <div className="flex justify-between">
                         <span className="text-sm text-gray-500 dark:text-gray-400">Viajes completados</span>
-                        <span className="text-sm font-medium dark:text-gray-200">12</span>
+                        <span className="text-sm font-medium dark:text-gray-200">{stats.completedTrips}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm text-gray-500 dark:text-gray-400">Ingresos</span>
-                        <span className="text-sm font-medium dark:text-gray-200">$245,000</span>
+                        <span className="text-sm font-medium dark:text-gray-200">${stats.totalEarned.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Horas activo</span>
-                        <span className="text-sm font-medium dark:text-gray-200">28.5 hrs</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Miembro desde</span>
+                        <span className="text-sm font-medium dark:text-gray-200">{userData?.memberSince || '2023'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm text-gray-500 dark:text-gray-400">Calificación promedio</span>
                         <div className="flex items-center">
                           <FaStar className="text-yellow-400 mr-1" />
-                          <span className="text-sm font-medium dark:text-gray-200">4.8</span>
+                          <span className="text-sm font-medium dark:text-gray-200">{(userData?.rating || 0).toFixed(1)}</span>
                         </div>
                       </div>
                     </div>
