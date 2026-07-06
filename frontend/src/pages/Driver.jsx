@@ -608,14 +608,22 @@ function Driver() {
       )}
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
-        {locationError && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded" role="alert">
-            <p className="font-bold">Error de Ubicación</p>
-            <p>{locationError}</p>
-          </div>
-        )}
+        {/* locationError moved to floating container */}
         
         
+
+        {/* Notificaciones Flotantes */}
+        <div className="fixed top-24 right-4 z-[9999] flex flex-col gap-2 w-full max-w-xs sm:max-w-sm pointer-events-none">
+          {locationError && (
+            <div className='p-3 bg-warning text-white rounded-lg shadow-xl flex justify-between items-center pointer-events-auto animate-slide-up'>
+              <div>
+                <p className='font-bold text-sm'>Error de Ubicación</p>
+                <span className="text-xs font-medium">{locationError}</span>
+              </div>
+              <button onClick={() => setLocationError(null)} className='ml-3 text-xl font-bold leading-none p-1 hover:text-gray-200'>&times;</button>
+            </div>
+          )}
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Sidebar izquierda - Contenido principal */}
@@ -733,7 +741,7 @@ function Driver() {
                               </span>
                             </div>
                             <div className="text-right">
-                              <div className="text-xl font-bold text-primary">${(trip.price || 0).toLocaleString()}</div>
+                              <div className="text-xl font-bold text-primary">${((trip.estimatedPrice || trip.price) || 0).toLocaleString()}</div>
                               <div className="text-sm text-secondary dark:text-gray-400">
                                 {trip.passengers} {trip.passengers > 1 ? STRINGS.PASAJEROS : STRINGS.PASAJERO}
                               </div>
@@ -809,7 +817,7 @@ function Driver() {
                                 {trip.passengerName ? `${STRINGS.PASAJERO}: ${trip.passengerName}` : STRINGS.PASAJERO_NO_ESPECIFICADO}
                               </p>
                               <p className="text-sm text-secondary dark:text-gray-400">
-                                {STRINGS.PRECIO}${trip.price || 'No especificado'}
+                                {STRINGS.PRECIO}${(trip.estimatedPrice || trip.price) || 'No especificado'}
                               </p>
                               {trip.completedAt && (
                                 <p className="text-xs text-light mt-1">
@@ -1097,7 +1105,7 @@ function Driver() {
                 {/* Price */}
                 <div className="flex-shrink-0 text-right">
                   <p className="text-white font-bold text-lg leading-tight">
-                    ${acceptedTrip.price}
+                    ${(acceptedTrip.estimatedPrice || acceptedTrip.price || 0).toLocaleString()}
                   </p>
                   <p className="text-white/70 text-[10px] uppercase font-bold tracking-wider">
                     Tarifa

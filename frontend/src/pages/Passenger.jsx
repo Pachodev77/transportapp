@@ -213,8 +213,8 @@ export default function Passenger() {
         throw new Error('No tienes permiso para calificar este viaje.');
       }
 
-      if (rideRequestData.status !== 'completed') {
-        throw new Error('Solo puedes calificar viajes completados.');
+      if (rideRequestData.status !== 'completed' && rideRequestData.status !== 'cancelled') {
+        throw new Error('Solo puedes calificar viajes completados o cancelados.');
       }
 
       if (rideRequestData.ratedBy?.includes(currentUser.uid)) {
@@ -286,14 +286,20 @@ export default function Passenger() {
     }
 
     const rideToRate = myRideRequests.find(req =>
-      req.status === 'completed' &&
+      (req.status === 'completed' || req.status === 'cancelled') &&
       req.passengerId === currentUser.uid &&
+      req.driverId && // Must have a driver to rate
       !req.ratedBy?.includes(currentUser.uid) &&
       req.canRate !== false
     );
 
     if (rideToRate && !hasShownRatingModal.current[rideToRate.id]) {
       hasShownRatingModal.current[rideToRate.id] = true;
+      if (rideToRate.status === 'cancelled' && rideToRate.cancelledBy === 'driver') {
+        alert('El conductor ha cancelado tu viaje. Puedes dejar una reseña sobre su servicio.');
+      } else if (rideToRate.status === 'cancelled') {
+        alert('El viaje ha sido cancelado. Puedes dejar una reseña si lo deseas.');
+      }
       setTripToRate(rideToRate);
       setShowRatingModal(true);
     }
@@ -751,13 +757,7 @@ export default function Passenger() {
 
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4'>
         
-        {locationError && (
-          <div className='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded' role='alert'>
-            <p className='font-bold'>Error de Ubicación</p>
-            <p>{locationError}</p>
-          </div>
-        )}
-
+        {/* locationError moved to floating container */}
         {/* Floating driver info card - shown when trip is accepted or in progress */}
         {selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress') && selectedTrip.passengerId === currentUser?.uid && (
           <div className='fixed bottom-0 left-0 right-0 animate-slide-up cursor-pointer' style={{ zIndex: 999 }} onClick={() => navigate(`/profile/${selectedTrip.driverId}`)}>
@@ -828,17 +828,30 @@ export default function Passenger() {
                 ))}
               </div>
 
-              {successMessage && (
-                <div className='mb-4 p-3 bg-success text-white rounded-lg flex justify-between items-center'>
-                  <span>{successMessage}</span>
-                  <button onClick={() => setSuccessMessage('')} className='text-xl font-bold leading-none p-1'>&times;</button>
-                </div>
-              )}
-              {error && (
-                <div className='mb-4 p-3 bg-danger text-white rounded-lg'>
-                  {error}
-                </div>
-              )}
+              {/* Notificaciones Flotantes */}
+              <div className="fixed top-24 right-4 z-[9999] flex flex-col gap-2 w-full max-w-xs sm:max-w-sm pointer-events-none">
+                {successMessage && (
+                  <div className='p-3 bg-success text-white rounded-lg shadow-xl flex justify-between items-center pointer-events-auto animate-slide-up'>
+                    <span className="text-sm font-medium">{successMessage}</span>
+                    <button onClick={() => setSuccessMessage('')} className='ml-3 text-xl font-bold leading-none p-1 hover:text-gray-200'>&times;</button>
+                  </div>
+                )}
+                {error && (
+                  <div className='p-3 bg-danger text-white rounded-lg shadow-xl flex justify-between items-center pointer-events-auto animate-slide-up'>
+                    <span className="text-sm font-medium">{error}</span>
+                    <button onClick={() => setError('')} className='ml-3 text-xl font-bold leading-none p-1 hover:text-gray-200'>&times;</button>
+                  </div>
+                )}
+                {locationError && (
+                  <div className='p-3 bg-warning text-white rounded-lg shadow-xl flex justify-between items-center pointer-events-auto animate-slide-up'>
+                    <div>
+                      <p className='font-bold text-sm'>Error de Ubicación</p>
+                      <span className="text-xs font-medium">{locationError}</span>
+                    </div>
+                    <button onClick={() => setLocationError(null)} className='ml-3 text-xl font-bold leading-none p-1 hover:text-gray-200'>&times;</button>
+                  </div>
+                )}
+              </div>
 
               {/* My Requests Tab */}
               {activeTab === 'my-requests' && (

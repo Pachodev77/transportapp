@@ -92,7 +92,7 @@ service cloud.firestore {
       
       allow update: if isAuthenticated() && (
         (request.auth.uid == resource.data.passengerId &&
-         resource.data.status == 'completed' &&
+         resource.data.status in ['completed', 'cancelled'] &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'comment', 'ratedAt', 'updatedAt', 'canRate', 'ratedBy'])) ||
         (request.auth.uid == resource.data.passengerId &&
          resource.data.status in ['pending', 'accepted', 'in_progress'] &&
