@@ -500,8 +500,8 @@ export default function Passenger() {
       },
       {
         enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0,
+        timeout: 15000,
+        maximumAge: 10000,
       }
     );
 
