@@ -328,82 +328,91 @@ export default function Profile() {
             </div>
           </div>
           
-          {/* Estadísticas rápidas */}
+          {/* Estadísticas rápidas - Vista pública vs privada */}
           <div className="px-6 py-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatsCard 
-                icon={<FaHistory className="text-xl" />} 
-                title="Viajes Totales" 
-                value={stats.totalTrips} 
-                color="blue"
-              />
-              <StatsCard 
-                icon={<FaChartLine className="text-xl" />} 
-                title="Tasa de finalización" 
-                value={`${Math.round((stats.completedTrips / stats.totalTrips) * 100)}%`} 
-                description={`${stats.completedTrips} de ${stats.totalTrips} viajes`}
-                color="green"
-              />
+            <div className={`grid grid-cols-1 md:grid-cols-2 ${profileId === currentUser?.uid ? 'lg:grid-cols-4' : ''} gap-4`}>
+              {profileId === currentUser?.uid && (
+                <>
+                  <StatsCard 
+                    icon={<FaHistory className="text-xl" />} 
+                    title="Viajes Totales" 
+                    value={stats.totalTrips} 
+                    color="blue"
+                  />
+                  <StatsCard 
+                    icon={<FaChartLine className="text-xl" />} 
+                    title="Tasa de finalización" 
+                    value={`${Math.round((stats.completedTrips / stats.totalTrips) * 100) || 0}%`} 
+                    description={`${stats.completedTrips} de ${stats.totalTrips} viajes`}
+                    color="green"
+                  />
+                </>
+              )}
+              
               <StatsCard 
                 icon={<FaStar className="text-xl" />} 
                 title="Calificación" 
                 value={(userData?.rating || 0).toFixed(1)} 
-                description="Tu calificación actual"
+                description={profileId === currentUser?.uid ? "Tu calificación actual" : "Calificación del usuario"}
                 color="yellow"
               />
-              <StatsCard 
-                icon={<FaCoins className="text-xl" />} 
-                title="Total Gastado" 
-                value={`$${stats.totalSpent.toLocaleString()}`} 
-                description="En todos tus viajes"
-                color="purple"
-              />
+              
+              {profileId === currentUser?.uid && (
+                <StatsCard 
+                  icon={<FaCoins className="text-xl" />} 
+                  title={currentUser?.role === 'driver' ? "Total Ganado" : "Total Gastado"} 
+                  value={`$${(currentUser?.role === 'driver' ? stats.totalEarned : stats.totalSpent).toLocaleString()}`} 
+                  description="En todos tus viajes"
+                  color="purple"
+                />
+              )}
             </div>
           </div>
         </div>
         
-        {/* Pestañas de navegación */}
+        {/* Contenedor principal de pestañas y contenido */}
         <div className="bg-white dark:bg-gray-800 shadow overflow-hidden rounded-lg mb-6">
-          <div className="border-b border-gray-200 dark:border-gray-700">
-            <nav className="flex -mb-px">
-              <button
-                onClick={() => setActiveTab('info')}
-                className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
-                  activeTab === 'info'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'
-                }`}
-              >
-                Información Personal
-              </button>
-              <button
-                onClick={() => setActiveTab('trips')}
-                className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
-                  activeTab === 'trips'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <FaHistory className="inline mr-2" />
-                Historial de Viajes
-              </button>
-              {profileId === currentUser?.uid && currentUser?.role === 'driver' && (
+          {/* Pestañas de navegación - Solo mostrar para el usuario actual */}
+          {profileId === currentUser?.uid && (
+            <div className="border-b border-gray-200 dark:border-gray-700">
+              <nav className="flex -mb-px overflow-x-auto">
                 <button
-                  onClick={() => setActiveTab('driver')}
-                  className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
-                    activeTab === 'driver'
+                  onClick={() => setActiveTab('info')}
+                  className={`py-4 px-6 text-center border-b-2 font-medium text-sm whitespace-nowrap ${
+                    activeTab === 'info'
                       ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                       : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <FaCar className="inline mr-2" />
-                  Panel de Conductor
+                  Información Personal
                 </button>
-              )}
-              {profileId === currentUser?.uid && (
+                <button
+                  onClick={() => setActiveTab('trips')}
+                  className={`py-4 px-6 text-center border-b-2 font-medium text-sm whitespace-nowrap ${
+                    activeTab === 'trips'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <FaHistory className="inline mr-2" />
+                  Historial de Viajes
+                </button>
+                {currentUser?.role === 'driver' && (
+                  <button
+                    onClick={() => setActiveTab('driver')}
+                    className={`py-4 px-6 text-center border-b-2 font-medium text-sm whitespace-nowrap ${
+                      activeTab === 'driver'
+                        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <FaCar className="inline mr-2" />
+                    Panel de Conductor
+                  </button>
+                )}
                 <button
                   onClick={() => setActiveTab('settings')}
-                  className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
+                  className={`py-4 px-6 text-center border-b-2 font-medium text-sm whitespace-nowrap ${
                     activeTab === 'settings'
                       ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                       : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'
@@ -411,9 +420,9 @@ export default function Profile() {
                 >
                   Configuración
                 </button>
-              )}
-            </nav>
-          </div>
+              </nav>
+            </div>
+          )}
           
           {/* Contenido de las pestañas */}
           <div className="p-6">
@@ -422,13 +431,15 @@ export default function Profile() {
                 <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Información de Contacto</h3>
                   <div className="space-y-4">
-                    <div className="flex items-center">
-                      <FaEnvelope className="text-gray-400 mr-3 w-5 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Correo electrónico</p>
-                        <p className="text-gray-900 dark:text-gray-100 truncate">{userData?.email || 'No especificado'}</p>
+                    {profileId === currentUser?.uid && (
+                      <div className="flex items-center">
+                        <FaEnvelope className="text-gray-400 mr-3 w-5 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Correo electrónico</p>
+                          <p className="text-gray-900 dark:text-gray-100 truncate">{userData?.email || 'No especificado'}</p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                     <div className="flex items-center">
                       <FaPhone className="text-gray-400 mr-3 w-5 flex-shrink-0" />
                       <div>
@@ -436,15 +447,17 @@ export default function Profile() {
                         <p className="text-gray-900 dark:text-gray-100">{userData?.phoneNumber || 'No especificado'}</p>
                       </div>
                     </div>
-                    <div className="flex items-start">
-                      <FaMapMarkerAlt className="text-gray-400 mr-3 mt-1 w-5 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Dirección</p>
-                        <p className="text-gray-900 dark:text-gray-100 break-words">
-                          {userData?.address || 'No especificada'}
-                        </p>
+                    {profileId === currentUser?.uid && (
+                      <div className="flex items-start">
+                        <FaMapMarkerAlt className="text-gray-400 mr-3 mt-1 w-5 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Dirección</p>
+                          <p className="text-gray-900 dark:text-gray-100 break-words">
+                            {userData?.address || 'No especificada'}
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                     
                     {/* Información del Vehículo (solo para conductores) */}
                     {userData?.role === 'driver' && (
@@ -486,62 +499,38 @@ export default function Profile() {
                   </div>
                 </div>
                 
-                {currentUser?.role === 'driver' && (
+
+                {profileId === currentUser?.uid && (
                   <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Información del Vehículo</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Tipo de vehículo</p>
-                        <p className="text-gray-900 dark:text-gray-100 flex items-center">
-                          {renderVehicleIcon(userData?.vehicleType)}
-                          <span className="capitalize">{userData?.vehicleType || 'No especificado'}</span>
-                        </p>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Preferencias</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center">
+                        <input
+                          id="notifications"
+                          name="notifications"
+                          type="checkbox"
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          defaultChecked={true}
+                        />
+                        <label htmlFor="notifications" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                          Recibir notificaciones por correo electrónico
+                        </label>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Placa</p>
-                        <p className="text-gray-900 dark:text-gray-100">{userData?.licensePlate || 'No especificada'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Color</p>
-                        <p className="text-gray-900 dark:text-gray-100">{userData?.vehicleColor || 'No especificado'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Año</p>
-                        <p className="text-gray-900 dark:text-gray-100">{userData?.vehicleYear || 'No especificado'}</p>
+                      <div className="flex items-center">
+                        <input
+                          id="sms"
+                          name="sms"
+                          type="checkbox"
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          defaultChecked={true}
+                        />
+                        <label htmlFor="sms" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                          Recibir notificaciones por SMS
+                        </label>
                       </div>
                     </div>
                   </div>
                 )}
-                
-                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Preferencias</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center">
-                      <input
-                        id="notifications"
-                        name="notifications"
-                        type="checkbox"
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        defaultChecked={true}
-                      />
-                      <label htmlFor="notifications" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                        Recibir notificaciones por correo electrónico
-                      </label>
-                    </div>
-                    <div className="flex items-center">
-                      <input
-                        id="sms"
-                        name="sms"
-                        type="checkbox"
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        defaultChecked={true}
-                      />
-                      <label htmlFor="sms" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                        Recibir notificaciones por SMS
-                      </label>
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
             
