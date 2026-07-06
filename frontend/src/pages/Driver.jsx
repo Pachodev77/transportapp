@@ -79,6 +79,43 @@ const driverIcon = createMarkerIcon(createIconContent('fa-solid fa-car'), '#2ecc
 const flashingDriverIcon = createMarkerIcon(createIconContent('fa-solid fa-car'), '#2ecc71', 'flashing-marker');
 const passengerIcon = createMarkerIcon(createIconContent('fa-solid fa-person'), '#f1c40f');
 
+const createPhotoMarkerIcon = (photoURL, fallbackLetter, borderColor = '#2ecc71', animate = false) => {
+  const inner = photoURL
+    ? `<img src="${photoURL}" style="width:46px;height:46px;border-radius:50%;object-fit:cover;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+       <div style="display:none;width:46px;height:46px;border-radius:50%;background:${borderColor};align-items:center;justify-content:center;font-size:20px;font-weight:bold;color:white;">${fallbackLetter || '?'}</div>`
+    : `<div style="width:46px;height:46px;border-radius:50%;background:${borderColor};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold;color:white;">${fallbackLetter || '?'}</div>`;
+
+  const html = `
+    <div style="
+      width:50px;height:50px;
+      border-radius:50%;
+      border:3px solid ${borderColor};
+      box-shadow:0 2px 8px rgba(0,0,0,0.35);
+      overflow:hidden;
+      position:relative;
+      background:white;
+      ${animate ? 'animation:markerPulse 1.2s infinite;' : ''}
+    ">${inner}</div>
+    <div style="
+      width:0;height:0;
+      border-left:8px solid transparent;
+      border-right:8px solid transparent;
+      border-top:12px solid ${borderColor};
+      margin:-1px auto 0;
+      display:block;
+      position:relative;
+      left:50%;transform:translateX(-50%);
+    "></div>
+  `;
+  return new L.DivIcon({
+    html,
+    className: '',
+    iconSize: [50, 62],
+    iconAnchor: [25, 62],
+    popupAnchor: [0, -64]
+  });
+};
+
 function TripTabs({ showHistory, setShowHistory }) {
   return (
     <div className="flex border-b dark:border-gray-700 mb-4">
@@ -831,7 +868,12 @@ function Driver() {
               {currentPosition && (
                 <Marker 
                   position={currentPosition} 
-                  icon={acceptedTrip ? flashingDriverIcon : driverIcon}
+                  icon={createPhotoMarkerIcon(
+                    currentUser?.photoURL,
+                    currentUser?.displayName?.charAt(0)?.toUpperCase(),
+                    '#2ecc71',
+                    !!acceptedTrip
+                  )}
                 >
                   <Popup>{STRINGS.TU_UBICACION}</Popup>
                 </Marker>
