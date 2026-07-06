@@ -271,57 +271,39 @@ function Driver() {
   const [acceptedTrip, setAcceptedTrip] = useState(null);
 
   useEffect(() => {
-    console.log('DEBUG: mapViewMode useEffect triggered. acceptedTrip status:', acceptedTrip?.status);
     const currentTripActive = acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress');
 
     // If trip just became active
     if (currentTripActive && !isTripActiveRef.current) {
-      console.log('DEBUG: Trip just became active. Setting initial mode to allPoints and starting interval.');
-      setMapViewMode('allPoints'); // Explicitly set initial mode for active trip
+      setMapViewMode('allPoints');
       
-      // Clear any existing interval before setting a new one
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
 
       intervalRef.current = setInterval(() => {
-        setMapViewMode(prevMode => {
-          const newMode = (prevMode === 'allPoints' ? 'currentLocation' : 'allPoints');
-          console.log(`DEBUG: Toggling mapViewMode from ${prevMode} to ${newMode}`);
-          return newMode;
-        });
-      }, 10000); // Toggle every 10 seconds
+        setMapViewMode(prevMode => (prevMode === 'allPoints' ? 'currentLocation' : 'allPoints'));
+      }, 10000);
     }
     // If trip just became inactive
     else if (!currentTripActive && isTripActiveRef.current) {
-      console.log('DEBUG: Trip just became inactive. Clearing interval and resetting mode.');
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-      setMapViewMode('allPoints'); // Default view when no active trip
-    }
-    // If trip is active and was active before (acceptedTrip reference changed but status is same)
-    else if (currentTripActive && isTripActiveRef.current) {
-      console.log('DEBUG: Trip remains active. Interval should continue running.');
-      // Do nothing, let the existing interval continue
-    }
-    // If trip is inactive and was inactive before
-    else if (!currentTripActive && !isTripActiveRef.current) {
-      console.log('DEBUG: Trip remains inactive. Mode is allPoints.');
-      // Do nothing, mode is already 'allPoints'
+      setMapViewMode('allPoints');
     }
 
-    isTripActiveRef.current = currentTripActive; // Update ref for next render
+    isTripActiveRef.current = currentTripActive;
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
-        console.log('DEBUG: Cleanup: Cleared interval on unmount/re-run.');
       }
     };
   }, [acceptedTrip]);
+
   const [map, setMap] = useState(null);
   const mapRef = useRef();
   const mapInitialized = useRef(false);
@@ -483,12 +465,10 @@ function Driver() {
         status: 'accepted',
       };
       
-      setAcceptedTrip(acceptedTripData);
-      setMyTrips(prev => [...prev, acceptedTripData]);
-      setAvailableTrips(prev => prev.filter(trip => trip.id !== requestId));
-      
-      alert(`¡Viaje aceptado! Estás en camino a recoger a ${acceptedTripData.passengerName || 'el pasajero'}.`);
+      // NOTE: No need to manually update myTrips/availableTrips here
+      // The onSnapshot listeners will automatically reflect the changes
       setActiveTab('my-trips');
+
 
     } catch (error) {
       console.error('Error al aceptar el viaje:', error);

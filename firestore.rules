@@ -36,6 +36,8 @@ service cloud.firestore {
          (!('role' in request.resource.data) || request.resource.data.role in ['passenger', 'driver'])) ||
         isRole('admin') ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fcmToken', 'updatedAt'])) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLogin'])) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLogin', 'updatedAt'])) ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['completedTrips', 'updatedAt']) &&
          request.resource.data.completedTrips == resource.data.completedTrips + 1) ||
         // Allow rating updates
