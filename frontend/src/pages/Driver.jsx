@@ -550,6 +550,7 @@ function Driver() {
       await updateRideRequestStatus(requestId, 'cancelled', {
         cancelledBy: 'driver',
         cancelledAt: serverTimestamp(),
+        canRate: true,
       });
 
       setMyTrips(prevTrips =>
@@ -979,29 +980,14 @@ function Driver() {
               
               {/* Mostrar marcadores de viajes disponibles */}
               {availableTrips && availableTrips.length > 0 ? (
-                // Use a Map to filter out duplicate trips by ID and create a unique key for each marker
-                Array.from(availableTrips.reduce((map, trip) => {
-                  // Create a unique key using trip ID and timestamp to ensure uniqueness
-                  const timestamp = trip.createdAt ? 
-                    (typeof trip.createdAt.toMillis === 'function' ? 
-                      trip.createdAt.toMillis() : 
-                      trip.createdAt.getTime()) : 
-                    Date.now();
-                  const uniqueKey = `${trip.id}-${timestamp}`;
-                  if (!map.has(trip.id)) {
-                    map.set(trip.id, { ...trip, _uniqueKey: uniqueKey });
-                  }
-                  return map;
-                }, new Map()).values())
+                // Deduplicate trips by ID to prevent duplicate key warnings
+                [...new Map(availableTrips.map(t => [t.id, t])).values()]
                 .map((trip) => {
                   try {
-                    // Use the unique key we created
-                    const tripKey = trip._uniqueKey;
-                    console.log(`Procesando marcadores para viaje ${tripKey}:`, trip);
+                    const tripKey = trip.id;
                     
                     // Verificar que las coordenadas sean válidas
                     if (!trip.origin?.coordinates || !trip.destination?.coordinates) {
-                      console.warn(`Viaje ${tripKey} sin coordenadas válidas`);
                       return null;
                     }
                     
@@ -1015,8 +1001,6 @@ function Driver() {
                       trip.destination.coordinates.latitude,
                       trip.destination.coordinates.longitude
                     ];
-                    
-                    console.log('Coordenadas procesadas:', { originCoords, destCoords });
 
                     return (
                       <React.Fragment key={tripKey}>
