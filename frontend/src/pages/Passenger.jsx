@@ -176,9 +176,6 @@ export default function Passenger() {
   // Handle rating a trip
   const handleRateTrip = async (ratingData) => {
     if (!ratingData || !ratingData.rating) {
-      if (tripToRate?.rideRequestId) {
-        hasShownRatingModal.current[tripToRate.rideRequestId] = false;
-      }
       setShowRatingModal(false);
       return;
     }
@@ -293,15 +290,20 @@ export default function Passenger() {
       req.canRate !== false
     );
 
-    if (rideToRate && !hasShownRatingModal.current[rideToRate.id]) {
-      hasShownRatingModal.current[rideToRate.id] = true;
-      if (rideToRate.status === 'cancelled' && rideToRate.cancelledBy === 'driver') {
-        alert('El conductor ha cancelado tu viaje. Puedes dejar una reseña sobre su servicio.');
-      } else if (rideToRate.status === 'cancelled') {
-        alert('El viaje ha sido cancelado. Puedes dejar una reseña si lo deseas.');
+    if (rideToRate) {
+      const storageKey = `hasShownRatingModal_${rideToRate.id}`;
+      if (!sessionStorage.getItem(storageKey) && !hasShownRatingModal.current[rideToRate.id]) {
+        sessionStorage.setItem(storageKey, 'true');
+        hasShownRatingModal.current[rideToRate.id] = true;
+        
+        if (rideToRate.status === 'cancelled' && rideToRate.cancelledBy === 'driver') {
+          alert('El conductor ha cancelado tu viaje. Puedes dejar una reseña sobre su servicio.');
+        } else if (rideToRate.status === 'cancelled') {
+          alert('El viaje ha sido cancelado. Puedes dejar una reseña si lo deseas.');
+        }
+        setTripToRate(rideToRate);
+        setShowRatingModal(true);
       }
-      setTripToRate(rideToRate);
-      setShowRatingModal(true);
     }
   }, [myRideRequests, currentUser, showRatingModal]); // Only depend on uid instead of the whole currentUser object
 
@@ -1272,10 +1274,8 @@ export default function Passenger() {
       {/* Rating Modal - Always render but control visibility with isOpen */}
       {tripToRate && (
         <RatingModal
-          key={tripToRate.id}
           isOpen={showRatingModal}
           onClose={() => {
-            console.log('Closing rating modal');
             setShowRatingModal(false);
           }}
           onSubmit={handleRateTrip}
