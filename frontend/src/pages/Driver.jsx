@@ -158,16 +158,12 @@ function LocationSelector({ onSelect }) {
 
 function RecenterMap({ position, zoom }) {
   const map = useMap();
+  const hasCenteredRef = useRef(false);
 
   useEffect(() => {
-    console.log('DEBUG: RecenterMap useEffect triggered.');
-    console.log('DEBUG: RecenterMap position:', position);
-    console.log('DEBUG: RecenterMap zoom:', zoom);
-    if (position && position[0] !== 0 && position[1] !== 0) {
+    if (!hasCenteredRef.current && position && position[0] !== 0 && position[1] !== 0) {
       map.flyTo(position, zoom);
-      console.log('DEBUG: map.flyTo called in RecenterMap.');
-    } else {
-      console.log('DEBUG: RecenterMap: Invalid position, not flying.');
+      hasCenteredRef.current = true;
     }
   }, [position, zoom, map]);
 
@@ -854,22 +850,15 @@ function Driver() {
               }}
               key={`map-${currentPosition ? 'with-position' : 'no-position'}-${window.innerWidth}`}
             >
-              {mapViewMode === 'currentLocation' && currentPosition && (() => {
-                console.log('DEBUG: MapContainer rendering RecenterMap.');
-                console.log('DEBUG: mapViewMode:', mapViewMode);
-                console.log('DEBUG: currentPosition:', currentPosition);
-                return <RecenterMap position={currentPosition} zoom={15} />;
-              })()}
+              {mapViewMode === 'currentLocation' && currentPosition && (
+                <RecenterMap position={currentPosition} zoom={15} />
+              )}
               <TileLayer
                 url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
               />
-              {mapViewMode === 'allPoints' && pointsToFit && pointsToFit.length > 0 && (() => {
-                console.log('DEBUG: MapContainer rendering FitBoundsToMarkers.');
-                console.log('DEBUG: mapViewMode:', mapViewMode);
-                console.log('DEBUG: pointsToFit:', pointsToFit);
-                console.log('DEBUG: pointsToFit.length:', pointsToFit?.length);
-                return <FitBoundsToMarkers points={pointsToFit} />;
-              })()}
+              {mapViewMode === 'allPoints' && pointsToFit && pointsToFit.length > 0 && (
+                <FitBoundsToMarkers points={pointsToFit} />
+              )}
               {currentPosition && (
                 <Marker 
                   position={currentPosition} 

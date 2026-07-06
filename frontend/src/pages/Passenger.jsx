@@ -123,12 +123,29 @@ function LocationSelector({ onSelect, onDrag }) {
 
 function RecenterMap({ position, zoom }) {
   const map = useMap();
-  const hasFlownRef = useRef(false);
+  const lastCenteredRef = useRef(null);
 
   useEffect(() => {
-    if (!hasFlownRef.current && position && position[0] !== 0 && position[1] !== 0) {
+    if (!position || position[0] === 0 || position[1] === 0) return;
+
+    // Center if we haven't centered yet
+    if (!lastCenteredRef.current) {
       map.flyTo(position, zoom);
-      hasFlownRef.current = true;
+      lastCenteredRef.current = position;
+      return;
+    }
+
+    // Re-center if the new position is significantly different (> ~500m)
+    // This handles the case where GPS starts with a rough estimate then gets exact location
+    const [prevLat, prevLng] = lastCenteredRef.current;
+    const [newLat, newLng] = position;
+    const latDiff = Math.abs(newLat - prevLat);
+    const lngDiff = Math.abs(newLng - prevLng);
+    const significantChange = latDiff > 0.005 || lngDiff > 0.005; // ~500m threshold
+
+    if (significantChange) {
+      map.flyTo(position, zoom);
+      lastCenteredRef.current = position;
     }
   }, [position, zoom, map]);
 
