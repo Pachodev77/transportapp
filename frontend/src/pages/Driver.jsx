@@ -86,35 +86,36 @@ const createPhotoMarkerIcon = (photoURL, fallbackLetter, borderColor = '#2ecc71'
     : `<div style="width:46px;height:46px;border-radius:50%;background:${borderColor};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold;color:white;">${fallbackLetter || '?'}</div>`;
 
   const html = `
-    <div style="
-      width:50px;height:50px;
-      border-radius:50%;
-      border:3px solid ${borderColor};
-      box-shadow:0 2px 8px rgba(0,0,0,0.35);
-      overflow:hidden;
-      position:relative;
-      background:white;
-      ${animate ? 'animation:markerPulse 1.2s infinite;' : ''}
-    ">${inner}</div>
-    <div style="
-      width:0;height:0;
-      border-left:8px solid transparent;
-      border-right:8px solid transparent;
-      border-top:12px solid ${borderColor};
-      margin:-1px auto 0;
-      display:block;
-      position:relative;
-      left:50%;transform:translateX(-50%);
-    "></div>
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div style="
+        width:50px;height:50px;
+        border-radius:50%;
+        border:3px solid ${borderColor};
+        box-shadow:0 2px 8px rgba(0,0,0,0.35);
+        overflow:hidden;
+        background:white;
+        flex-shrink:0;
+        ${animate ? 'animation:markerPulse 1.2s infinite;' : ''}
+      ">${inner}</div>
+      <div style="
+        width:0;height:0;
+        border-left:8px solid transparent;
+        border-right:8px solid transparent;
+        border-top:12px solid ${borderColor};
+        margin-top:-1px;
+        flex-shrink:0;
+      "></div>
+    </div>
   `;
   return new L.DivIcon({
     html,
     className: '',
-    iconSize: [50, 62],
-    iconAnchor: [25, 62],
-    popupAnchor: [0, -64]
+    iconSize: [56, 64],
+    iconAnchor: [28, 64],
+    popupAnchor: [0, -66]
   });
 };
+
 
 function TripTabs({ showHistory, setShowHistory }) {
   return (
@@ -375,6 +376,21 @@ function Driver() {
       });
     }
   }, [isChatOpen, acceptedTrip?.id]);
+
+  // Subscribe to passenger's real-time location when a trip is active
+  useEffect(() => {
+    if (acceptedTrip?.passengerId) {
+      const passengerLocationRef = doc(db, 'locations', acceptedTrip.passengerId);
+      const unsubscribe = onSnapshot(passengerLocationRef, (snap) => {
+        if (snap.exists()) {
+          setPassengerLocation(snap.data().location);
+        }
+      });
+      return () => unsubscribe();
+    } else {
+      setPassengerLocation(null);
+    }
+  }, [acceptedTrip?.passengerId]);
 
   const [availableTrips, setAvailableTrips] = useState([]);
   const [myTrips, setMyTrips] = useState([]);
@@ -879,6 +895,27 @@ function Driver() {
                 </Marker>
               )}
 
+              {/* Passenger real-time location marker */}
+              {passengerLocation && acceptedTrip && (
+                <Marker
+                  position={[passengerLocation.latitude, passengerLocation.longitude]}
+                  eventHandlers={{ click: () => navigate(`/profile/${acceptedTrip.passengerId}`) }}
+                  icon={createPhotoMarkerIcon(
+                    acceptedTrip.passengerPhotoURL,
+                    acceptedTrip.passengerName?.charAt(0)?.toUpperCase(),
+                    '#f1c40f',
+                    false
+                  )}
+                >
+                  <Popup>
+                    <div className="text-sm">
+                      <p className="font-semibold cursor-pointer text-blue-600 hover:underline">{acceptedTrip.passengerName}</p>
+                      <p>Ubicación actual del pasajero</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              )}
+
               {/* Render the accepted trip route and markers */}
               {acceptedTrip && (() => {
                 const originCoords = processCoords(acceptedTrip.origin?.coordinates);
@@ -1029,9 +1066,9 @@ function Driver() {
             </MapContainer>
           {/* Floating passenger info card - shown when trip is accepted or in progress */}
         {acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress') && (
-          <div className="fixed bottom-0 left-0 right-0 animate-slide-up" style={{ zIndex: 999 }}>
+          <div className="fixed bottom-0 left-0 right-0 animate-slide-up cursor-pointer" style={{ zIndex: 999 }} onClick={() => navigate(`/profile/${acceptedTrip.passengerId}`)}>
             <div className="mx-auto max-w-2xl px-3 pb-3">
-              <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 animate-pulse">
+              <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl shadow-2xl px-4 py-3 flex items-center gap-3 animate-pulse hover:opacity-90 transition-opacity">
                 {/* Ping indicator */}
                 <span className="relative flex-shrink-0 flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60" />

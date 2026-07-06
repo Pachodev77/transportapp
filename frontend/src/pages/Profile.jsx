@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase/config';
 import { doc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaIdCard, FaCar, FaMotorcycle, FaTruck, FaEdit, FaStar, FaStarHalfAlt, FaRegStar, FaHistory, FaChartLine, FaCoins, FaRegSmile, FaRegFrown, FaRegMeh, FaSpinner, FaInfoCircle } from 'react-icons/fa';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import SuccessMessage from '../components/SuccessMessage';
 
 // Componente para mostrar las estrellas de calificación
@@ -105,14 +105,17 @@ const StatsCard = ({ icon, title, value, description, color = 'blue' }) => {
 
 export default function Profile() {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { userId } = useParams();
+  const profileId = userId || currentUser?.uid;
+
   const [userData, setUserData] = useState(null);
   const [activeTab, setActiveTab] = useState('info');
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
-  const location = useLocation();
-  const navigate = useNavigate();
   
   // Check for success message in URL
   useEffect(() => {
@@ -134,12 +137,12 @@ export default function Profile() {
   });
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!profileId) return;
 
     setLoading(true);
 
     // Listener for user data
-    const userDocRef = doc(db, 'users', currentUser.uid);
+    const userDocRef = doc(db, 'users', profileId);
     const unsubscribeUser = onSnapshot(userDocRef, (doc) => {
       if (doc.exists()) {
         const creationDate = currentUser.metadata?.creationTime 
@@ -158,7 +161,8 @@ export default function Profile() {
           vehicleYear: doc.data().vehicleYear || 'No especificado',
           driverApproved: doc.data().driverApproved || false,
           memberSince: memberSince,
-          ...currentUser
+          // Merge with currentUser only if looking at own profile to keep photoURL if missing in DB
+          ...(profileId === currentUser?.uid ? currentUser : {})
         });
       } else {
         setError('No se encontraron datos de perfil.');
@@ -170,53 +174,59 @@ export default function Profile() {
       setLoading(false);
     });
 
-    // Set up listeners for both passenger and driver trips
-    const passengerQuery = query(collection(db, 'rideRequests'), where('passengerId', '==', currentUser.uid));
-    const driverQuery = query(collection(db, 'rideRequests'), where('driverId', '==', currentUser.uid));
+    // Set up listeners for both passenger and driver trips ONLY if it's the current user's profile
+    // This prevents permission errors since users cannot read other users' private trip history
+    let unsubscribePassenger = () => {};
+    let unsubscribeDriver = () => {};
 
-    let passengerTrips = [];
-    let driverTrips = [];
+    if (profileId === currentUser?.uid) {
+      const passengerQuery = query(collection(db, 'rideRequests'), where('passengerId', '==', profileId));
+      const driverQuery = query(collection(db, 'rideRequests'), where('driverId', '==', profileId));
 
-    const combineAndUpdateTrips = () => {
-      const allTrips = [...passengerTrips, ...driverTrips];
-      const uniqueTrips = Array.from(new Map(allTrips.map(trip => [trip.id, trip])).values())
-        .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
-      
-      setTrips(uniqueTrips);
+      let passengerTrips = [];
+      let driverTrips = [];
 
-      // Calculate stats from the combined trips data
-      const completedTrips = uniqueTrips.filter(trip => trip.status === 'completed');
-      const totalSpent = uniqueTrips
-        .filter(trip => trip.passengerId === currentUser.uid && trip.status === 'completed') // Only count spending as a passenger
-        .reduce((sum, trip) => sum + (trip.estimatedPrice || 0), 0);
-      
-      const totalEarned = uniqueTrips
-        .filter(trip => trip.driverId === currentUser.uid && trip.status === 'completed') // Only count earnings as a driver
-        .reduce((sum, trip) => sum + (trip.estimatedPrice || 0), 0);
+      const combineAndUpdateTrips = () => {
+        const allTrips = [...passengerTrips, ...driverTrips];
+        const uniqueTrips = Array.from(new Map(allTrips.map(trip => [trip.id, trip])).values())
+          .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+        
+        setTrips(uniqueTrips);
 
-      setStats({
-        totalTrips: uniqueTrips.length,
-        completedTrips: completedTrips.length,
-        totalSpent,
-        totalEarned,
+        // Calculate stats from the combined trips data
+        const completedTrips = uniqueTrips.filter(trip => trip.status === 'completed');
+        const totalSpent = uniqueTrips
+          .filter(trip => trip.passengerId === profileId && trip.status === 'completed') // Only count spending as a passenger
+          .reduce((sum, trip) => sum + (trip.estimatedPrice || 0), 0);
+        
+        const totalEarned = uniqueTrips
+          .filter(trip => trip.driverId === profileId && trip.status === 'completed') // Only count earnings as a driver
+          .reduce((sum, trip) => sum + (trip.estimatedPrice || 0), 0);
+
+        setStats({
+          totalTrips: uniqueTrips.length,
+          completedTrips: completedTrips.length,
+          totalSpent,
+          totalEarned
+        });
+      };
+
+      unsubscribePassenger = onSnapshot(passengerQuery, (snapshot) => {
+        passengerTrips = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        combineAndUpdateTrips();
+      }, (error) => {
+        console.error('Error fetching passenger trips:', error);
+        setError('Error al cargar el historial de viajes como pasajero.');
       });
-    };
 
-    const unsubscribePassenger = onSnapshot(passengerQuery, (snapshot) => {
-      passengerTrips = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      combineAndUpdateTrips();
-    }, (error) => {
-      console.error('Error fetching passenger trips:', error);
-      setError('Error al cargar el historial de viajes como pasajero.');
-    });
-
-    const unsubscribeDriver = onSnapshot(driverQuery, (snapshot) => {
-      driverTrips = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      combineAndUpdateTrips();
-    }, (error) => {
-      console.error('Error fetching driver trips:', error);
-      setError('Error al cargar el historial de viajes como conductor.');
-    });
+      unsubscribeDriver = onSnapshot(driverQuery, (snapshot) => {
+        driverTrips = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        combineAndUpdateTrips();
+      }, (error) => {
+        console.error('Error fetching driver trips:', error);
+        setError('Error al cargar el historial de viajes como conductor.');
+      });
+    }
 
     // Cleanup listeners on component unmount
     return () => {
@@ -224,7 +234,7 @@ export default function Profile() {
       unsubscribePassenger();
       unsubscribeDriver();
     };
-  }, [currentUser]);
+  }, [profileId, currentUser]);
 
   if (loading && !userData) {
     return (
@@ -263,7 +273,7 @@ export default function Profile() {
             <div className="ml-3">
               <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
               <button
-                onClick={fetchUserData}
+                onClick={() => window.location.reload()}
                 className="mt-2 text-sm font-medium text-red-700 dark:text-red-300 hover:text-red-600"
               >
                 Reintentar
@@ -286,31 +296,35 @@ export default function Profile() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between">
               <div className="flex items-center">
                 <div className="h-20 w-20 rounded-full bg-white flex items-center justify-center overflow-hidden shadow-lg border-2 border-white">
-                  {currentUser?.photoURL ? (
-                    <img src={currentUser.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                  {userData?.photoURL ? (
+                    <img src={userData.photoURL} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-blue-600 text-3xl font-bold">
-                      {currentUser?.displayName?.charAt(0) || currentUser?.email?.charAt(0).toUpperCase()}
+                      {userData?.displayName?.charAt(0) || userData?.email?.charAt(0).toUpperCase()}
                     </span>
                   )}
                 </div>
                 <div className="ml-6">
-                  <h1 className="text-2xl font-bold text-white">{currentUser?.displayName || 'Usuario'}</h1>
+                  <h1 className="text-2xl font-bold text-white">{userData?.displayName || 'Usuario'}</h1>
                   <div className="flex items-center mt-1">
                     <RatingStars rating={userData?.rating || 0} />
                     <span className="ml-2 text-blue-100 text-sm">Miembro desde {userData?.memberSince || '2023'}</span>
                   </div>
                 </div>
               </div>
-              <div className="mt-4 md:mt-0">
-                <button
-                  onClick={() => navigate('/profile/edit')}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <FaEdit className="mr-2" />
-                  Editar Perfil
-                </button>
-              </div>
+              
+              {/* Edit Button - Only show if it's the current user's profile */}
+              {profileId === currentUser?.uid && (
+                <div className="mt-4 md:mt-0">
+                  <button
+                    onClick={() => navigate('/profile/edit')}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <FaEdit className="mr-2" />
+                    Editar Perfil
+                  </button>
+                </div>
+              )}
             </div>
           </div>
           
@@ -373,7 +387,7 @@ export default function Profile() {
                 <FaHistory className="inline mr-2" />
                 Historial de Viajes
               </button>
-              {currentUser?.role === 'driver' && (
+              {profileId === currentUser?.uid && currentUser?.role === 'driver' && (
                 <button
                   onClick={() => setActiveTab('driver')}
                   className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
@@ -386,16 +400,18 @@ export default function Profile() {
                   Panel de Conductor
                 </button>
               )}
-              <button
-                onClick={() => setActiveTab('settings')}
-                className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
-                  activeTab === 'settings'
-                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'
-                }`}
-              >
-                Configuración
-              </button>
+              {profileId === currentUser?.uid && (
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className={`py-4 px-6 text-center border-b-2 font-medium text-sm ${
+                    activeTab === 'settings'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  Configuración
+                </button>
+              )}
             </nav>
           </div>
           
