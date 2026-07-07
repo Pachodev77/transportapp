@@ -335,6 +335,13 @@ export default function Passenger() {
 
   // Background listener for unread chat messages (always active when there's an active trip)
   const lastSeenCountRef = useRef(0);
+  const isChatOpenRef = useRef(isChatOpen);
+  const initialLoadRef = useRef(true);
+
+  useEffect(() => {
+    isChatOpenRef.current = isChatOpen;
+  }, [isChatOpen]);
+
   useEffect(() => {
     const tripId = selectedTrip?.tripId || selectedTrip?.id;
     if (!tripId || !currentUser) {
@@ -344,6 +351,7 @@ export default function Passenger() {
 
     // Reset unread when trip changes
     lastSeenCountRef.current = 0;
+    initialLoadRef.current = true;
     setHasUnreadChat(false);
 
     const messagesRef = collection(db, 'chats', tripId, 'messages');
@@ -351,15 +359,30 @@ export default function Passenger() {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      if (msgs.length > lastSeenCountRef.current) {
-        const newMsgs = msgs.slice(lastSeenCountRef.current);
-        const hasNewFromOther = newMsgs.some(m => m.senderId !== currentUser.uid);
-        if (hasNewFromOther && !isChatOpen) {
+      
+      if (initialLoadRef.current) {
+        initialLoadRef.current = false;
+        lastSeenCountRef.current = msgs.length;
+        if (msgs.length > 0 && msgs[msgs.length - 1].senderId !== currentUser.uid && !isChatOpenRef.current) {
           setHasUnreadChat(true);
         }
-        // Only advance the counter when chat is open (messages are "seen")
-        if (isChatOpen) {
-          lastSeenCountRef.current = msgs.length;
+      } else {
+        if (msgs.length > lastSeenCountRef.current) {
+          const newMsgs = msgs.slice(lastSeenCountRef.current);
+          const hasNewFromOther = newMsgs.some(m => m.senderId !== currentUser.uid);
+          
+          if (hasNewFromOther && !isChatOpenRef.current) {
+            setHasUnreadChat(true);
+            try {
+              const audio = new Audio('/notification.mp3');
+              audio.play().catch(e => console.log('Audio play error:', e));
+            } catch(e) {}
+          }
+          
+          // Only advance the counter when chat is open (messages are "seen")
+          if (isChatOpenRef.current) {
+            lastSeenCountRef.current = msgs.length;
+          }
         }
       }
     });

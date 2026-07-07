@@ -455,7 +455,7 @@ function LandingPage() {
             </button>
             {!window.Capacitor?.isNativePlatform?.() && (
               <a
-                href="https://github.com/Pachodev77/transportapp/releases/download/v1.0.0/app-debug.apk"
+                href="https://github.com/Pachodev77/transportapp/releases/download/v1.0.0/transportapp.apk"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full inline-flex items-center justify-center px-5 py-3 border-2 border-white text-base font-medium rounded-md text-white hover:bg-blue-600 transition-colors sm:w-auto"
