@@ -345,9 +345,8 @@ function Driver() {
   const [error, setError] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [hasUnreadChat, setHasUnreadChat] = useState(false);
-  const lastSeenCountRef = useRef(0);
+  const lastSeenMsgIdRef = useRef(null);
   const isChatOpenRef = useRef(isChatOpen);
-  const initialLoadRef = useRef(true);
 
   useEffect(() => {
     isChatOpenRef.current = isChatOpen;
@@ -357,42 +356,35 @@ function Driver() {
   useEffect(() => {
     const tripId = acceptedTrip?.id;
     if (!tripId || !currentUser) {
-      lastSeenCountRef.current = 0;
+      lastSeenMsgIdRef.current = null;
       return;
     }
-
-    // Reset when trip changes
-    lastSeenCountRef.current = 0;
-    initialLoadRef.current = true;
-    setHasUnreadChat(false);
 
     const messagesRef = collection(db, 'chats', tripId, 'messages');
     const q = query(messagesRef, orderBy('timestamp', 'asc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      
-      if (initialLoadRef.current) {
-        initialLoadRef.current = false;
-        lastSeenCountRef.current = msgs.length;
-        if (msgs.length > 0 && msgs[msgs.length - 1].senderId !== currentUser.uid && !isChatOpenRef.current) {
-          setHasUnreadChat(true);
-        }
-      } else {
-        if (msgs.length > lastSeenCountRef.current) {
-          const newMsgs = msgs.slice(lastSeenCountRef.current);
-          const hasNewFromOther = newMsgs.some(m => m.senderId !== currentUser.uid);
-          
-          if (hasNewFromOther && !isChatOpenRef.current) {
+      if (!snapshot.empty) {
+        const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        const lastMsg = lastDoc.data();
+        
+        if (isChatOpenRef.current) {
+          // If chat is open, just mark the latest as seen
+          lastSeenMsgIdRef.current = lastDoc.id;
+          setHasUnreadChat(false);
+        } else {
+          // If chat is closed and we have a new message from someone else
+          if (lastMsg.senderId !== currentUser.uid && lastSeenMsgIdRef.current !== lastDoc.id) {
+            lastSeenMsgIdRef.current = lastDoc.id;
             setHasUnreadChat(true);
             try {
-              const audio = new Audio('/notification.mp3');
-              audio.play().catch(e => console.log('Audio play error:', e));
+              // Use relative path for better compatibility in APKs
+              const audio = new Audio('notification.mp3');
+              const playPromise = audio.play();
+              if (playPromise !== undefined) {
+                playPromise.catch(e => console.log('Audio play error:', e));
+              }
             } catch(e) {}
-          }
-          
-          if (isChatOpenRef.current) {
-            lastSeenCountRef.current = msgs.length;
           }
         }
       }
@@ -409,7 +401,9 @@ function Driver() {
       const messagesRef = collection(db, 'chats', acceptedTrip.id, 'messages');
       const q = query(messagesRef, orderBy('timestamp', 'asc'));
       getDocs(q).then(snapshot => {
-        lastSeenCountRef.current = snapshot.size;
+        if (!snapshot.empty) {
+          lastSeenMsgIdRef.current = snapshot.docs[snapshot.docs.length - 1].id;
+        }
       });
     }
   }, [isChatOpen, acceptedTrip?.id]);
