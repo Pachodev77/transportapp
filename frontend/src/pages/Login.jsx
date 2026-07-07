@@ -106,7 +106,7 @@ export default function Login() {
   }
   
   function toggleAuthMode() {
-    setError('');
+    clearError();
     setIsLogin(!isLogin);
   }
 

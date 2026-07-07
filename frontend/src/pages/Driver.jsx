@@ -43,6 +43,7 @@ import Routing from '../components/Routing';
 import FitBoundsToMarkers from '../components/FitBoundsToMarkers';
 import Chat from '../components/Chat';
 import UserAvatar from '../components/UserAvatar';
+import { unlockAudio, playNotificationSound } from '../utils/audioNotification';
 
 // Fix for default marker icons
 const defaultIcon = new L.Icon({
@@ -348,6 +349,17 @@ function Driver() {
   const lastSeenMsgIdRef = useRef(null);
   const isChatOpenRef = useRef(isChatOpen);
 
+  // Unlock audio on first user interaction so it works in Capacitor WebView
+  useEffect(() => {
+    const handler = () => unlockAudio();
+    document.addEventListener('touchstart', handler, { once: true, passive: true });
+    document.addEventListener('click', handler, { once: true });
+    return () => {
+      document.removeEventListener('touchstart', handler);
+      document.removeEventListener('click', handler);
+    };
+  }, []);
+
   useEffect(() => {
     isChatOpenRef.current = isChatOpen;
   }, [isChatOpen]);
@@ -377,14 +389,7 @@ function Driver() {
           if (lastMsg.senderId !== currentUser.uid && lastSeenMsgIdRef.current !== lastDoc.id) {
             lastSeenMsgIdRef.current = lastDoc.id;
             setHasUnreadChat(true);
-            try {
-              // Use relative path for better compatibility in APKs
-              const audio = new Audio('notification.mp3');
-              const playPromise = audio.play();
-              if (playPromise !== undefined) {
-                playPromise.catch(e => console.log('Audio play error:', e));
-              }
-            } catch(e) {}
+            playNotificationSound();
           }
         }
       }

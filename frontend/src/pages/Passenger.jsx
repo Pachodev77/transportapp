@@ -36,6 +36,7 @@ import AddressInput from '../components/AddressInput';
 import Routing from '../components/Routing';
 import Chat from '../components/Chat';
 import FitBoundsToMarkers from '../components/FitBoundsToMarkers';
+import { unlockAudio, playNotificationSound } from '../utils/audioNotification';
 
 // Icons for map markers
 const defaultIcon = new L.Icon({
@@ -190,6 +191,17 @@ export default function Passenger() {
   const [tripToRate, setTripToRate] = useState(null);
   const hasShownRatingModal = useRef({});
   const [isMapCollapsed, setIsMapCollapsed] = useState(false);
+
+  // Unlock audio on first user interaction so it works in Capacitor WebView
+  useEffect(() => {
+    const handler = () => unlockAudio();
+    document.addEventListener('touchstart', handler, { once: true, passive: true });
+    document.addEventListener('click', handler, { once: true });
+    return () => {
+      document.removeEventListener('touchstart', handler);
+      document.removeEventListener('click', handler);
+    };
+  }, []);
 
   // Prefetch current user's photo so the map marker loads instantly
   useEffect(() => {
@@ -365,14 +377,7 @@ export default function Passenger() {
           if (lastMsg.senderId !== currentUser.uid && lastSeenMsgIdRef.current !== lastDoc.id) {
             lastSeenMsgIdRef.current = lastDoc.id;
             setHasUnreadChat(true);
-            try {
-              // Use relative path for better compatibility in APKs
-              const audio = new Audio('notification.mp3');
-              const playPromise = audio.play();
-              if (playPromise !== undefined) {
-                playPromise.catch(e => console.log('Audio play error:', e));
-              }
-            } catch(e) {}
+            playNotificationSound();
           }
         }
       }
