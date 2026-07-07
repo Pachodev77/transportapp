@@ -1,7 +1,7 @@
 export const STRINGS = {
   SOLICITAR_VIAJE: "Solicitar Viaje",
   BUSCAR_VIAJE: "Buscar viaje",
-  MIS_SOLICITUDES: "Mis solicitudes",
+  MIS_SOLICITUDES: "Solicitudes",
   MIS_VIAJES: "Mis viajes",
   ORIGEN: "Origen",
   DESTINO: "Destino",

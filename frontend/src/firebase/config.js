@@ -4,6 +4,7 @@ import {
   GoogleAuthProvider, 
   FacebookAuthProvider,
   setPersistence,
+  indexedDBLocalPersistence,
   browserLocalPersistence
 } from 'firebase/auth';
 import { 
@@ -74,14 +75,24 @@ try {
 export const initializePersistence = async () => {
   try {
     if (auth) {
-      await setPersistence(auth, browserLocalPersistence);
-      console.log('Auth persistence initialized');
+      // Use indexedDB persistence - works in both browser and Capacitor WebView
+      const isNative = !!(window.Capacitor?.isNativePlatform?.());
+      const persistence = isNative ? indexedDBLocalPersistence : browserLocalPersistence;
+      await setPersistence(auth, persistence);
+      console.log('Auth persistence initialized:', isNative ? 'indexedDB (native)' : 'localStorage (web)');
       return true;
     }
     return false;
   } catch (error) {
     console.error('Error initializing auth persistence:', error);
-    return false;
+    // Fallback: try indexedDB
+    try {
+      await setPersistence(auth, indexedDBLocalPersistence);
+      return true;
+    } catch (e) {
+      console.error('Fallback persistence also failed:', e);
+      return false;
+    }
   }
 };
 

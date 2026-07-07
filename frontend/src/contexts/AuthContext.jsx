@@ -5,10 +5,16 @@ import {
   signOut, 
   onAuthStateChanged,
   signInWithPopup,
+  signInWithCredential,
+  GoogleAuthProvider,
   sendPasswordResetEmail,
   updateProfile,
   browserPopupRedirectResolver
 } from 'firebase/auth';
+import { nativeGoogleSignIn } from '../plugins/NativeGoogleAuth';
+
+// Detect if running inside Capacitor (native Android/iOS app)
+const isNativeApp = () => !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 import { 
   auth, 
   googleProvider, 
@@ -122,14 +128,32 @@ export function AuthProvider({ children }) {
   
   const loginWithGoogle = useCallback(async () => {
     try {
+      if (isNativeApp()) {
+        // On Android: use native Google Sign-In SDK (no browser opened)
+        const { idToken } = await nativeGoogleSignIn();
+        const credential = GoogleAuthProvider.credential(idToken);
+        const result = await signInWithCredential(auth, credential);
+        const { user } = result;
+        if (user) {
+          await createOrUpdateUser(user.uid, {
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            role: 'passenger',
+            provider: 'google.com',
+            lastLogin: new Date().toISOString()
+          });
+        }
+        return result;
+      }
+
+      // On web browser: use popup
       const result = await signInWithPopup(
-        auth, 
+        auth,
         googleProvider,
         browserPopupRedirectResolver
       );
-      
       const { user } = result;
-      
       if (user) {
         await createOrUpdateUser(user.uid, {
           email: user.email,
@@ -140,12 +164,10 @@ export function AuthProvider({ children }) {
           lastLogin: new Date().toISOString()
         });
       }
-      
       return result;
     } catch (error) {
       console.error('Error al iniciar sesión con Google:', error);
       let errorMessage = 'Error al iniciar sesión con Google';
-      
       switch (error.code) {
         case 'auth/account-exists-with-different-credential':
           errorMessage = 'Ya existe una cuenta con el mismo correo pero con otro proveedor';
@@ -157,18 +179,24 @@ export function AuthProvider({ children }) {
           errorMessage = 'Solicitud de autenticación cancelada';
           break;
         case 'auth/popup-blocked':
-          errorMessage = 'El navegador bloqueó la ventana emergente. Por favor, permite ventanas emergentes para este sitio';
+          errorMessage = 'El navegador bloqueó la ventana emergente';
           break;
         default:
           errorMessage = error.message || errorMessage;
       }
-      
       throw new Error(errorMessage);
     }
   }, [createOrUpdateUser]);
   
   const loginWithFacebook = useCallback(async () => {
     try {
+      if (isNativeApp()) {
+        // On Android/iOS: use redirect flow (stays within the app WebView)
+        await signInWithRedirect(auth, facebookProvider);
+        return null;
+      }
+
+      // On web browser: use popup as usual
       const result = await signInWithPopup(
         auth, 
         facebookProvider,
@@ -292,6 +320,12 @@ export function AuthProvider({ children }) {
       }
     }
   }, [createOrUpdateUser, db]);
+
+  // Handle redirect result after Google/Facebook sign-in on native app
+  // (Only runs when there's no native plugin support - fallback)
+  useEffect(() => {
+    // No longer needed - native plugin handles this directly
+  }, []);
 
   useEffect(() => {
     let isMounted = true;

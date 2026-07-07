@@ -446,12 +446,27 @@ function LandingPage() {
           <p className="mt-4 text-lg leading-6 text-blue-200">
             Miles de personas ya están ahorrando dinero y viajando de forma más inteligente con TransportApp.
           </p>
-          <button
-            onClick={() => navigate('/login')}
-            className="mt-8 w-full inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50 sm:w-auto"
-          >
-            Comenzar ahora
-          </button>
+          <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
+            <button
+              onClick={() => navigate('/login')}
+              className="w-full inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50 sm:w-auto"
+            >
+              Comenzar ahora
+            </button>
+            {!window.Capacitor?.isNativePlatform?.() && (
+              <a
+                href="https://drive.google.com/uc?export=download&id=TU_ID_DE_GOOGLE_DRIVE"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full inline-flex items-center justify-center px-5 py-3 border-2 border-white text-base font-medium rounded-md text-white hover:bg-blue-600 transition-colors sm:w-auto"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Descargar APK
+              </a>
+            )}
+          </div>
         </div>
       </div>
     </div>

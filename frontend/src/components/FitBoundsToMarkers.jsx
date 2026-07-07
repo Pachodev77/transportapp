@@ -13,7 +13,7 @@ const FitBoundsToMarkers = ({ points }) => {
     if (validPoints.length > 0) {
       const bounds = L.latLngBounds(validPoints.map(p => [p.lat, p.lng]));
       console.log('DEBUG: Calculated bounds:', bounds);
-      map.flyToBounds(bounds, { padding: [50, 50], duration: 1.5, easeLinearity: 0.5 });
+      map.flyToBounds(bounds, { padding: [50, 50], duration: 1.5, easeLinearity: 0.5, maxZoom: 16 });
       console.log('DEBUG: map.flyToBounds called.');
     } else {
       console.log('DEBUG: No valid points to fit bounds.');

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap, Polyline } from 'react-leaflet';
 import { FaCar, FaMapMarkerAlt, FaClock, FaUser, FaMoneyBillWave, FaStar, FaPlus, FaCheck, FaTimes, FaSpinner, FaCommentDots, FaMap } from 'react-icons/fa';
+import { Geolocation } from '@capacitor/geolocation';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   getRideRequestsByStatus,
@@ -81,7 +82,7 @@ const passengerIcon = createMarkerIcon(createIconContent('fa-solid fa-person'), 
 
 const createPhotoMarkerIcon = (photoURL, fallbackLetter, borderColor = '#2ecc71', animate = false) => {
   const inner = photoURL
-    ? `<img src="${photoURL}" style="width:46px;height:46px;border-radius:50%;object-fit:cover;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+    ? `<img src="${photoURL}" loading="lazy" decoding="async" style="width:46px;height:46px;border-radius:50%;object-fit:cover;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
        <div style="display:none;width:46px;height:46px;border-radius:50%;background:${borderColor};align-items:center;justify-content:center;font-size:20px;font-weight:bold;color:white;">${fallbackLetter || '?'}</div>`
     : `<div style="width:46px;height:46px;border-radius:50%;background:${borderColor};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold;color:white;">${fallbackLetter || '?'}</div>`;
 
@@ -222,35 +223,70 @@ function Driver() {
   const [locationError, setLocationError] = useState(null);
   const [showPickupAlert, setShowPickupAlert] = useState(false);
 
+  // Prefetch current user's photo so the map marker loads instantly
   useEffect(() => {
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setCurrentPosition([latitude, longitude]);
-        if (locationError) setLocationError(null); // Clear error on success
-        if (currentUser) {
-          const locationRef = doc(db, 'locations', currentUser.uid);
-          setDoc(locationRef, { 
-            location: new GeoPoint(latitude, longitude),
-            updatedAt: serverTimestamp(),
-          });
+    if (currentUser?.photoURL) {
+      const img = new Image();
+      img.src = currentUser.photoURL;
+    }
+  }, [currentUser?.photoURL]);
+
+  useEffect(() => {
+    let watchId = null;
+
+    const startWatching = async () => {
+      try {
+        if (window.Capacitor?.isNativePlatform?.()) {
+          try {
+            await Geolocation.requestPermissions();
+          } catch (permError) {
+            console.warn('Could not request permissions explicitly:', permError);
+          }
         }
-      },
-      (error) => {
-        setLocationError(`No se pudo obtener la ubicación (Código: ${error.code}). Se utilizará una ubicación aproximada.`);
+        
+        watchId = await Geolocation.watchPosition(
+          {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 10000,
+          },
+          (position, error) => {
+            if (error) {
+              console.warn("Watch position error:", error);
+              // Ignore timeouts (code 3) as the GPS might just be taking a bit longer to lock
+              if (error.code !== 3 && error.code !== 'TIMEOUT') {
+                setLocationError(`Buscando señal GPS...`);
+              }
+              return;
+            }
+            if (position) {
+              const { latitude, longitude } = position.coords;
+              setCurrentPosition([latitude, longitude]);
+              if (locationError) setLocationError(null);
+              if (currentUser) {
+                const locationRef = doc(db, 'locations', currentUser.uid);
+                setDoc(locationRef, { 
+                  location: new GeoPoint(latitude, longitude),
+                  updatedAt: serverTimestamp(),
+                });
+              }
+            }
+          }
+        );
+      } catch (error) {
+        setLocationError(`Error al solicitar ubicación: ${error.message}`);
         setCurrentPosition(prev => prev || [4.6097, -74.0817]);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 10000,
       }
-    );
+    };
+
+    startWatching();
 
     return () => {
-      navigator.geolocation.clearWatch(watchId);
+      if (watchId != null) {
+        Geolocation.clearWatch({ id: watchId }).catch(console.error);
+      }
     };
-  }, [currentUser]);
+  }, [currentUser, locationError]);
 
   // Auto-dismiss location error
   useEffect(() => {
@@ -265,6 +301,7 @@ function Driver() {
   const intervalRef = useRef(null); // Use a ref to store the interval ID
   const isTripActiveRef = useRef(false); // New ref to track if trip was active in previous render
   const [acceptedTrip, setAcceptedTrip] = useState(null);
+  const [selectedAvailableTripId, setSelectedAvailableTripId] = useState(null);
 
   useEffect(() => {
     const currentTripActive = acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress');
@@ -422,6 +459,73 @@ function Driver() {
 
     return () => unsubscribe();
   }, [currentUser]);
+
+  // Calculate distance between two coordinates in km (Haversine formula approximation)
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // Effect to automatically center the map on the closest available trip (A and B)
+  useEffect(() => {
+    // If there is an active trip, don't interfere (the other effect handles active trip centering)
+    if (acceptedTrip && (acceptedTrip.status === 'accepted' || acceptedTrip.status === 'in_progress')) {
+      return;
+    }
+
+    if (activeTab === 'available' && availableTrips.length > 0 && currentPosition) {
+      let targetTrip = null;
+
+      if (selectedAvailableTripId) {
+        targetTrip = availableTrips.find(t => t.id === selectedAvailableTripId);
+      }
+
+      if (!targetTrip) {
+        // Find the closest trip to the driver
+        const closestTrip = [...availableTrips].reduce((closest, trip) => {
+          const originCoords = processCoords(trip.origin?.coordinates);
+          if (!originCoords) return closest;
+          
+          const distance = calculateDistance(
+            currentPosition[0], currentPosition[1],
+            originCoords.lat, originCoords.lng
+          );
+          
+          if (!closest || distance < closest.distance) {
+            return { trip, distance };
+          }
+          return closest;
+        }, null);
+        targetTrip = closestTrip ? closestTrip.trip : null;
+      }
+
+      if (targetTrip) {
+        const points = [];
+        
+        // Include Trip Origin (A)
+        const originCoords = processCoords(targetTrip.origin?.coordinates);
+        if (originCoords) points.push(originCoords);
+        
+        // Include Trip Destination (B)
+        const destCoords = processCoords(targetTrip.destination?.coordinates);
+        if (destCoords) points.push(destCoords);
+
+        setPointsToFit(points.filter(p => p && p.lat && p.lng));
+        setMapViewMode('allPoints'); // Force map to zoom to these bounds
+      }
+    } else if (activeTab === 'available') {
+      // No available trips, just show driver
+      setPointsToFit(null);
+      setMapViewMode('currentLocation');
+    }
+  }, [availableTrips, activeTab, currentPosition, acceptedTrip, processCoords, selectedAvailableTripId]);
 
   const handleLocationSelect = (latlng) => {
     if (!origin) {
@@ -608,23 +712,27 @@ function Driver() {
             {/* Tabs - Visibles en móviles y escritorio */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
               
-              <div className="flex border-b dark:border-gray-700 mb-4 space-x-2 overflow-x-auto">
-                <Button 
-                  className={`flex-1 min-w-max py-2 px-2 text-sm font-medium whitespace-nowrap ${
-                    activeTab === 'available' ? 'text-primary border-b-2 border-primary' : 'text-secondary dark:text-gray-400'
+              <div className="flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1 mb-4 gap-1">
+                <button 
+                  className={`flex-1 py-2 px-1 text-xs font-semibold text-center rounded-md transition-all duration-200 ${
+                    activeTab === 'available' 
+                      ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm' 
+                      : 'text-gray-700 dark:text-gray-200 bg-transparent'
                   }`}
                   onClick={() => setActiveTab('available')}
                 >
                   {STRINGS.VIAJES_DISPONIBLES}
-                </Button>
-                <Button 
-                  className={`flex-1 min-w-max py-2 px-2 text-sm font-medium whitespace-nowrap ${
-                    activeTab === 'my-trips' ? 'text-primary border-b-2 border-primary' : 'text-secondary dark:text-gray-400'
+                </button>
+                <button 
+                  className={`flex-1 py-2 px-1 text-xs font-semibold text-center rounded-md transition-all duration-200 ${
+                    activeTab === 'my-trips' 
+                      ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm' 
+                      : 'text-gray-700 dark:text-gray-200 bg-transparent'
                   }`}
                   onClick={() => setActiveTab('my-trips')}
                 >
                   {STRINGS.MIS_VIAJES}
-                </Button>
+                </button>
               </div>
               
               {/* Available Trips Tab */}
@@ -636,7 +744,11 @@ function Driver() {
                   ) : (
                     <div className="space-y-4">
                       {availableTrips.map((trip) => (
-                        <div key={trip.id} className="border dark:border-gray-700 rounded-lg p-4 space-y-3">
+                        <div 
+                          key={trip.id} 
+                          className={`border dark:border-gray-700 rounded-lg p-4 space-y-3 cursor-pointer transition-colors ${selectedAvailableTripId === trip.id ? 'ring-2 ring-blue-500 border-transparent dark:bg-gray-800' : 'hover:border-blue-400 dark:hover:border-blue-500'}`}
+                          onClick={() => setSelectedAvailableTripId(trip.id)}
+                        >
                           <div className="flex items-center">
                             <FaMapMarkerAlt className="text-danger mr-2 w-4" />
                             <span className="truncate dark:text-gray-300">{trip.origin?.address || STRINGS.ORIGEN_NO_ESPECIFICADO}</span>
@@ -857,7 +969,7 @@ function Driver() {
                 url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
               />
               {mapViewMode === 'allPoints' && pointsToFit && pointsToFit.length > 0 && (
-                <FitBoundsToMarkers points={pointsToFit} />
+                <FitBoundsToMarkers key={`fit-bounds-${selectedAvailableTripId || 'default'}-${Date.now()}`} points={pointsToFit} />
               )}
               {currentPosition && (
                 <Marker 

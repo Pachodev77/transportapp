@@ -5,7 +5,7 @@ import { resolve } from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/', // Usar ruta raíz para el enrutamiento del cliente
+  base: './', // Rutas relativas para compatibilidad con Capacitor/Android
   plugins: [
     react(),
   ],

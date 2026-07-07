@@ -1,60 +1,63 @@
 import { useEffect, useState } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
-import 'leaflet-routing-machine';
 
 const Routing = ({ origin, destination }) => {
   const map = useMap();
-  const [routingControl, setRoutingControl] = useState(null);
+  const [polyline, setPolyline] = useState(null);
 
   useEffect(() => {
-    if (!map) return;
+    if (!map || !origin || !destination) return;
 
-    const control = L.Routing.control({
-      waypoints: [], // Start with empty waypoints
-      routeWhileDragging: false,
-      show: false,
-      addWaypoints: false,
-      createMarker: () => null,
-      lineOptions: {
-        styles: [{ color: '#6FA1EC', opacity: 1, weight: 5 }]
-      },
-      fitSelectedRoutes: false, // Disable automatic map fitting to the route
-      autoRoute: false // Prevent automatic route calculation
-    }).addTo(map);
+    let currentPolyline = null;
+    let isMounted = true;
 
-    setRoutingControl(control);
+    const fetchRoute = async () => {
+      try {
+        // Fetch route with alternatives=true to get multiple options
+        const url = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson&alternatives=true`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
 
-    // Cleanup: remove the control when the component unmounts
-    return () => {
-      if (map && control) {
-        map.removeControl(control);
+        if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+          // Find the route with the shortest physical distance
+          const shortestRoute = data.routes.reduce((shortest, current) => {
+            return current.distance < shortest.distance ? current : shortest;
+          }, data.routes[0]);
+
+          if (isMounted) {
+            // Convert GeoJSON coordinates [lng, lat] to Leaflet coordinates [lat, lng]
+            const latLngs = shortestRoute.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+            
+            // Create and add the polyline
+            currentPolyline = L.polyline(latLngs, {
+              color: '#6FA1EC',
+              weight: 5,
+              opacity: 1
+            }).addTo(map);
+            
+            setPolyline(currentPolyline);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching route:', error);
       }
     };
-  }, [map]); // Effect runs only once when the map is ready
 
-  useEffect(() => {
-    // This effect runs when origin or destination changes
-    if (routingControl) {
-      const handler = setTimeout(() => {
-        if (origin && destination) {
-          // Set waypoints if we have both
-          routingControl.setWaypoints([
-            L.latLng(origin.lat, origin.lng),
-            L.latLng(destination.lat, destination.lng)
-          ]);
-          routingControl.route(); // Manually trigger route calculation
-        } else {
-          // Otherwise, clear the waypoints
-          routingControl.setWaypoints([]);
-        }
-      }, 500); // Debounce for 500ms
+    // Debounce the fetch slightly
+    const handler = setTimeout(() => {
+      fetchRoute();
+    }, 500);
 
-      return () => {
-        clearTimeout(handler);
-      };
-    }
-  }, [routingControl, origin, destination]);
+    return () => {
+      isMounted = false;
+      clearTimeout(handler);
+      if (currentPolyline && map) {
+        map.removeLayer(currentPolyline);
+      }
+    };
+  }, [map, origin, destination]);
 
   return null;
 };

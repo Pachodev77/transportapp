@@ -23,6 +23,7 @@ import {
   runTransaction,
   arrayUnion
 } from 'firebase/firestore';
+import { Geolocation } from '@capacitor/geolocation';
 import UserAvatar from '../components/UserAvatar';
 import { db, createRideRequest, subscribeToRideRequests, updateRideRequestStatus, getUserRideRequests, subscribeToPassengerRideRequestUpdates } from '../firebase/config';
 import { useAuth } from '../contexts/AuthContext';
@@ -74,7 +75,7 @@ const passengerIcon = createMarkerIcon(createIconContent('fa-solid fa-person'), 
 
 const createPhotoMarkerIcon = (photoURL, fallbackLetter, borderColor = '#2ecc71', animate = false) => {
   const inner = photoURL
-    ? `<img src="${photoURL}" style="width:46px;height:46px;border-radius:50%;object-fit:cover;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+    ? `<img src="${photoURL}" loading="lazy" decoding="async" style="width:46px;height:46px;border-radius:50%;object-fit:cover;display:block;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
        <div style="display:none;width:46px;height:46px;border-radius:50%;background:${borderColor};align-items:center;justify-content:center;font-size:20px;font-weight:bold;color:white;">${fallbackLetter || '?'}</div>`
     : `<div style="width:46px;height:46px;border-radius:50%;background:${borderColor};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold;color:white;">${fallbackLetter || '?'}</div>`;
 
@@ -189,6 +190,14 @@ export default function Passenger() {
   const [tripToRate, setTripToRate] = useState(null);
   const hasShownRatingModal = useRef({});
   const [isMapCollapsed, setIsMapCollapsed] = useState(false);
+
+  // Prefetch current user's photo so the map marker loads instantly
+  useEffect(() => {
+    if (currentUser?.photoURL) {
+      const img = new Image();
+      img.src = currentUser.photoURL;
+    }
+  }, [currentUser?.photoURL]);
 
   // Handle rating a trip
   const handleRateTrip = async (ratingData) => {
@@ -377,7 +386,7 @@ export default function Passenger() {
 
   // Effect to update points to fit when a trip is active
   useEffect(() => {
-    if (selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress')) {
+    if (selectedTrip && (selectedTrip.status === 'pending' || selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress')) {
       const points = [];
       
       // 1. Passenger's current position
@@ -418,7 +427,7 @@ export default function Passenger() {
       intervalRef.current = null;
     }
 
-    if (selectedTrip && (selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress')) {
+    if (selectedTrip && (selectedTrip.status === 'pending' || selectedTrip.status === 'accepted' || selectedTrip.status === 'in_progress')) {
       // If a trip is active, start alternating, starting with 'allPoints'
       setMapViewMode('allPoints'); // Start with all points when trip becomes active
       intervalRef.current = setInterval(() => {
@@ -469,7 +478,7 @@ export default function Passenger() {
       setMyRideRequests(rideRequests);
 
       const activeTrip = rideRequests.find(
-        request => request.status === 'accepted' || request.status === 'in_progress'
+        request => request.status === 'pending' || request.status === 'accepted' || request.status === 'in_progress'
       );
       setSelectedTrip(activeTrip || null);
 
@@ -498,34 +507,61 @@ export default function Passenger() {
   }, [selectedTrip]);
 
   useEffect(() => {
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setCurrentPosition([latitude, longitude]);
-        if (locationError) setLocationError(null);
-        if (currentUser) {
-          const locationRef = doc(db, 'locations', currentUser.uid);
-          setDoc(locationRef, { 
-            location: new GeoPoint(latitude, longitude),
-            updatedAt: serverTimestamp(),
-          });
+    let watchId = null;
+
+    const startWatching = async () => {
+      try {
+        if (window.Capacitor?.isNativePlatform?.()) {
+          try {
+            await Geolocation.requestPermissions();
+          } catch (permError) {
+            console.warn('Could not request permissions explicitly:', permError);
+          }
         }
-      },
-      (error) => {
-        setLocationError(`No se pudo obtener la ubicación (Código: ${error.code}). Se utilizará una ubicación aproximada.`);
+        
+        watchId = await Geolocation.watchPosition(
+          {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 10000,
+          },
+          (position, error) => {
+            if (error) {
+              console.warn("Watch position error:", error);
+              // Ignore timeouts (code 3) as the GPS might just be taking a bit longer to lock
+              if (error.code !== 3 && error.code !== 'TIMEOUT') {
+                setLocationError(`Buscando señal GPS...`);
+              }
+              return;
+            }
+            if (position) {
+              const { latitude, longitude } = position.coords;
+              setCurrentPosition([latitude, longitude]);
+              if (locationError) setLocationError(null);
+              if (currentUser) {
+                const locationRef = doc(db, 'locations', currentUser.uid);
+                setDoc(locationRef, { 
+                  location: new GeoPoint(latitude, longitude),
+                  updatedAt: serverTimestamp(),
+                });
+              }
+            }
+          }
+        );
+      } catch (error) {
+        setLocationError(`Error al solicitar ubicación: ${error.message}`);
         setCurrentPosition(prev => prev || [4.6097, -74.0817]);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 10000,
       }
-    );
+    };
+
+    startWatching();
 
     return () => {
-      navigator.geolocation.clearWatch(watchId);
+      if (watchId != null) {
+        Geolocation.clearWatch({ id: watchId }).catch(console.error);
+      }
     };
-  }, [currentUser]);
+  }, [currentUser, locationError]);
 
   // Auto-dismiss location error
   useEffect(() => {
@@ -831,19 +867,19 @@ export default function Passenger() {
             {/* Tabs - Visibles en móviles y escritorio */}
             <div className='bg-white dark:bg-gray-800 rounded-lg shadow-md p-6'>
               
-              <div className='flex border-b mb-4 space-x-2 overflow-x-auto'>
+              <div className='flex bg-gray-200 dark:bg-gray-700 rounded-lg p-1 mb-4 gap-1'>
                 {tabs.map((tab) => (
-                  <Button 
+                  <button 
                     key={tab.id}
-                    className={`flex-1 min-w-max py-2 px-2 text-sm font-medium whitespace-nowrap ${
+                    className={`flex-1 py-2 px-1 text-xs font-semibold text-center rounded-md transition-all duration-200 ${
                       activeTab === tab.id 
-                        ? 'text-primary border-b-2 border-primary' 
-                        : 'text-secondary hover:text-primary transition-colors'
+                        ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm' 
+                        : 'text-gray-700 dark:text-gray-200 bg-transparent'
                     }`}
                     onClick={() => setActiveTab(tab.id)}
                   >
                     {tab.name}
-                  </Button>
+                  </button>
                 ))}
               </div>
 

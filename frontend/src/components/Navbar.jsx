@@ -215,12 +215,16 @@ export default function Navbar() {
                   </span>
                   <div className="relative group">
                     <button 
-                      className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      className="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 overflow-hidden"
                       onClick={() => setIsOpen(!isOpen)}
                     >
-                      <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300">
-                        <FaUser className="h-5 w-5" />
-                      </div>
+                      {currentUser.photoURL ? (
+                        <img src={currentUser.photoURL} alt={currentUser.displayName || 'Usuario'} className="h-8 w-8 object-cover rounded-full bg-white" />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300">
+                          <FaUser className="h-5 w-5" />
+                        </div>
+                      )}
                     </button>
                     {isOpen && (
                       <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
@@ -285,9 +289,13 @@ export default function Navbar() {
               <div className="space-y-3">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300">
-                      <FaUser className="h-6 w-6" />
-                    </div>
+                    {currentUser.photoURL ? (
+                      <img src={currentUser.photoURL} alt={currentUser.displayName || 'Usuario'} className="h-10 w-10 object-cover rounded-full bg-white shadow-sm" />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300">
+                        <FaUser className="h-6 w-6" />
+                      </div>
+                    )}
                   </div>
                   <div className="ml-3">
                     <div className="text-base font-medium text-gray-800 dark:text-gray-200">

@@ -8,6 +8,7 @@ node_modules/
 # Build files
 /dist
 /build
+frontend/dist/
 
 # Logs
 logs
@@ -35,3 +36,16 @@ ehthumbs.db
 Thumbs.db
 
 .vercel
+
+# Android build outputs (large files)
+frontend/android/app/build/
+frontend/android/.gradle/
+frontend/android/build/
+*.apk
+*.aab
+
+# Capacitor temp files
+frontend/vite.config.js.timestamp-*
+
+# Capacitor assets (generated from source icon)
+frontend/assets/
